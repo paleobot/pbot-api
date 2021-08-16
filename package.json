@@ -1,0 +1,17 @@
+{
+  "name": "neo4j-graphql-js-play",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Douglas Meredith <douglasm@arizona.edu>",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "apollo-server": "^2.25.2",
+    "apollo-server-express": "^2.25.2",
+    "neo4j-graphql-js": "^2.19.4"
+  },
+  "type": "module"
+}

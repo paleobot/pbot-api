@@ -1,0 +1,180 @@
+scalar DateTime
+
+""" These unions are a way for a property to hold references to different types """
+union Enterable = Person | Reference | Schema | Character | State
+
+union Authorable = Reference | Schema
+
+union Statable = Character | State
+
+""" Note that I had to use the cypher directive to populate the entered property.
+    Ideally, this would be handled by a relation directive, but that does not appear to
+    work with unions. """
+type Person {
+    personID: ID!
+    given: String
+    surname: String
+    email: String
+    orcid: String
+    entered:   [Enterable] @cypher(
+      statement: "match (n)-[:ENTERED_BY]->(this) return n"
+    )
+    authored: [Authorable!]! @relation(name: "AUTHORED_BY", direction: IN)
+}
+
+type Reference {
+    referenceID: ID!
+    title: String
+    year: String
+    publisher: String
+    doi: String
+    citedBy: [Schema!]! @relation(name: "CITED_BY", direction: OUT)
+    authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
+    enteredBy: [ReferenceEnteredBy]
+}
+
+type Schema {
+    schemaID: ID!
+    title: String
+    year: String
+    cites: [Reference!]! @relation(name: "CITED_BY", direction: IN)
+    characters: [Character] @relation(name: "CHARACTER_OF", direction: IN)
+    authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
+    enteredBy: [SchemaEnteredBy]
+}
+
+type Character {
+    characterID: ID!
+    name: String
+    characterOfSchema: Schema! @relation(name: "CHARACTER_OF", direction: OUT)
+    states: [State!]! @relation(name: "STATE_OF", direction: IN)
+    characterInstances: [CharacterInstance!]! @relation(name: "INSTANCE_OF" direction: IN)
+    enteredBy: [CharacterEnteredBy]
+}
+
+type State {
+    stateID: ID!
+    name: String
+    definition: String
+    stateOf: [Statable!]! @relation(name: "STATE_OF", direction: OUT)
+    states: [State!]! @relation(name: "STATE_OF", direction: IN)
+    characterInstances: [HasState]
+    enteredBy: [StateEnteredBy]
+}
+
+""" Description Complex types """
+type Organ {
+    organID: ID!
+    type: String
+    specimens: [Specimen!]! @relation(name: "IS_TYPE" direction: IN)
+    enteredBy: [OrganEnteredBy]
+}
+
+type Description {
+    descriptionID: ID!
+    type: String
+	name: String
+	family: String
+	genus: String
+	species: String
+    characterInstances: [CharacterInstance!]! @relation(name: "DEFINED_BY", direction: OUT)
+    candidateCharacterInstances: [CharacterInstance!]! @relation(name: "CANDIDATE_FOR", direction: IN)
+    exampleSpecimens: [ExampleOf!]!
+    specimen: DescribedBy
+    enteredBy: [DescriptionEnteredBy]
+}
+
+type CharacterInstance {
+    characterInstanceID: ID!
+    character: Character @relation(name: "INSTANCE_OF", direction: OUT)
+    state: HasState
+    candidateForArchtype: Description @relation(name: "CANDIDATE_FOR", direction: OUT)
+    description: Description @relation(name: "DEFINED_BY" direction: IN)
+    enteredBy: [CharacterInstanceEnteredBy]
+}
+
+type Specimen {
+    specimenID: ID!
+    name: String
+    organ: Organ @relation(name: "IS_TYPE", direction: OUT)
+    description: DescribedBy
+    archtypeDescription: ExampleOf
+    enteredBy: [SpecimenEnteredBy]
+}
+
+""" In order to access relationship properties, the relationship must be specified with a standalone type.
+    Ideally, there would be one of these for the ENTERED_BY relationship, with the Enterable union in the
+    from property. That does not work. So, I've had to resort to creating a separate type for each node type
+    that could be in the from property. I'm not sure of the cons here. It looks like crap though. """
+type ReferenceEnteredBy @relation(name: "ENTERED_BY") {
+  from: Reference
+  to: Person
+  timestamp: DateTime
+}
+
+type SchemaEnteredBy @relation(name: "ENTERED_BY") {
+  from: Schema
+  to: Person
+  timestamp: DateTime
+}
+
+type CharacterEnteredBy @relation(name: "ENTERED_BY") {
+  from: Character
+  to: Person
+  timestamp: DateTime
+}
+
+type StateEnteredBy @relation(name: "ENTERED_BY") {
+  from: State
+  to: Person
+  timestamp: DateTime
+}
+
+type OrganEnteredBy @relation(name: "ENTERED_BY") {
+  from: Organ
+  to: Person
+  timestamp: DateTime
+}
+
+type DescriptionEnteredBy @relation(name: "ENTERED_BY") {
+  from: Description
+  to: Person
+  timestamp: DateTime
+}
+
+type CharacterInstanceEnteredBy @relation(name: "ENTERED_BY") {
+  from: CharacterInstance
+  to: Person
+  timestamp: DateTime
+}
+
+type SpecimenEnteredBy @relation(name: "ENTERED_BY") {
+  from: Specimen
+  to: Person
+  timestamp: DateTime
+}
+
+
+""" HAS_STATE for access to value """
+type HasState @relation(name: "HAS_STATE") {
+    from: CharacterInstance
+    to: State
+    value: String
+}
+
+
+""" EXAMPLE_OF for access to entered_by and timestamp """
+type ExampleOf @relation(name: "EXAMPLE_OF") {
+    from: Specimen
+    to: Description
+    entered_by: ID!
+    timestamp: DateTime
+}
+
+""" DESCRIBED_BY for access to entered_by and timestamp """
+type DescribedBy @relation(name: "DESCRIBED_BY") {
+    from: Specimen
+    to: Description
+    entered_by: ID!
+    timestamp: DateTime
+}

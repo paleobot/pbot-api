@@ -1,0 +1,57 @@
+scalar DateTime
+
+interface Enterable {
+    enteredBy: [Person!]! @relation(name: "ENTERED_BY", direction: OUT)
+}
+
+union Authorable = Reference | Schema
+
+union Statable = Character | State
+
+type Person {
+    personID: ID!
+    given: String
+    surname: String
+    email: String
+    orcid: String
+    entered: [Enterable!]! @relation(name: "ENTERED_BY", direction: IN)
+    authored: [Authorable!]! @relation(name: "AUTHORED_BY", direction: IN)
+}
+
+type Reference implements Enterable {
+    referenceID: ID!
+    title: String
+    year: String
+    publisher: String
+    doi: String
+    citedBy: [Schema!]! @relation(name: "CITED_BY", direction: OUT)
+    authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
+    enteredBy: [Person!]! @relation(name: "ENTERED_BY", direction: OUT)
+}
+
+type Schema  implements Enterable {
+    schemaID: ID!
+    title: String
+    year: String
+    cites: [Reference!]! @relation(name: "CITED_BY", direction: IN)
+    characters: [Character] @relation(name: "CHARACTER_OF", direction: IN)
+    authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
+    enteredBy: [Person!]! @relation(name: "ENTERED_BY", direction: OUT)
+}
+
+type Character  implements Enterable {
+    characterID: ID!
+    name: String
+    characterOfSchema: Schema! @relation(name: "CHARACTER_OF", direction: OUT)
+    states: [State!]! @relation(name: "STATE_OF", direction: IN)
+    enteredBy: [Person!]! @relation(name: "ENTERED_BY", direction: OUT)
+}
+
+type State  implements Enterable {
+    stateID: ID!
+    name: String
+    definition: String
+    stateOf: [Statable!]! @relation(name: "STATE_OF", direction: OUT)
+    states: [State!]! @relation(name: "STATE_OF", direction: IN)
+    enteredBy: [Person!]! @relation(name: "ENTERED_BY", direction: OUT)
+}
