@@ -1,0 +1,3 @@
+DEBUG=pbot-api node index.js
+
+npm start

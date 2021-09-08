@@ -6,7 +6,38 @@ import { inferSchema } from 'neo4j-graphql-js';
 import fs from 'fs'
 import path from 'path'
 
+import passport from 'passport';
+import LocalStrategy from 'passport-local';
+import jwt from 'jsonwebtoken';
+
+passport.use(new LocalStrategy({
+        usernameField: 'username',
+        passwordField: 'password'
+    },
+    (username, password, done) => {
+        return done(null, {username: username});
+    }
+));
+
+
 const app = express()
+
+app.use(express.json());
+app.post('/login',
+    (req, res) => {
+        if (!req.body.username || !req.body.password) {
+            res.status(400).send({
+                code: 400, 
+                msg: "Please pass username and password",
+            });
+        } else {        
+            const token = jwt.sign({
+                username: req.body.username
+            }, 'secret', { expiresIn: '1h' });
+            res.json({ token: token }); //TODO: error handling and reporting through API
+        }
+    }
+);
 
 const typeDefs = fs
   .readFileSync(

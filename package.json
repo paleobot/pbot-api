@@ -11,7 +11,10 @@
   "dependencies": {
     "apollo-server": "^2.25.2",
     "apollo-server-express": "^2.25.2",
-    "neo4j-graphql-js": "^2.19.4"
+    "jsonwebtoken": "^8.5.1",
+    "neo4j-graphql-js": "^2.19.4",
+    "passport": "^0.4.1",
+    "passport-local": "^1.0.0"
   },
   "type": "module"
 }
