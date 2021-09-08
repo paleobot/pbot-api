@@ -178,3 +178,30 @@ type DescribedBy @relation(name: "DESCRIBED_BY") {
     entered_by: ID!
     timestamp: DateTime
 }
+
+
+input DescriptionInput {
+    type: String
+	name: String
+	family: String
+	genus: String
+	species: String
+	enteredByPersonID: String
+}
+type Mutation {
+  CustomCreateDescription(data: DescriptionInput!): Description!
+    @cypher(
+      statement: """
+      MATCH (person:Person {personID: $data.enteredByPersonID})
+      CREATE (description: Description {
+        descriptionID: apoc.create.uuid(),
+        type: $data.type,
+        name: $data.name,
+        family: $data.family,
+        genus: $data.genus,
+        species: $data.species
+      })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+      RETURN description
+      """
+    )
+}
