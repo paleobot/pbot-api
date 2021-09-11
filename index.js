@@ -1,4 +1,4 @@
-import { ApolloServer } from 'apollo-server-express'
+import { ApolloServer, ForbiddenError } from 'apollo-server-express'
 import express from 'express'
 import neo4j from 'neo4j-driver'
 import { makeAugmentedSchema } from 'neo4j-graphql-js';
@@ -6,19 +6,19 @@ import { inferSchema } from 'neo4j-graphql-js';
 import fs from 'fs'
 import path from 'path'
 
-import passport from 'passport';
-import LocalStrategy from 'passport-local';
 import jwt from 'jsonwebtoken';
+import ejwt from 'express-jwt';
+import unless from 'express-unless';
 
-passport.use(new LocalStrategy({
-        usernameField: 'username',
-        passwordField: 'password'
-    },
-    (username, password, done) => {
-        return done(null, {username: username});
+const getScope = (token) => {
+    console.log("getScope");
+    console.log(token);
+    if (token) {
+        return "ADMIN";
+    } else {
+        return "PEON";
     }
-));
-
+}
 
 const app = express()
 
@@ -77,6 +77,30 @@ console.log(schema._typeMap.Query);
  * instance into the context object so it is available in the
  * generated resolvers to connect to the database.
  */
+/*
+ * something about passing auth through context. 
+const server = new ApolloServer({
+    context: ({ req }) => {
+        return {
+            driver,
+            driverConfig: { database: process.env.NEO4J_DATABASE || 'neo4j' },
+            authScope: getScope(req.headers.authorization)
+        }
+    },
+    schema: schema,
+    resolvers: {
+        Mutation: 
+            (parent, args, context, info) => {
+                console.log(context.authScope);
+               if(context.authScope !== ADMIN) throw new AuthenticationError('not admin');            
+            }
+        
+    },
+    introspection: true,
+    playground: true,
+});
+*/
+
 const server = new ApolloServer({
   context: {
     driver,
@@ -91,6 +115,64 @@ const server = new ApolloServer({
 const port = process.env.GRAPHQL_SERVER_PORT || 4001
 const pth = process.env.GRAPHQL_SERVER_PATH || '/graphql'
 const host = process.env.GRAPHQL_SERVER_HOST || '0.0.0.0'
+
+/*
+app.post(pth, async (req, res, next) => {
+    console.log("here!");
+    if (req.body.query.match(/^mutation/)) {
+        console.log("mutation!");
+        const token = req.get("Authorization").replace(/^Bearer /, '');
+        console.log(token);
+        const payload = jwt.verify(token, 'secret');
+        console.log(payload.username);
+        //TODO: verify password
+        return next();
+        //return next(new ForbiddenError());
+        //return res.status(401).json({msg: "Not authorized"});
+    } else {
+        console.log("query");
+        return next();
+    }
+});
+*/
+const checkUser = (req, res, next) =>{
+    console.log(req.token);
+    if (req.token.username === "douglas") {
+        return next();
+    } else {
+        return res.status(401).send('Action not allowed');
+    }
+}
+checkUser.unless = unless;
+
+app.use(
+    ejwt({ 
+        secret: 'secret', 
+        algorithms: ['HS256'],
+        userProperty: 'token'
+    }).unless({
+        custom: req => {
+            if (req.body.query.match(/^mutation/)) {
+                console.log("mutation");
+                return false;
+            } else {
+                console.log("not mutation");
+                return true;
+            }
+        }
+    }),
+    checkUser.unless({
+        custom: req => {
+            if (req.body.query.match(/^mutation/)) {
+                console.log("mutation");
+                return false;
+            } else {
+                console.log("not mutation");
+                return true;
+            }
+        }
+    })
+);
 
 /*
  * Optionally, apply Express middleware for authentication, etc
