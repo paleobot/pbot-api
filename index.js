@@ -10,6 +10,10 @@ import jwt from 'jsonwebtoken';
 import ejwt from 'express-jwt';
 import unless from 'express-unless';
 
+import { applyMiddleware } from "graphql-middleware";
+
+import  permissions  from './permissions.js';
+
 const getScope = (token) => {
     console.log("getScope");
     console.log(token);
@@ -23,21 +27,59 @@ const getScope = (token) => {
 const app = express()
 
 app.use(express.json());
-app.post('/login',
-    (req, res) => {
-        if (!req.body.username || !req.body.password) {
-            res.status(400).send({
-                code: 400, 
-                msg: "Please pass username and password",
-            });
-        } else {        
-            const token = jwt.sign({
-                username: req.body.username
-            }, 'secret', { expiresIn: '1h' });
-            res.json({ token: token }); //TODO: error handling and reporting through API
+
+const getUser = async (driver, token) => {
+    console.log("getUser");
+    console.log(driver);
+    console.log(token);
+    if (token === '') return {surname: 'dummy'};
+    const decodedToken = jwt.verify(token.split(' ')[1], "secret");
+    console.log(decodedToken);
+    
+    const session = driver.session();
+    //The replace razzle-dazzle below is just to get a list of role strings rather than objects.
+    return session.run(`
+        MATCH 
+            (person:Person {email : $email})-[:HAS_ROLE]->(role:Role) 
+        RETURN 
+            person{
+                .given, 
+                .surname, 
+                .email, 
+                roles:collect(
+                    replace(
+                        replace(
+                            apoc.convert.toString(role{.name}), 
+                            "{name=", 
+                            ""
+                        ),
+                        "}",
+                        ""
+                    )
+                )
+            }           
+        `, {
+            email: decodedToken.username//'douglasm@arizona.edu'
         }
-    }
-);
+    )
+    .then(result => {
+        let user;
+        result.records.forEach(record => {
+            console.log(record.get('person'));
+            user = record.get('person');
+        })
+        //console.log(user.get('given') + " " + user.get('surname'));
+        console.log(user);
+        return user;
+    })
+    .catch(error => {
+        console.log(error)
+    })
+    .then((user) => {
+        session.close();
+        return user;
+    })    
+}
 
 const typeDefs = fs
   .readFileSync(
@@ -66,7 +108,7 @@ const driver = neo4j.driver(
 // generate CRUD GraphQL API using makeAugmentedSchema
 const schema = makeAugmentedSchema({
       typeDefs: typeDefs
-     });
+});
 
 console.log(schema);
 console.log(schema._typeMap.Query);
@@ -101,12 +143,39 @@ const server = new ApolloServer({
 });
 */
 
+/*
 const server = new ApolloServer({
   context: {
     driver,
     driverConfig: { database: process.env.NEO4J_DATABASE || 'neo4j' },
   },
   schema: schema,
+  introspection: true,
+  playground: true,
+})
+*/
+
+const server = new ApolloServer({
+  context:
+    async ({ req }) => {
+        console.log("setting up context");
+        // Get the user token from the headers.
+        const token = req.headers.authorization || '';
+        console.log(token);
+
+        // Try to retrieve a user with the token
+        const user = await getUser(driver, token);
+
+        console.log("From context, user");
+        console.log(user);
+        // Add the user to the context
+        return { 
+            user,
+            driver,
+            driverConfig: { database: process.env.NEO4J_DATABASE || 'neo4j' },
+        };
+    },   
+  schema: applyMiddleware(schema, permissions),
   introspection: true,
   playground: true,
 })
@@ -117,24 +186,6 @@ const pth = process.env.GRAPHQL_SERVER_PATH || '/graphql'
 const host = process.env.GRAPHQL_SERVER_HOST || '0.0.0.0'
 
 /*
-app.post(pth, async (req, res, next) => {
-    console.log("here!");
-    if (req.body.query.match(/^mutation/)) {
-        console.log("mutation!");
-        const token = req.get("Authorization").replace(/^Bearer /, '');
-        console.log(token);
-        const payload = jwt.verify(token, 'secret');
-        console.log(payload.username);
-        //TODO: verify password
-        return next();
-        //return next(new ForbiddenError());
-        //return res.status(401).json({msg: "Not authorized"});
-    } else {
-        console.log("query");
-        return next();
-    }
-});
-*/
 const checkUser = (req, res, next) =>{
     console.log(req.token);
     if (req.token.username === "douglas") {
@@ -152,7 +203,7 @@ app.use(
         userProperty: 'token'
     }).unless({
         custom: req => {
-            if (req.body.query.match(/^mutation/)) {
+            if (req.body.query && req.body.query.match(/^mutation/)) {
                 console.log("mutation");
                 return false;
             } else {
@@ -163,7 +214,7 @@ app.use(
     }),
     checkUser.unless({
         custom: req => {
-            if (req.body.query.match(/^mutation/)) {
+            if (req.body.query && req.body.query.match(/^mutation/)) {
                 console.log("mutation");
                 return false;
             } else {
@@ -173,12 +224,29 @@ app.use(
         }
     })
 );
+*/
 
 /*
  * Optionally, apply Express middleware for authentication, etc
  * This also also allows us to specify a path for the GraphQL endpoint
  */
 server.applyMiddleware({ app, pth })
+
+app.post('/login',
+    (req, res) => {
+        if (!req.body.username || !req.body.password) {
+            res.status(400).send({
+                code: 400, 
+                msg: "Please pass username and password",
+            });
+        } else {
+            const token = jwt.sign({
+                username: req.body.username
+            }, 'secret', { expiresIn: '1h' });
+            res.json({ token: token }); //TODO: error handling and reporting through API
+        }
+    }
+);
 
 app.listen({ host, port, path }, () => {
   console.log(`GraphQL server ready at http://${host}:${port}${pth}`)
