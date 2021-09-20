@@ -28,13 +28,11 @@ const app = express()
 
 app.use(express.json());
 
-const getUser = async (driver, token) => {
-    console.log("getUser");
+const getUser = async (driver, email) => {
+    console.log("getUser2");
     console.log(driver);
-    console.log(token);
-    if (token === '') return {surname: 'dummy'};
-    const decodedToken = jwt.verify(token.split(' ')[1], "secret");
-    console.log(decodedToken);
+    console.log(email);
+    if (!email) return {surname: 'dummy'};
     
     const session = driver.session();
     //The replace razzle-dazzle below is just to get a list of role strings rather than objects.
@@ -59,7 +57,7 @@ const getUser = async (driver, token) => {
                 )
             }           
         `, {
-            email: decodedToken.username//'douglasm@arizona.edu'
+            email: email//'douglasm@arizona.edu'
         }
     )
     .then(result => {
@@ -160,11 +158,19 @@ const server = new ApolloServer({
     async ({ req }) => {
         console.log("setting up context");
         // Get the user token from the headers.
-        const token = req.headers.authorization || '';
+        const token = req.headers.authorization;
         console.log(token);
 
         // Try to retrieve a user with the token
-        const user = await getUser(driver, token);
+        //const user = await getUser(driver, token);
+
+        let email;
+        if (token) {
+            const decodedToken = jwt.verify(token.split(' ')[1], "secret");
+            console.log(decodedToken);
+            email = decodedToken.username;
+        }
+        const user = await getUser(driver, email);
 
         console.log("From context, user");
         console.log(user);
@@ -233,17 +239,25 @@ app.use(
 server.applyMiddleware({ app, pth })
 
 app.post('/login',
-    (req, res) => {
+    async (req, res) => {
         if (!req.body.username || !req.body.password) {
             res.status(400).send({
                 code: 400, 
                 msg: "Please pass username and password",
             });
         } else {
-            const token = jwt.sign({
-                username: req.body.username
-            }, 'secret', { expiresIn: '1h' });
-            res.json({ token: token }); //TODO: error handling and reporting through API
+            //TODO: check password
+            const user = await getUser(driver, req.body.username);
+            console.log("login");
+            console.log(user);
+            if (user && user.surname !== "dummy") {
+                const token = jwt.sign({
+                    username: req.body.username
+                }, 'secret', { expiresIn: '1h' });
+                res.json({ token: token }); //TODO: error handling and reporting through API
+            } else {
+                res.status(400).json({msg: "User not found"});
+            }
         }
     }
 );
