@@ -29,7 +29,7 @@ const app = express()
 app.use(express.json());
 
 const getUser = async (driver, email) => {
-    console.log("getUser2");
+    console.log("getUser");
     console.log(driver);
     console.log(email);
     if (!email) return {surname: 'dummy'};
@@ -43,7 +43,8 @@ const getUser = async (driver, email) => {
             person{
                 .given, 
                 .surname, 
-                .email, 
+                .email,
+                .password,
                 roles:collect(
                     replace(
                         replace(
@@ -257,6 +258,47 @@ app.post('/login',
                 res.json({ token: token }); //TODO: error handling and reporting through API
             } else {
                 res.status(400).json({msg: "User not found"});
+            }
+        }
+    }
+);
+
+app.post('/register',
+    async (req, res) => {
+        console.log("register");
+        if (!req.body.givenName ||
+            !req.body.surname ||
+            !req.body.email ||
+            !req.body.password) {
+            res.status(400).send({
+                code: 400, 
+                msg: "Please pass given name, surname, email, and password",
+            });
+        } else {
+            //TODO: check if user already exists
+            const user = await getUser(driver, req.body.email);
+            console.log(user);
+            if (user && user.surname !== "dummy") {
+                if (user.password) {
+                    res.status(400).send({
+                        code: 400, 
+                        msg: "User already exists",
+                    });
+                } else {
+                    if (req.body.useExistingUser) {
+                        //createUser();
+                        res.status(200).json({msg: "User created"}); //TODO: clean up logic so there is only one of these
+                    } else {
+                        res.status(400).send({
+                            code: 400, 
+                            msg: "Unregistered user with that email found",
+                        });
+                    }
+                }
+                //TODO: If no password, go ahead and add and return success
+            } else {
+                //TODO: create user
+                res.status(200).json({msg: "User created"});
             }
         }
     }
