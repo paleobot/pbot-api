@@ -1,3 +1,4 @@
+import dotenv from "dotenv"
 import { ApolloServer, ForbiddenError } from 'apollo-server-express'
 import express from 'express'
 import neo4j from 'neo4j-driver'
@@ -15,6 +16,8 @@ import { applyMiddleware } from "graphql-middleware";
 
 import  permissions  from './permissions.js';
 import {getUser, handleLogin, handleRegistration} from './UserManagement.js';
+
+dotenv.config();
 
 const app = express()
 
@@ -37,8 +40,8 @@ const typeDefs = fs
 const driver = neo4j.driver(
   process.env.NEO4J_URI || 'bolt://localhost:7687',
   neo4j.auth.basic(
-    process.env.NEO4J_USER || 'neo4j',
-    process.env.NEO4J_PASSWORD || 'password'
+    process.env.NEO4J_USER,
+    process.env.NEO4J_PASSWORD
   )
 )
 
@@ -84,7 +87,7 @@ const server = new ApolloServer({
 
         let email;
         if (token) {
-            const decodedToken = jwt.verify(token.split(' ')[1], "secret");
+            const decodedToken = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
             console.log(decodedToken);
             email = decodedToken.username;
         }
