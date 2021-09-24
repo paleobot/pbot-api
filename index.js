@@ -14,143 +14,11 @@ import bcrypt from 'bcrypt';
 import { applyMiddleware } from "graphql-middleware";
 
 import  permissions  from './permissions.js';
-
-const getScope = (token) => {
-    console.log("getScope");
-    console.log(token);
-    if (token) {
-        return "ADMIN";
-    } else {
-        return "PEON";
-    }
-}
+import {getUser, handleLogin, handleRegistration} from './UserManagement.js';
 
 const app = express()
 
 app.use(express.json());
-
-const getUser = async (driver, email) => {
-    console.log("getUser");
-    console.log(driver);
-    console.log(email);
-    if (!email) return {surname: 'dummy'};
-    
-    const session = driver.session();
-    //The replace razzle-dazzle below is just to get a list of role strings rather than objects.
-    return session.run(`
-        MATCH 
-            (person:Person {email : $email})
-        OPTIONAL MATCH (person)-[:HAS_ROLE]->(role:Role) 
-        RETURN 
-            person{
-                .given, 
-                .surname, 
-                .email,
-                .password,
-                roles:collect(
-                    replace(
-                        replace(
-                            apoc.convert.toString(role{.name}), 
-                            "{name=", 
-                            ""
-                        ),
-                        "}",
-                        ""
-                    )
-                )
-            }           
-        `, {
-            email: email//'douglasm@arizona.edu'
-        }
-    )
-    .then(result => {
-        let user;
-        result.records.forEach(record => {
-            console.log(record.get('person'));
-            user = record.get('person');
-        })
-        //console.log(user.get('given') + " " + user.get('surname'));
-        console.log(user);
-        return user;
-    })
-    .catch(error => {
-        console.log(error)
-    })
-    .then((user) => {
-        session.close();
-        return user;
-    })    
-}
-
-const createUser = async (driver, user) => {
-    console.log("createUser");
-    console.log(driver);
-    console.log(user);
-    
-    const pwHash = bcrypt.hashSync(user.password, 10);
-    console.log(pwHash);
-    
-    const session = driver.session();
-    //The replace razzle-dazzle below is just to get a list of role strings rather than objects.
-    return session.run(`
-        MATCH
-            (role:Role {name: "user"})
-        MERGE 
-            (person:Person {email : $email})
-            ON CREATE SET
-                person.personID = apoc.create.uuid(),
-                person.given = $given,
-                person.surname = $surname,
-                person.password = $password
-            ON MATCH SET
-                person.password = $password
-        MERGE
-            (person)-[:HAS_ROLE]->(role) 	
-        RETURN 
-            person{
-                .given, 
-                .surname, 
-                .email,
-                .password,
-                roles:collect(
-                    replace(
-                        replace(
-                            apoc.convert.toString(role{.name}), 
-                            "{name=", 
-                            ""
-                        ),
-                        "}",
-                        ""
-                    )
-                )
-            }           
-        `, {
-            email: user.email,
-            given: user.givenName,
-            surname: user.surname,
-            password: pwHash
-        }
-    )
-    .then(result => {
-        console.log("cypher success");
-        let user;
-        result.records.forEach(record => {
-            console.log(record.get('person'));
-            user = record.get('person');
-        })
-        //console.log(user.get('given') + " " + user.get('surname'));
-        console.log(user);
-        return user;
-    })
-    .catch(error => {
-        console.log(error)
-    })
-    .then((user) => {
-        console.log("closing session");
-        session.close();
-        return user;
-    })    
-}
 
 const typeDefs = fs
   .readFileSync(
@@ -190,29 +58,6 @@ console.log(schema._typeMap.Query);
  * instance into the context object so it is available in the
  * generated resolvers to connect to the database.
  */
-/*
- * something about passing auth through context. 
-const server = new ApolloServer({
-    context: ({ req }) => {
-        return {
-            driver,
-            driverConfig: { database: process.env.NEO4J_DATABASE || 'neo4j' },
-            authScope: getScope(req.headers.authorization)
-        }
-    },
-    schema: schema,
-    resolvers: {
-        Mutation: 
-            (parent, args, context, info) => {
-                console.log(context.authScope);
-               if(context.authScope !== ADMIN) throw new AuthenticationError('not admin');            
-            }
-        
-    },
-    introspection: true,
-    playground: true,
-});
-*/
 
 /*
 const server = new ApolloServer({
@@ -265,120 +110,14 @@ const pth = process.env.GRAPHQL_SERVER_PATH || '/graphql'
 const host = process.env.GRAPHQL_SERVER_HOST || '0.0.0.0'
 
 /*
-const checkUser = (req, res, next) =>{
-    console.log(req.token);
-    if (req.token.username === "douglas") {
-        return next();
-    } else {
-        return res.status(401).send('Action not allowed');
-    }
-}
-checkUser.unless = unless;
-
-app.use(
-    ejwt({ 
-        secret: 'secret', 
-        algorithms: ['HS256'],
-        userProperty: 'token'
-    }).unless({
-        custom: req => {
-            if (req.body.query && req.body.query.match(/^mutation/)) {
-                console.log("mutation");
-                return false;
-            } else {
-                console.log("not mutation");
-                return true;
-            }
-        }
-    }),
-    checkUser.unless({
-        custom: req => {
-            if (req.body.query && req.body.query.match(/^mutation/)) {
-                console.log("mutation");
-                return false;
-            } else {
-                console.log("not mutation");
-                return true;
-            }
-        }
-    })
-);
-*/
-
-/*
  * Optionally, apply Express middleware for authentication, etc
  * This also also allows us to specify a path for the GraphQL endpoint
  */
 server.applyMiddleware({ app, pth })
 
-app.post('/login',
-    async (req, res) => {
-        if (!req.body.username || !req.body.password) {
-            res.status(400).send({
-                code: 400, 
-                msg: "Please pass username and password",
-            });
-        } else {
-            //TODO: check password
-            const user = await getUser(driver, req.body.username);
-            console.log("login");
-            console.log(user);
-                        
-            if (user && user.surname !== "dummy") {
-                if (!bcrypt.compareSync(req.body.password, user.password)) {
-                    res.status(400).json({msg: "Wrong password"});
-                } else {
-                    const token = jwt.sign({
-                        username: req.body.username
-                    }, 'secret', { expiresIn: '1h' });
-                    res.json({ token: token }); //TODO: error handling and reporting through API
-                }
-            } else {
-                res.status(400).json({msg: "User not found"});
-            }
-        }
-    }
-);
+app.post('/login', async (req, res) => {handleLogin(req, res, driver)});
 
-app.post('/register',
-    async (req, res) => {
-        console.log("register");
-        if (!req.body.givenName ||
-            !req.body.surname ||
-            !req.body.email ||
-            !req.body.password) {
-            res.status(400).send({
-                code: 400, 
-                msg: "Please pass given name, surname, email, and password",
-            });
-        } else {
-            let user = await getUser(driver, req.body.email);
-            console.log(user);
-            if (user && user.surname !== "dummy") {
-                if (user.password) {
-                    res.status(400).send({
-                        code: 400, 
-                        msg: "User already exists",
-                    });
-                } else {
-                    if (req.body.useExistingUser) {
-                        user = await createUser(driver, req.body);
-                        res.status(200).json({msg: "User created"}); //TODO: clean up logic so there is only one of these
-                    } else {
-                        res.status(400).send({
-                            code: 400, 
-                            msg: "Unregistered user with that email found",
-                        });
-                    }
-                }
-                //TODO: If no password, go ahead and add and return success
-            } else {
-                user = await createUser(driver, req.body);
-                res.status(200).json({msg: "User created"});
-            }
-        }
-    }
-);
+app.post('/register', async (req, res) => {handleRegistration(req, res, driver)});
 
 app.listen({ host, port, path }, () => {
   console.log(`GraphQL server ready at http://${host}:${port}${pth}`)
