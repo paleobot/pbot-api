@@ -5,7 +5,7 @@ import path from 'path'
 import jwt from 'jsonwebtoken';
 import ejwt from 'express-jwt';
 import bcrypt from 'bcrypt';
-
+import nodemailer from 'nodemailer';
 
 const getUser = async (driver, email) => {
     console.log("getUser");
@@ -65,7 +65,7 @@ const createUser = async (driver, user) => {
     console.log(driver);
     console.log(user);
     
-    const pwHash = bcrypt.hashSync(user.password, 10);
+    const pwHash = bcrypt.hashSync(user.password, process.env.SALT_COUNT);
     console.log(pwHash);
     
     const session = driver.session();
@@ -198,5 +198,78 @@ const handleRegistration = async (req, res, driver) => {
             }
         }
     }
+    
+    
+const sendResetEmail = async (email, token) => {
+    console.log("sendResetEmail");
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_ACCOUNT,
+            pass: process.env.EMAIL_PASSWORD
+        }
+    });
 
-export {getUser, createUser, handleLogin, handleRegistration}
+    var mailOptions = {
+        from: process.env.EMAIL_ACCOUNT,
+        to: email,
+        subject: 'Sending Email using Node.js',
+        text: 'http://localhost:4001/reset?username=' + email + '&token=' + token
+    };
+
+    await transporter.sendMail(mailOptions)
+    .then(info => {
+        console.log('Email sent: ' + info.response);
+    })
+    .catch(error => {
+        console.log(error);
+    }) 
+}
+
+//reset request
+const handleReset = async (req, res, driver) => {
+    console.log("handleReset");
+    if (req.query.token) {
+        console.log("token found");
+        //this is the actual reset through the link
+        if (!req.query.username) {
+            res.status(400).send({
+                code: 400, 
+                msg: "Please pass username",
+            });
+        } else {
+            const user = await getUser(driver, req.query.username);
+            console.log("reset");
+            console.log(user);
+                        
+            if (user && user.surname !== "dummy" && user.password) {
+                const decodedToken = jwt.verify(req.query.token, process.env.JWT_SECRET);
+                console.log(decodedToken);
+                //email = decodedToken.username;
+                //TODO: handle reset
+                res.json({msg: "ok"});
+            } else {
+                res.status(400).json({msg: "Registered user not found"});
+            }
+        }
+    } else {
+        console.log("no token");
+        //new request, create token and send link
+        if (!req.body.username) {
+            res.status(400).send({
+                code: 400, 
+                msg: "Please pass username",
+            });
+        } else {
+            const token = jwt.sign({
+                username: req.body.username,
+                reset: true
+            }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            //TODO: add token to user node
+            await sendResetEmail(req.body.username, token);
+            res.json({ msg: "A reset link has been sent to your email address" }); 
+        }
+    }    
+}
+
+export {getUser, createUser, handleLogin, handleRegistration, handleReset}
