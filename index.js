@@ -15,7 +15,7 @@ import bcrypt from 'bcrypt';
 import { applyMiddleware } from "graphql-middleware";
 
 import  permissions  from './permissions.js';
-import {getUser, handleLogin, handleRegistration} from './UserManagement.js';
+import {getUser, handleLogin, handleRegistration, handleReset} from './UserManagement.js';
 
 dotenv.config();
 
@@ -121,6 +121,9 @@ server.applyMiddleware({ app, pth })
 app.post('/login', async (req, res) => {handleLogin(req, res, driver)});
 
 app.post('/register', async (req, res) => {handleRegistration(req, res, driver)});
+
+app.post('/reset', async (req, res) => {handleReset(req, res, driver)});
+app.get('/reset', async (req, res) => {handleReset(req, res, driver)});
 
 app.listen({ host, port, path }, () => {
   console.log(`GraphQL server ready at http://${host}:${port}${pth}`)
