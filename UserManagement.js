@@ -139,7 +139,6 @@ const handleLogin = async (req, res, driver) => {
                 msg: "Please pass username and password",
             });
         } else {
-            //TODO: check password
             const user = await getUser(driver, req.body.username);
             console.log("login");
             console.log(user);
@@ -151,7 +150,7 @@ const handleLogin = async (req, res, driver) => {
                     const token = jwt.sign({
                         username: req.body.username
                     }, process.env.JWT_SECRET, { expiresIn: '1h' });
-                    res.json({ token: token }); //TODO: error handling and reporting through API
+                    res.json({ token: token }); //TODO: error handling and reporting through API good enough?
                 }
             } else {
                 res.status(400).json({msg: "User not found"});
@@ -175,12 +174,12 @@ const handleRegistration = async (req, res, driver) => {
             let user = await getUser(driver, req.body.email);
             console.log(user);
             if (user && user.surname !== "dummy") {
-                if (user.password) {
+                if (user.password) {  //if there is a password, this user is already registered
                     res.status(400).send({
                         code: 400, 
                         msg: "User already exists",
                     });
-                } else {
+                } else { //This user exists in the db, but is no registered. If told to do so, go ahead.
                     if (req.body.useExistingUser) {
                         user = await createUser(driver, req.body);
                         res.status(200).json({msg: "User created"}); //TODO: clean up logic so there is only one of these
@@ -191,8 +190,7 @@ const handleRegistration = async (req, res, driver) => {
                         });
                     }
                 }
-                //TODO: If no password, go ahead and add and return success
-            } else {
+            } else { //No user found. Create one.
                 user = await createUser(driver, req.body);
                 res.status(200).json({msg: "User created"});
             }
@@ -214,7 +212,7 @@ const sendResetEmail = async (email, token) => {
         from: process.env.EMAIL_ACCOUNT,
         to: email,
         subject: 'Sending Email using Node.js',
-        text: 'http://localhost:4001/reset?username=' + email + '&token=' + token
+        text: process.env.SITE_URL + ':' + process.env.GRAPHQL_SERVER_PORT + '/reset?username=' + email + '&token=' + token
     };
 
     await transporter.sendMail(mailOptions)
