@@ -51,13 +51,10 @@ const getUser = async (driver, email) => {
         console.log(user);
         return user;
     })
-    .catch(error => {
-        console.log(error)
-    })
-    .then((user) => {
+    .finally(() => {
+        console.log("closing session");
         session.close();
-        return user;
-    })    
+    })
 }
 
 const createUser = async (driver, user) => {
@@ -65,7 +62,7 @@ const createUser = async (driver, user) => {
     console.log(driver);
     console.log(user);
     
-    const pwHash = bcrypt.hashSync(user.password, process.env.SALT_COUNT);
+    const pwHash = bcrypt.hashSync(user.password, parseInt(process.env.SALT_COUNT));
     console.log(pwHash);
     
     const session = driver.session();
@@ -120,23 +117,18 @@ const createUser = async (driver, user) => {
         console.log(user);
         return user;
     })
-    .catch(error => {
-        console.log(error)
-    })
-    .then((user) => {
+    .finally(() => {
         console.log("closing session");
         session.close();
-        return user;
-    })    
+    })
 }
 
 const prepareUserReset = async (driver, email, token) => {
     console.log("prepareUserReset");
-    console.log(user);
+    console.log(email);
     console.log(token);
     
     const session = driver.session();
-    //The replace razzle-dazzle below is just to get a list of role strings rather than objects.
     return session.run(`
         MATCH 
             (person:Person {email : $email})
@@ -148,18 +140,7 @@ const prepareUserReset = async (driver, email, token) => {
                 .surname, 
                 .email,
                 .password,
-                .resetToken,
-                roles:collect(
-                    replace(
-                        replace(
-                            apoc.convert.toString(role{.name}), 
-                            "{name=", 
-                            ""
-                        ),
-                        "}",
-                        ""
-                    )
-                )
+                .resetToken
             }           
         `, {
             email: email,
@@ -177,52 +158,32 @@ const prepareUserReset = async (driver, email, token) => {
         console.log(user);
         return user;
     })
-    .catch(error => {
-        console.log(error)
-    })
-    .then((user) => {
+    .finally(() => {
         console.log("closing session");
         session.close();
-        return user;
-    })    
+    })
 }
 
-const resetUser = async (driver, email, newPassword, token) => {
+const resetUser = async (driver, email, token) => {
     console.log("resetUser");
-    console.log(user);
+    console.log(email);
     console.log(token);
-    
-    const pwHash = bcrypt.hashSync(newPassword, process.env.SALT_COUNT);
-    
+        
     const session = driver.session();
-    //The replace razzle-dazzle below is just to get a list of role strings rather than objects.
     return session.run(`
         MATCH 
             (person:Person {email : $email, resetToken: $resetToken})
-        SET
-            person.resetToken = null,
-            person.password = $newPassword
+        REMOVE
+            person.resetToken,
+            person.password
         RETURN 
             person{
                 .given, 
                 .surname, 
-                .email,
-                .password,
-                roles:collect(
-                    replace(
-                        replace(
-                            apoc.convert.toString(role{.name}), 
-                            "{name=", 
-                            ""
-                        ),
-                        "}",
-                        ""
-                    )
-                )
+                .email
             }           
         `, {
             email: email,
-            newPassword: pwHash,
             resetToken: token
         }
     )
@@ -237,14 +198,33 @@ const resetUser = async (driver, email, newPassword, token) => {
         console.log(user);
         return user;
     })
-    .catch(error => {
-        console.log(error)
-    })
-    .then((user) => {
+    .finally(() => {
         console.log("closing session");
         session.close();
-        return user;
-    })    
+    })
+}
+
+const sendResetEmail = async (email, token) => {
+    console.log("sendResetEmail");
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_ACCOUNT,
+            pass: process.env.EMAIL_PASSWORD
+        }
+    });
+
+    var mailOptions = {
+        from: process.env.EMAIL_ACCOUNT,
+        to: email,
+        subject: 'Sending Email using Node.js',
+        text: process.env.SITE_URL + ':' + process.env.GRAPHQL_SERVER_PORT + '/reset?username=' + email + '&token=' + token
+    };
+
+    return transporter.sendMail(mailOptions)
+    .then(info => {
+        console.log('Email sent: ' + info.response);
+    })
 }
 
 //login
@@ -259,7 +239,7 @@ const handleLogin = async (req, res, driver) => {
             console.log("login");
             console.log(user);
                         
-            if (user && user.surname !== "dummy") {
+            if (user && user.surname !== "dummy" && user.password) {
                 if (!bcrypt.compareSync(req.body.password, user.password)) {
                     res.status(400).json({msg: "Wrong password"});
                 } else {
@@ -282,7 +262,7 @@ const handleRegistration = async (req, res, driver) => {
             !req.body.surname ||
             !req.body.email ||
             !req.body.password) {
-            res.status(400).send({
+            return res.status(400).send({
                 code: 400, 
                 msg: "Please pass given name, surname, email, and password",
             });
@@ -291,67 +271,53 @@ const handleRegistration = async (req, res, driver) => {
             console.log(user);
             if (user && user.surname !== "dummy") {
                 if (user.password) {  //if there is a password, this user is already registered
-                    res.status(400).send({
+                    return res.status(400).send({
                         code: 400, 
                         msg: "User already exists",
                     });
-                } else { //This user exists in the db, but is no registered. If told to do so, go ahead.
+                } else { //This user exists in the db, but is not registered. If told to do so, go ahead.
                     if (req.body.useExistingUser) {
-                        user = await createUser(driver, req.body);
-                        res.status(200).json({msg: "User created"}); //TODO: clean up logic so there is only one of these
+                        await createUser(driver, req.body)
+                        .then(() => {
+                            return res.status(200).json({msg: "User created"}); //TODO: clean up logic so there is only one of these
+                        })
+                        .catch(error => {
+                            console.log(error);
+                            return res.status(500).json({msg: "Unable to create user"});
+                        })
                     } else {
-                        res.status(400).send({
+                        return res.status(400).send({
                             code: 400, 
                             msg: "Unregistered user with that email found",
                         });
                     }
                 }
             } else { //No user found. Create one.
-                user = await createUser(driver, req.body);
-                res.status(200).json({msg: "User created"});
+                await createUser(driver, req.body)
+                .then(() => {
+                    return res.status(200).json({msg: "User created"}); //TODO: clean up logic so there is only one of these
+                })
+                .catch(error => {
+                    console.log(error);
+                    return res.status(500).json({msg: "Unable to create user"});
+                })
             }
         }
     }
-    
-    
-const sendResetEmail = async (email, token) => {
-    console.log("sendResetEmail");
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_ACCOUNT,
-            pass: process.env.EMAIL_PASSWORD
-        }
-    });
-
-    var mailOptions = {
-        from: process.env.EMAIL_ACCOUNT,
-        to: email,
-        subject: 'Sending Email using Node.js',
-        text: process.env.SITE_URL + ':' + process.env.GRAPHQL_SERVER_PORT + '/reset?username=' + email + '&token=' + token
-    };
-
-    await transporter.sendMail(mailOptions)
-    .then(info => {
-        console.log('Email sent: ' + info.response);
-    })
-    .catch(error => {
-        console.log(error);
-    }) 
-}
 
 //reset request
-//TODO: This isn't set up correctly. The GET should result in a form to the client. That form submits the new password.
-//We can still handle this in the POST handling of this routine, but we'll need to differentiate between the initial 
-//reset request (no included password), and the final reset (with included password). Where does the form come from?
-//It won't be in the client code.
+//TODO: To be proper, the GET should result in a form to the client, allowing them to specify a new password. 
+//But I don't really want to serve a form from here. 
+//Instead, I am deleting the users password, effectivly unregistering them. This forces them to reregister, which effectively 
+//resets the password. Ta-da.
+//It's crude, but it'll work until maybe we implement routing in the React app and serve a reset form from there.
 const handleReset = async (req, res, driver) => {
     console.log("handleReset");
     if (req.method === "GET") {
         console.log("reset, GET");
         //this is the actual reset through the link
         if (!req.query.username && !req.query.token) {
-            res.status(400).send({
+            return res.status(400).send({
                 code: 400, 
                 msg: "Improper reset request",
             });
@@ -361,42 +327,44 @@ const handleReset = async (req, res, driver) => {
             console.log(user);
                         
             if (user && user.surname !== "dummy" && user.password) {
-                const decodedToken = jwt.verify(req.query.token, process.env.JWT_SECRET);
-                console.log(decodedToken);
-                //email = decodedToken.username;
-                //TODO: handle reset
-                res.json({msg: "ok"});
+                //const decodedToken = jwt.verify(req.query.token, process.env.JWT_SECRET);
+                //console.log(decodedToken);
+                await resetUser(driver, req.query.username, req.query.token)
+                .then(() => {
+                    return res.json({msg: "User unregistered. Please reregister."});
+                })
+                .catch ((error) => {
+                    console.log(error);
+                    return res.status(500).json({msg: "Unable to reset user"});
+                })
             } else {
-                res.status(400).json({msg: "Registered user not found"});
+                return res.status(400).json({msg: "Registered user not found"});
             }
         }
     } else {
         console.log("reset, POST");
         if (!req.body.username) {
-            res.status(400).send({
+            return res.status(400).send({
                 code: 400, 
                 msg: "Please pass username",
             });
         } else {
-            if (!req.body.password) { //new reset request, create token and send link
-                const token = jwt.sign({
-                    username: req.body.username,
-                    reset: true
-                }, process.env.JWT_SECRET, { expiresIn: '1h' });
-                await prepareUserReset(driver, req.body.username, token); //TODO: error handling
-                await sendResetEmail(req.body.username, token);
-                res.json({ msg: "A reset link has been sent to your email address" }); 
-            } else { //final submit of new password
-                const token = req.headers.authorization;
-                let decodedToken
-                if (token) {
-                    decodedToken = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-                    console.log(decodedToken);
-                    email = decodedToken.username;
-                }
-                await resetUser(driver, req.body.email, req.body.password, decodedToken); //TODO: error handling
-                res.json({ msg: "Password has been reset" }); 
-            }
+            const token = jwt.sign({
+                username: req.body.username,
+                reset: true
+            }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            await prepareUserReset(driver, req.body.username, token)
+            .then(() => {
+                sendResetEmail(req.body.username, token);
+            })
+            .then(() => {
+                return res.json({ msg: "A reset link has been sent to your email address" }); 
+            })
+            .catch (error => {
+                console.log(error);
+                return res.status(500).json({msg: "Unable to reset user"});
+            })
+            
         }
     }    
 }
