@@ -217,8 +217,13 @@ const sendResetEmail = async (email, token) => {
     var mailOptions = {
         from: process.env.EMAIL_ACCOUNT,
         to: email,
-        subject: 'Sending Email using Node.js',
-        text: process.env.SITE_URL + ':' + process.env.GRAPHQL_SERVER_PORT + '/reset?username=' + email + '&token=' + token
+        subject: 'PBOT reset link',
+        text: `
+            Clicking the following link will delete your old password, effectively unregistering you from PBOT. After doing this, you must reregister. Your existing roles will not be lost.
+            
+            ${process.env.SITE_URL}:${process.env.GRAPHQL_SERVER_PORT}/reset?username=${email}&token=${token}
+        `
+        //process.env.SITE_URL + ':' + process.env.GRAPHQL_SERVER_PORT + '/reset?username=' + email + '&token=' + token
     };
 
     return transporter.sendMail(mailOptions)
