@@ -55,6 +55,24 @@ const schema = makeAugmentedSchema({
 console.log(schema);
 console.log(schema._typeMap.Query);
 
+//Middleware to add personID from token. This is used in mutations to create ENTERED_BY relationships
+const addUserID = async (resolve, root, args, context, info) => {
+  console.log("addUserID");
+  console.log(context.user);
+  console.log(args);
+  args.data.enteredByPersonID = context.user.personID;
+  console.log(args);
+  const result = await resolve(root, args, context, info)
+  console.log(result)
+  return result
+}
+
+//This is needed to prevent execution of middleware for each field
+//(https://github.com/maticzav/graphql-middleware/issues/33)
+const middleware = {
+  Mutation: addUserID,
+}
+
 /*
  * Create a new ApolloServer instance, serving the GraphQL schema
  * created using makeAugmentedSchema above and injecting the Neo4j driver
@@ -76,20 +94,21 @@ const server = new ApolloServer({
 
 const server = new ApolloServer({
   context:
-    async ({ req }) => {
+    async ({ req, res }) => {
         console.log("setting up context");
         // Get the user token from the headers.
         const token = req.headers.authorization;
         console.log(token);
 
-        // Try to retrieve a user with the token
-        //const user = await getUser(driver, token);
-
         let email;
-        if (token) {
-            const decodedToken = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-            console.log(decodedToken);
-            email = decodedToken.username;
+        try {
+            if (token) {
+                const decodedToken = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+                console.log(decodedToken);
+                email = decodedToken.username;
+            }
+        } catch (error) {
+            console.log(error);
         }
         const user = await getUser(driver, email);
 
@@ -102,7 +121,7 @@ const server = new ApolloServer({
             driverConfig: { database: process.env.NEO4J_DATABASE || 'neo4j' },
         };
     },   
-  schema: applyMiddleware(schema, permissions),
+  schema: applyMiddleware(schema, permissions, middleware),
   introspection: true,
   playground: true,
 })
