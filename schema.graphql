@@ -185,6 +185,32 @@ type DescribedBy @relation(name: "DESCRIBED_BY") {
 Mutations overrides. We might want to think about only using these, rather than any generated mutations. 
     TODO: To make these true overrides, delete the 'Custom' prefix. """
 
+input PersonInput {
+    given: String
+	surname: String
+	email: String
+	orcid: String
+	enteredByPersonID: String
+} 
+type Mutation {
+  CustomCreatePerson(data: PersonInput!): Person!
+    @cypher(
+        statement: """
+            MATCH 
+                (ePerson:Person {personID: $data.enteredByPersonID})
+            CREATE 
+                (person: Person {
+                    personID: apoc.create.uuid(),
+                    given: $data.given,
+                    surname: $data.surname,
+                    email: $data.email,
+                    orcid: $data.orcid
+                })-[:ENTERED_BY {timestamp: datetime()}]->(ePerson)
+            RETURN person
+        """
+    )
+}
+
 input ReferenceInput {
     title: String
 	year: String
@@ -294,6 +320,7 @@ input DescriptionInput {
 	family: String
 	genus: String
 	species: String
+	schemaID: String
 	enteredByPersonID: String
 }
 type Mutation {
@@ -301,9 +328,10 @@ type Mutation {
     @cypher(
         statement: """
             MATCH 
+                (schema:Schema {schemaID: $data.schemaID}),
                 (person:Person {personID: $data.enteredByPersonID})
             CREATE 
-                (description: Description {
+                (schema)<-[:APPLICATION_OF]-(description: Description {
                     descriptionID: apoc.create.uuid(),
                     type: $data.type,
                     name: $data.name,
@@ -317,6 +345,7 @@ type Mutation {
 }
 
 input CharacterInstanceInput {
+    descriptionID: String
     characterID: String
     stateID: String
 	enteredByPersonID: String
@@ -326,15 +355,17 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
+                    (description:Description {descriptionID: $data.descriptionID}),
                     (character:Character {characterID: $data.characterID}),
                     (state:State {stateID: $data.stateID}),
                     (person:Person {personID: $data.enteredByPersonID})
                 CREATE 
-                    (character)<-[:INSTANCE_OF]-(characterInstance:CharacterInstance {
+                    (description)-[:DEFINED_BY]->(characterInstance:CharacterInstance {
                         characterInstanceID: apoc.create.uuid()
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person),
+                    (character)<-[:INSTANCE_OF]-(characterInstance),
                     (state)<-[:HAS_STATE]-(characterInstance)
-                RETURN character
+                RETURN characterInstance
             """
         )
 }
