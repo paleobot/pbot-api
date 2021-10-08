@@ -33,3 +33,11 @@
 :params {data: {type: "dummy", enteredByPersonID: "71fbcbd1-1045-4973-8ef4-e653adcca572"}}
 
 
+//To clear all these nodes out of the database when done
+optional match (n1 {name: "dummy"})
+optional match (n2 {title: "dummy"})
+optional match (n3 {type: "dummy"})
+optional match (n4 {given: "dummy"})
+detach delete
+n1, n2, n3, n4
+
