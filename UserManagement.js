@@ -21,6 +21,7 @@ const getUser = async (driver, email) => {
         OPTIONAL MATCH (person)-[:HAS_ROLE]->(role:Role) 
         RETURN 
             person{
+                .personID,
                 .given, 
                 .surname, 
                 .email,
