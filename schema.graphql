@@ -192,24 +192,6 @@ input PersonInput {
 	orcid: String
 	enteredByPersonID: String
 } 
-type Mutation {
-  CustomCreatePerson(data: PersonInput!): Person!
-    @cypher(
-        statement: """
-            MATCH 
-                (ePerson:Person {personID: $data.enteredByPersonID})
-            CREATE 
-                (person: Person {
-                    personID: apoc.create.uuid(),
-                    given: $data.given,
-                    surname: $data.surname,
-                    email: $data.email,
-                    orcid: $data.orcid
-                })-[:ENTERED_BY {timestamp: datetime()}]->(ePerson)
-            RETURN person
-        """
-    )
-}
 
 input ReferenceInput {
     title: String
@@ -218,24 +200,6 @@ input ReferenceInput {
 	doi: String
 	enteredByPersonID: String
 } """ TODO: authors """
-type Mutation {
-  CustomCreateReference(data: ReferenceInput!): Reference!
-    @cypher(
-        statement: """
-            MATCH 
-                (person:Person {personID: $data.enteredByPersonID})
-            CREATE 
-                (reference: Reference {
-                    referenceID: apoc.create.uuid(),
-                    title: $data.title,
-                    year: $data.year,
-                    publisher: $data.publisher,
-                    doi: $data.doi
-                })-[:ENTERED_BY {timestamp: datetime()}]->(person)
-            RETURN reference
-        """
-    )
-}
 
 input SchemaInput {
     title: String
@@ -243,7 +207,89 @@ input SchemaInput {
 	referenceID: String
 	enteredByPersonID: String
 }
+
+input CharacterInput {
+    name: String
+    schemaID: String
+	enteredByPersonID: String
+}
+
+input StateInput {
+    name: String
+    definition: String
+    characterID: String
+    parentStateID: String
+	enteredByPersonID: String
+}
+
+input DescriptionInput {
+    type: String!
+	name: String
+	family: String
+	genus: String
+	species: String
+	schemaID: String
+	enteredByPersonID: String
+}
+
+input CharacterInstanceInput {
+    descriptionID: String
+    characterID: String
+    stateID: String
+	enteredByPersonID: String
+}
+
+input SpecimenInput {
+    name: String
+    locality: String
+    preservationMode: String
+    idigbiouuid: String
+    descriptionID: String
+    otuID: String
+    organID: String
+	enteredByPersonID: String
+}
+
+input OrganInput {
+    type: String
+	enteredByPersonID: String
+}
+
 type Mutation {
+    CustomCreatePerson(data: PersonInput!): Person!
+        @cypher(
+            statement: """
+                MATCH 
+                    (ePerson:Person {personID: $data.enteredByPersonID})
+                CREATE 
+                    (person: Person {
+                        personID: apoc.create.uuid(),
+                        given: $data.given,
+                        surname: $data.surname,
+                        email: $data.email,
+                        orcid: $data.orcid
+                    })-[:ENTERED_BY {timestamp: datetime()}]->(ePerson)
+                RETURN person
+            """
+        )
+
+    CustomCreateReference(data: ReferenceInput!): Reference!
+        @cypher(
+            statement: """
+                MATCH 
+                    (person:Person {personID: $data.enteredByPersonID})
+                CREATE 
+                    (reference: Reference {
+                        referenceID: apoc.create.uuid(),
+                        title: $data.title,
+                        year: $data.year,
+                        publisher: $data.publisher,
+                        doi: $data.doi
+                    })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                RETURN reference
+            """
+        )
+
     CustomCreateSchema(data: SchemaInput!): Schema!
         @cypher(
             statement: """
@@ -259,14 +305,7 @@ type Mutation {
                 RETURN schema
             """
         )
-}
 
-input CharacterInput {
-    name: String
-    schemaID: String
-	enteredByPersonID: String
-}
-type Mutation {
     CustomCreateCharacter(data: CharacterInput!): Character!
         @cypher(
             statement: """
@@ -281,16 +320,7 @@ type Mutation {
                 RETURN character
             """
         )
-}
 
-input StateInput {
-    name: String
-    definition: String
-    characterID: String
-    parentStateID: String
-	enteredByPersonID: String
-}
-type Mutation {
     CustomCreateState(data: StateInput!): State!
         @cypher(
             statement: """
@@ -311,46 +341,26 @@ type Mutation {
                     RETURN state           
             """
         )
-}
 
-
-input DescriptionInput {
-    type: String
-	name: String
-	family: String
-	genus: String
-	species: String
-	schemaID: String
-	enteredByPersonID: String
-}
-type Mutation {
-  CustomCreateDescription(data: DescriptionInput!): Description!
-    @cypher(
-        statement: """
-            MATCH 
-                (schema:Schema {schemaID: $data.schemaID}),
-                (person:Person {personID: $data.enteredByPersonID})
-            CREATE 
-                (schema)<-[:APPLICATION_OF]-(description: Description {
-                    descriptionID: apoc.create.uuid(),
-                    type: $data.type,
-                    name: $data.name,
-                    family: $data.family,
-                    genus: $data.genus,
-                    species: $data.species
-                })-[:ENTERED_BY {timestamp: datetime()}]->(person)
-            RETURN description
-        """
-    )
-}
-
-input CharacterInstanceInput {
-    descriptionID: String
-    characterID: String
-    stateID: String
-	enteredByPersonID: String
-}
-type Mutation {
+    CustomCreateDescription(data: DescriptionInput!): Description!
+        @cypher(
+            statement: """
+                MATCH 
+                    (schema:Schema {schemaID: $data.schemaID}),
+                    (person:Person {personID: $data.enteredByPersonID})
+                CREATE 
+                    (schema)<-[:APPLICATION_OF]-(description: Description {
+                        descriptionID: apoc.create.uuid(),
+                        type: $data.type,
+                        name: $data.name,
+                        family: $data.family,
+                        genus: $data.genus,
+                        species: $data.species
+                    })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                RETURN description
+            """
+        )
+        
     CustomCreateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance!
         @cypher(
             statement: """
@@ -368,19 +378,7 @@ type Mutation {
                 RETURN characterInstance
             """
         )
-}
-
-input SpecimenInput {
-    name: String
-    locality: String
-    preservationMode: String
-    idigbiouuid: String
-    descriptionID: String
-    otuID: String
-    organID: String
-	enteredByPersonID: String
-}
-type Mutation {
+        
     CustomCreateSpecimen(data: SpecimenInput!): Specimen!
         @cypher(
             statement: """
@@ -413,13 +411,7 @@ type Mutation {
                 RETURN value.specimen as specimen           
             """
         )
-}
-
-input OrganInput {
-    type: String
-	enteredByPersonID: String
-}
-type Mutation {
+        
     CustomCreateOrgan(data: OrganInput!): Organ!
         @cypher(
             statement: """
