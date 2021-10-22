@@ -181,6 +181,31 @@ type DescribedBy @relation(name: "DESCRIBED_BY") {
 
 
 
+"""
+Not sure this will be useful, but it's a way to get at the leaf states in state hierarchies."""
+type Query {
+    GetLeafStates(characterID: String!): [State]
+        @cypher(
+            statement: """
+                match 
+                    (:Character {characterID: $characterID})<-[:STATE_OF*1..100]-(n:State) 
+                where  
+                    not (n)<-[:STATE_OF]-(:State) 
+                return n            
+            """
+        )
+
+    GetAllStates(characterID: String!): [State]
+        @cypher(
+            statement: """
+                match 
+                    (:Character {characterID: $characterID})<-[:STATE_OF*1..100]-(n:State) 
+                return n            
+            """
+        )
+}
+
+
 """ //////////////////////////////////////////////////////////////////////////////////////////////////////
 Mutations overrides. We might want to think about only using these, rather than any generated mutations. 
     TODO: To make these true overrides, delete the 'Custom' prefix. """
@@ -224,6 +249,7 @@ input StateInput {
 
 input DescriptionInput {
     type: String!
+    specimenID: String
 	name: String
 	family: String
 	genus: String
@@ -348,6 +374,8 @@ type Mutation {
                 MATCH 
                     (schema:Schema {schemaID: $data.schemaID}),
                     (person:Person {personID: $data.enteredByPersonID})
+                OPTIONAL MATCH
+                    (specimen:Specimen {specimenID: $data.specimenID})
                 CREATE 
                     (schema)<-[:APPLICATION_OF]-(description: Description {
                         descriptionID: apoc.create.uuid(),
@@ -357,7 +385,14 @@ type Mutation {
                         genus: $data.genus,
                         species: $data.species
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person)
-                RETURN description
+                WITH description, specimen
+                CALL apoc.do.when(
+                    specimen is not null, 
+                    "CREATE (specimen)-[:DESCRIBED_BY]->(description) RETURN description", 
+                    'RETURN description',
+                    {specimen: specimen, description: description}
+                ) YIELD value
+                RETURN value.description AS description                
             """
         )
         
