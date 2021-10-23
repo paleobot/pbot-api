@@ -40,6 +40,7 @@ type Schema {
     cites: [Reference!]! @relation(name: "CITED_BY", direction: IN)
     characters: [Character] @relation(name: "CHARACTER_OF", direction: IN)
     authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
+    appliedBy: [Description]! @relation(name: "APPLICATION_OF", direction: IN)
     enteredBy: [SchemaEnteredBy]
 }
 
@@ -70,6 +71,7 @@ type Organ {
     enteredBy: [OrganEnteredBy]
 }
 
+"""Note: schema should be non null, but isn't right now due to missing data"""
 type Description {
     descriptionID: ID!
     type: String
@@ -81,6 +83,7 @@ type Description {
     candidateCharacterInstances: [CharacterInstance!]! @relation(name: "CANDIDATE_FOR", direction: IN)
     exampleSpecimens: [ExampleOf!]!
     specimen: DescribedBy
+    schema: Schema @relation(name: "APPLICATION_OF", direction: OUT)
     enteredBy: [DescriptionEnteredBy]
 }
 
