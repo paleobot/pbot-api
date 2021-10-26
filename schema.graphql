@@ -253,26 +253,28 @@ input StateInput {
 input DescriptionInput {
     type: String!
     specimenID: String
-	name: String
+	name: String!
 	family: String
 	genus: String
 	species: String
-	schemaID: String
+	schemaID: String!
 	enteredByPersonID: String
 }
 
 input CharacterInstanceInput {
-    descriptionID: String
-    characterID: String
-    stateID: String
+    descriptionID: String!
+    characterID: String!
+    stateID: String!
 	enteredByPersonID: String
 }
 
 input SpecimenInput {
-    name: String
+    name: String!
     locality: String
     preservationMode: String
     idigbiouuid: String
+    pbdbcid: String
+    pbdboccid: String
     descriptionID: String
     otuID: String
     organID: String
@@ -280,7 +282,7 @@ input SpecimenInput {
 }
 
 input OrganInput {
-    type: String
+    type: String!
 	enteredByPersonID: String
 }
 
@@ -429,22 +431,25 @@ type Mutation {
                     (otu:Description {descriptionID: $data.otuID})
                 CREATE
                     (organ)<-[:IS_TYPE]-(specimen:Specimen {
+                        specimenID: apoc.create.uuid(),
                         name: $data.name,
                         locality: $data.locality,
                         preservationMode: $data.preservationMode,
-                        idigbiouuid: $data.idigbiouuid
+                        idigbiouuid: $data.idigbiouuid,
+                        pbdbcid: $data.pbdbcid,
+                        pbdboccid: $data.pbdboccid
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person)
                 WITH specimen, description, otu
                     CALL apoc.do.when(
                         description IS NOT NULL,
                         "CREATE (description)<-[:DESCRIBED_BY]-(specimen) RETURN specimen",
-                        "",
+                        "RETURN specimen",
                         {description: description, specimen: specimen}) YIELD value
                     WITH value.specimen AS specimen, otu
                     CALL apoc.do.when(
                         otu IS NOT NULL,
                         "CREATE (otu)<-[:EXAMPLE_OF]-(specimen) RETURN specimen",
-                        "",
+                        "RETURN specimen",
                         {otu: otu, specimen: specimen}) YIELD value
                 RETURN value.specimen as specimen           
             """
