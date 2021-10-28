@@ -226,8 +226,9 @@ input ReferenceInput {
 	year: String
 	publisher: String
 	doi: String
+	authors: [String]
 	enteredByPersonID: String
-} """ TODO: authors """
+} 
 
 input SchemaInput {
     title: String
@@ -317,6 +318,10 @@ type Mutation {
                         publisher: $data.publisher,
                         doi: $data.doi
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                WITH reference
+                UNWIND $data.authors AS aID
+                    MATCH (author:Person {personID: aID}) 
+                    CREATE (reference)-[:AUTHORED_BY]->(author)
                 RETURN reference
             """
         )
