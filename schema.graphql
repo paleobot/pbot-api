@@ -99,6 +99,7 @@ type CharacterInstance {
 type Specimen {
     specimenID: ID!
     name: String
+    locality: String
     organ: Organ @relation(name: "IS_TYPE", direction: OUT)
     description: DescribedBy
     archtypeDescription: ExampleOf
