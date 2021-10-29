@@ -9,7 +9,7 @@ import nodemailer from 'nodemailer';
 
 const getUser = async (driver, email) => {
     console.log("getUser");
-    console.log(driver);
+    //console.log(driver);
     console.log(email);
     if (!email) return {surname: 'dummy'};
     
@@ -60,7 +60,7 @@ const getUser = async (driver, email) => {
 
 const createUser = async (driver, user) => {
     console.log("createUser");
-    console.log(driver);
+    //console.log(driver);
     console.log(user);
     
     const pwHash = bcrypt.hashSync(user.password, parseInt(process.env.SALT_COUNT));
