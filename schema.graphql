@@ -234,7 +234,8 @@ input ReferenceInput {
 input SchemaInput {
     title: String
 	year: String
-	referenceID: String
+	references: [String]
+	authors: [String]
 	enteredByPersonID: String
 }
 
@@ -331,14 +332,21 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (reference:Reference {referenceID: $data.referenceID}),
                     (person:Person {personID: $data.enteredByPersonID})
                 CREATE 
-                    (reference)-[:CITED_BY]->(schema:Schema {
+                    (schema:Schema {
                         schemaID: apoc.create.uuid(),
                         title: $data.title,
                         year: $data.year
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                WITH schema
+                UNWIND $data.authors AS aID
+                    MATCH (author:Person {personID: aID}) 
+                    CREATE (schema)-[:AUTHORED_BY]->(author)
+                WITH DISTINCT schema
+                UNWIND $data.references as rID
+                    MATCH (reference:Reference {referenceID: rID})
+                    CREATE (reference)-[:CITED_BY]->(schema)
                 RETURN schema
             """
         )
