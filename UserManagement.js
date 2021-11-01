@@ -251,7 +251,8 @@ const handleLogin = async (req, res, driver) => {
                 } else {
                     const token = jwt.sign({
                         username: req.body.username
-                    }, process.env.JWT_SECRET, { expiresIn: '1h' });
+                    //}, process.env.JWT_SECRET, { expiresIn: '1h' });
+                    }, process.env.JWT_SECRET, {});
                     res.json({ token: token }); //TODO: error handling and reporting through API good enough?
                 }
             } else {
