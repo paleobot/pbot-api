@@ -55,6 +55,35 @@ const schema = makeAugmentedSchema({
 console.log(schema);
 console.log(schema._typeMap.Query);
 
+const debugPlugin = {
+    // Fires whenever a GraphQL request is received from a client.
+    async requestDidStart(requestContext) {
+        console.log('Request started! Query:\n' +
+            requestContext.request.query);
+        console.log(requestContext);
+
+        return {
+            // Fires whenever Apollo Server will parse a GraphQL
+            // request to create its associated document AST.
+            async parsingDidStart(requestContext) {
+                console.log('Parsing started!');
+            },
+
+            // Fires whenever Apollo Server will validate a
+            // request's document AST against your GraphQL schema.
+            async validationDidStart(requestContext) {
+                console.log('Validation started!');
+            },
+            
+            //Fires when shit does sideways
+            async didEncounterErrors(requestContext) {
+                console.log("Hogan's goat!");
+                console.log(requestContext);
+            },
+        }
+    },
+};
+
 //Middleware to add personID from token. This is used in mutations to create ENTERED_BY relationships
 const addUserID = async (resolve, root, args, context, info) => {
   console.log("addUserID");
@@ -62,6 +91,7 @@ const addUserID = async (resolve, root, args, context, info) => {
   console.log(args);
   args.data.enteredByPersonID = context.user.personID;
   console.log(args);
+  console.log("here goes...");
   const result = await resolve(root, args, context, info)
   console.log(result)
   return result
@@ -93,37 +123,40 @@ const server = new ApolloServer({
 */
 
 const server = new ApolloServer({
-  context:
-    async ({ req, res }) => {
-        console.log("setting up context");
-        // Get the user token from the headers.
-        const token = req.headers.authorization;
-        console.log(token);
+    context:
+        async ({ req, res }) => {
+            console.log("setting up context");
+            // Get the user token from the headers.
+            const token = req.headers.authorization;
+            console.log(token);
 
-        let email;
-        try {
-            if (token) {
-                const decodedToken = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-                console.log(decodedToken);
-                email = decodedToken.username;
+            let email;
+            try {
+                if (token) {
+                    const decodedToken = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+                    console.log(decodedToken);
+                    email = decodedToken.username;
+                }
+            } catch (error) {
+                console.log(error);
             }
-        } catch (error) {
-            console.log(error);
-        }
-        const user = await getUser(driver, email);
+            const user = await getUser(driver, email);
 
-        console.log("From context, user");
-        console.log(user);
-        // Add the user to the context
-        return { 
-            user,
-            driver,
-            driverConfig: { database: process.env.NEO4J_DATABASE || 'neo4j' },
-        };
-    },   
-  schema: applyMiddleware(schema, permissions, middleware),
-  introspection: true,
-  playground: true,
+            console.log("From context, user");
+            console.log(user);
+            // Add the user to the context
+            return { 
+                user,
+                driver,
+                driverConfig: { database: process.env.NEO4J_DATABASE || 'neo4j' },
+            };
+        },   
+    schema: applyMiddleware(schema, permissions, middleware),
+    introspection: true,
+    playground: true,
+    plugins: [
+        debugPlugin,
+    ],
 })
 
 // Specify host, port and path for GraphQL endpoint
