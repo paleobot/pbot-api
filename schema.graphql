@@ -254,6 +254,7 @@ input StateInput {
 }
 
 input DescriptionInput {
+    descriptionID: String
     type: String!
     specimenID: String
 	name: String!
@@ -411,6 +412,39 @@ type Mutation {
                     "CREATE (specimen)-[:DESCRIBED_BY]->(description) RETURN description", 
                     'RETURN description',
                     {specimen: specimen, description: description}
+                ) YIELD value
+                RETURN value.description AS description                
+            """
+        )
+
+    CustomUpdateDescription(data: DescriptionInput!): Description!
+        @cypher(
+            statement: """
+                MATCH 
+					(description:Description {descriptionID: $data.descriptionID}),
+                    (schema:Schema {schemaID: $data.schemaID}),
+                    (person:Person {personID: $data.enteredByPersonID})
+                OPTIONAL MATCH
+                    (specimen:Specimen {specimenID: $data.specimenID}),
+					(:Schema)<-[oldSchemaRelationship:APPLICATION_OF]-(description),
+					(:Specimen)-[oldSpecimenRelationship:DESCRIBED_BY]->(description)
+				SET
+					description.type = $data.type,
+					description.name = $data.name,
+					description.family = $data.family,
+					description.genus = $data.genus,
+					description.species = $data.species
+				DELETE oldSchemaRelationship 
+                CREATE 
+                    (schema)<-[:APPLICATION_OF]-(description)
+				CREATE
+					(description)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                WITH description, specimen, oldSpecimenRelationship
+                CALL apoc.do.when(
+                    specimen is not null, 
+                    'DELETE oldSpecimenRelationship CREATE (specimen)-[:DESCRIBED_BY]->(description) RETURN description', 
+                    'RETURN description',
+                    {specimen: specimen, description: description, oldSpecimenRelationship: oldSpecimenRelationship}
                 ) YIELD value
                 RETURN value.description AS description                
             """
