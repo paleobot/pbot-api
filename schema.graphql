@@ -274,6 +274,7 @@ input CharacterInstanceInput {
 }
 
 input SpecimenInput {
+    specimenID: String
     name: String!
     locality: String
     preservationMode: String
@@ -425,8 +426,10 @@ type Mutation {
                     (schema:Schema {schemaID: $data.schemaID}),
                     (person:Person {personID: $data.enteredByPersonID})
                 OPTIONAL MATCH
-                    (specimen:Specimen {specimenID: $data.specimenID}),
-					(:Schema)<-[oldSchemaRelationship:APPLICATION_OF]-(description),
+                    (specimen:Specimen {specimenID: $data.specimenID})
+                OPTIONAL MATCH
+					(:Schema)<-[oldSchemaRelationship:APPLICATION_OF]-(description)
+                OPTIONAL MATCH
 					(:Specimen)-[oldSpecimenRelationship:DESCRIBED_BY]->(description)
 				SET
 					description.type = $data.type,
@@ -502,6 +505,50 @@ type Mutation {
                         "CREATE (otu)<-[:EXAMPLE_OF]-(specimen) RETURN specimen",
                         "RETURN specimen",
                         {otu: otu, specimen: specimen}) YIELD value
+                RETURN value.specimen as specimen           
+            """
+        )
+
+    CustomUpdateSpecimen(data: SpecimenInput!): Specimen!
+        @cypher(
+            statement: """
+                MATCH 
+					(specimen:Specimen {specimenID: $data.specimenID}),
+                    (person:Person {personID: $data.enteredByPersonID}),
+                    (organ:Organ {organID: $data.organID}),
+					(specimen)-[oldOrganRelationship:IS_TYPE]->(:Organ)
+                OPTIONAL MATCH
+                    (description:Description {descriptionID: $data.descriptionID})
+                OPTIONAL MATCH
+                    (otu:Description {descriptionID: $data.otuID})
+                OPTIONAL MATCH
+					(specimen)-[oldDescribedByRelationship:DESCRIBED_BY]->(:Description)
+                OPTIONAL MATCH
+					(specimen)-[oldExampleOfRelationship:EXAMPLE_OF]->(:Description)
+				SET
+                    specimen.name = $data.name,
+                    specimen.locality = $data.locality,
+                    specimen.preservationMode = $data.preservationMode,
+                    specimen.idigbiouuid = $data.idigbiouuid,
+                    specimen.pbdbcid = $data.pbdbcid,
+                    specimen.pbdboccid = $data.pbdboccid
+				DELETE oldOrganRelationship 
+                CREATE 
+                    (organ)<-[:IS_TYPE]-(specimen)
+				CREATE
+					(specimen)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                WITH specimen, description, otu, oldDescribedByRelationship, oldExampleOfRelationship
+                    CALL apoc.do.when(
+                        description IS NOT NULL,
+                        "DELETE oldDescribedByRelationship CREATE (description)<-[:DESCRIBED_BY]-(specimen) RETURN specimen",
+                        "RETURN specimen",
+                        {description: description, specimen: specimen, oldDescribedByRelationship: oldDescribedByRelationship}) YIELD value
+                    WITH value.specimen AS specimen, otu, oldExampleOfRelationship
+                    CALL apoc.do.when(
+                        otu IS NOT NULL,
+                        "DELETE oldExampleOfRelationship CREATE (otu)<-[:EXAMPLE_OF]-(specimen) RETURN specimen",
+                        "RETURN specimen",
+                        {otu: otu, specimen: specimen, oldExampleOfRelationship: oldExampleOfRelationship}) YIELD value
                 RETURN value.specimen as specimen           
             """
         )
