@@ -223,6 +223,7 @@ input PersonInput {
 } 
 
 input ReferenceInput {
+    referenceID: String
     title: String
 	year: String
 	publisher: String
@@ -331,6 +332,33 @@ type Mutation {
             """
         )
 
+    CustomUpdateReference(data: ReferenceInput!): Reference!
+        @cypher(
+            statement: """
+                MATCH 
+					(reference:Reference {referenceID: $data.referenceID}),
+                    (person:Person {personID: $data.enteredByPersonID})
+                OPTIONAL MATCH
+					(:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(reference)
+                WITH reference, person, collect(oldAuthorRelationship) AS oars
+                SET 
+                    reference.title = $data.title,
+                    reference.year = $data.year,
+                    reference.publisher = $data.publisher,
+                    reference.doi = $data.doi
+				CREATE
+					(reference)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                WITH reference, oars
+                UNWIND $data.authors AS aID
+                    MATCH (author:Person {personID: aID}) 
+                    CREATE (reference)-[:AUTHORED_BY]->(author)
+                WITH reference, oars
+                UNWIND oars AS ar
+                    DELETE ar
+                RETURN reference
+            """
+        )
+        
     CustomCreateSchema(data: SchemaInput!): Schema!
         @cypher(
             statement: """
