@@ -233,6 +233,7 @@ input ReferenceInput {
 } 
 
 input SchemaInput {
+    schemaID: String
     title: String
 	year: String
 	references: [String]
@@ -382,6 +383,42 @@ type Mutation {
             """
         )
 
+    CustomUpdateSchema(data: SchemaInput!): Schema!
+        @cypher(
+            statement: """
+                MATCH 
+					(schema:Schema {schemaID: $data.schemaID}),
+                    (person:Person {personID: $data.enteredByPersonID})
+                OPTIONAL MATCH
+					(:Reference)-[oldCitationRelationship:CITED_BY]->(schema)
+                WITH schema, person, collect(oldCitationRelationship) AS ocrs
+                OPTIONAL MATCH
+					(:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(schema)
+                WITH schema, person, ocrs, collect(oldAuthorRelationship) AS oars
+                SET 
+                    schema.title = $data.title,
+                    schema.year = $data.year
+				CREATE
+					(schema)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                WITH schema, ocrs, oars
+                UNWIND $data.references AS rID
+                    MATCH (reference:Reference {referenceID: rID}) 
+                    CREATE (reference)-[:CITED_BY]->(schema)
+                WITH schema, ocrs, oars
+                UNWIND ocrs AS cr
+                    DELETE cr
+                WITH schema, oars
+                UNWIND $data.authors AS aID
+                    MATCH (author:Person {personID: aID}) 
+                    CREATE (schema)-[:AUTHORED_BY]->(author)
+                WITH schema, oars
+                UNWIND oars AS ar
+                    DELETE ar
+                WITH schema
+                RETURN schema
+            """
+        )
+        
     CustomCreateCharacter(data: CharacterInput!): Character!
         @cypher(
             statement: """
