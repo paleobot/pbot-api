@@ -47,6 +47,7 @@ type Schema {
 type Character {
     characterID: ID!
     name: String
+    definition: String
     characterOfSchema: Schema! @relation(name: "CHARACTER_OF", direction: OUT)
     states: [State!]! @relation(name: "STATE_OF", direction: IN)
     characterInstances: [CharacterInstance!]! @relation(name: "INSTANCE_OF" direction: IN)
@@ -242,7 +243,9 @@ input SchemaInput {
 }
 
 input CharacterInput {
+    characterID: String
     name: String
+    definition: String
     schemaID: String
 	enteredByPersonID: String
 }
@@ -434,6 +437,28 @@ type Mutation {
             """
         )
 
+    CustomUpdateCharacter(data: CharacterInput!): Character!
+        @cypher(
+            statement: """
+                MATCH 
+					(character:Character {characterID: $data.characterID}),
+                    (schema:Schema {schemaID: $data.schemaID}),
+                    (person:Person {personID: $data.enteredByPersonID})
+                OPTIONAL MATCH
+					(:Schema)<-[oldSchemaRelationship:CHARACTER_OF]-(character)
+                WITH character, schema, person, oldSchemaRelationship
+                SET 
+                    character.name = $data.name,
+                    character.definition = $data.definition
+				CREATE
+					(character)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                DELETE oldSchemaRelationship
+                CREATE
+                    (character)-[:CHARACTER_OF]->(schema)
+                RETURN character
+            """
+        )
+        
     CustomCreateState(data: StateInput!): State!
         @cypher(
             statement: """
