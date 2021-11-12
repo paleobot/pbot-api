@@ -356,7 +356,7 @@ type Mutation {
                 UNWIND $data.authors AS aID
                     MATCH (author:Person {personID: aID}) 
                     CREATE (reference)-[:AUTHORED_BY]->(author)
-                WITH reference, oars
+                WITH collect(aID) as dummy, reference, oars
                 UNWIND oars AS ar
                     DELETE ar
                 RETURN reference
@@ -378,7 +378,7 @@ type Mutation {
                 UNWIND $data.authors AS aID
                     MATCH (author:Person {personID: aID}) 
                     CREATE (schema)-[:AUTHORED_BY]->(author)
-                WITH DISTINCT schema
+                WITH collect(aID) as dummy, DISTINCT schema
                 UNWIND $data.references as rID
                     MATCH (reference:Reference {referenceID: rID})
                     CREATE (reference)-[:CITED_BY]->(schema)
@@ -407,14 +407,14 @@ type Mutation {
                 UNWIND $data.references AS rID
                     MATCH (reference:Reference {referenceID: rID}) 
                     CREATE (reference)-[:CITED_BY]->(schema)
-                WITH schema, ocrs, oars
+                WITH collect(rID) AS dummy, schema, ocrs, oars
                 UNWIND ocrs AS cr
                     DELETE cr
-                WITH schema, oars
+                WITH collect(cr) AS dummy, schema, oars
                 UNWIND $data.authors AS aID
                     MATCH (author:Person {personID: aID}) 
                     CREATE (schema)-[:AUTHORED_BY]->(author)
-                WITH schema, oars
+                WITH collect (aID) as dummy, schema, oars
                 UNWIND oars AS ar
                     DELETE ar
                 WITH schema
