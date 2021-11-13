@@ -251,6 +251,7 @@ input CharacterInput {
 }
 
 input StateInput {
+    stateID: String
     name: String
     definition: String
     characterID: String
@@ -480,6 +481,33 @@ type Mutation {
             """
         )
 
+    CustomUpdateState(data: StateInput!): State!
+        @cypher(
+            statement: """
+                MATCH 
+					(state:State {stateID: $data.stateID}),
+                    (person:Person {personID: $data.enteredByPersonID})
+                OPTIONAL MATCH
+					()<-[oldParentRelationship:STATE_OF]-(state)
+                CALL apoc.case([
+                    $data.parentStateID is null, "MATCH (parent:Character {characterID: characterID}) RETURN parent",
+                    $data.parentStateID is not null, "MATCH (parent:State {stateID: parentStateID}) RETURN parent"],
+                    'RETURN "" as parent',
+                    {characterID: $data.characterID, parentStateID: $data.parentStateID}
+                ) YIELD value 
+                WITH value.parent as parent, person, state, oldParentRelationship
+                SET 
+                    state.name = $data.name,
+                    state.definition = $data.definition
+                CREATE
+					(state)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                DELETE oldParentRelationship
+                CREATE
+                    (state)-[:STATE_OF]->(parent)
+                RETURN state           
+            """
+        )
+        
     CustomCreateDescription(data: DescriptionInput!): Description!
         @cypher(
             statement: """
