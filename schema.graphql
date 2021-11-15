@@ -58,7 +58,9 @@ type State {
     stateID: ID!
     name: String
     definition: String
-    stateOf: [Statable!]! @relation(name: "STATE_OF", direction: OUT)
+    stateOf:  Statable! @cypher(
+      statement: "match (this)-[:STATE_OF]->(n) return n limit 1"
+    )
     states: [State!]! @relation(name: "STATE_OF", direction: IN)
     characterInstances: [HasState]
     enteredBy: [StateEnteredBy]
