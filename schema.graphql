@@ -218,6 +218,7 @@ Mutations overrides. We might want to think about only using these, rather than 
     TODO: To make these true overrides, delete the 'Custom' prefix. """
 
 input PersonInput {
+    personID: String
     given: String
 	surname: String
 	email: String
@@ -314,6 +315,23 @@ type Mutation {
                         email: $data.email,
                         orcid: $data.orcid
                     })-[:ENTERED_BY {timestamp: datetime()}]->(ePerson)
+                RETURN person
+            """
+        )
+
+    CustomUpdatePerson(data: PersonInput!): Person!
+        @cypher(
+            statement: """
+                MATCH 
+                    (person:Person {personID: $data.personID}),
+                    (ePerson:Person {personID: $data.enteredByPersonID})
+                SET 
+                    person.given = $data.given,
+                    person.surname = $data.surname,
+                    person.email = $data.email,
+                    person.orcid = $data.orcid
+                CREATE
+                    (person)-[:ENTERED_BY {timestamp: datetime()}]->(ePerson)
                 RETURN person
             """
         )
