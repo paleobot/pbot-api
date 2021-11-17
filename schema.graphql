@@ -599,8 +599,7 @@ type Mutation {
             statement: """
                 MATCH 
                     (description:Description {descriptionID: $data.descriptionID}),
-                    (character:Character {characterID: $data.characterID}),
-                    (state:State {stateID: $data.stateID}),
+                    (character:Character {characterID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {stateID: $data.stateID}),
                     (person:Person {personID: $data.enteredByPersonID})
                 CREATE 
                     (description)-[:DEFINED_BY]->(characterInstance:CharacterInstance {
@@ -617,8 +616,7 @@ type Mutation {
             statement: """
                 MATCH 
                     (characterInstance:CharacterInstance {characterInstanceID: $data.characterInstanceID}),
-                    (character:Character {characterID: $data.characterID}),
-                    (state:State {stateID: $data.stateID}),
+                    (character:Character {characterID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {stateID: $data.stateID}),
                     (person:Person {personID: $data.enteredByPersonID})
                 OPTIONAL MATCH
 					(:Character)<-[oldCharacterRelationship:INSTANCE_OF]-(characterInstance)
