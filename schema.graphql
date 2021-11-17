@@ -275,6 +275,7 @@ input DescriptionInput {
 }
 
 input CharacterInstanceInput {
+    characterInstanceID: String
     descriptionID: String!
     characterID: String!
     stateID: String!
@@ -605,6 +606,28 @@ type Mutation {
                     (description)-[:DEFINED_BY]->(characterInstance:CharacterInstance {
                         characterInstanceID: apoc.create.uuid()
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person),
+                    (character)<-[:INSTANCE_OF]-(characterInstance),
+                    (state)<-[:HAS_STATE {value: $data.quantity}]-(characterInstance) 
+                RETURN characterInstance
+            """
+        )
+
+    CustomUpdateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance!
+        @cypher(
+            statement: """
+                MATCH 
+                    (characterInstance:CharacterInstance {characterInstanceID: $data.characterInstanceID}),
+                    (character:Character {characterID: $data.characterID}),
+                    (state:State {stateID: $data.stateID}),
+                    (person:Person {personID: $data.enteredByPersonID})
+                OPTIONAL MATCH
+					(:Character)<-[oldCharacterRelationship:INSTANCE_OF]-(characterInstance)
+                OPTIONAL MATCH
+					(:State)<-[oldStateRelationship:HAS_STATE]-(characterInstance)
+                DELETE oldCharacterRelationship
+                DELETE oldStateRelationship
+                CREATE 
+                    (characterInstance)-[:ENTERED_BY {timestamp: datetime()}]->(person),
                     (character)<-[:INSTANCE_OF]-(characterInstance),
                     (state)<-[:HAS_STATE {value: $data.quantity}]-(characterInstance) 
                 RETURN characterInstance
