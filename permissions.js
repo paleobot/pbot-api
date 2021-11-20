@@ -18,7 +18,11 @@ const permissions = shield({
     },  
     Mutation: {
         "*":  and(isAuthenticated, isAdmin)
-  },
+    },
+},
+{
+    debug: true,
+    allowExternalErrors: true
 })
 
 
