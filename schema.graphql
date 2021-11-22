@@ -592,6 +592,32 @@ type Mutation {
             """
         )
         
+    """NOTE: For now, only allowing delete of nodes entered by same user. Will likely need further logic here."""
+    CustomDeleteDescription(data: DescriptionInput!): Description!
+        @cypher(
+            statement: """
+                MATCH 
+                    (description:Description {descriptionID: $data.descriptionID})-[enteredBy:ENTERED_BY]->(person:Person {personID:$data.enteredByPersonID})
+                OPTIONAL MATCH
+                    (description)-[applicationOf:APPLICATION_OF]->(:Schema)
+                OPTIONAL MATCH
+                    (description)-[definedBy:DEFINED_BY]->(:CharacterInstance)
+                OPTIONAL MATCH
+                    (description)<-[describedBy:DESCRIBED_BY]-(:Specimen)
+                WITH definedBy, enteredBy, applicationOf, describedBy, description, description.descriptionID AS dID
+                CALL apoc.do.when(
+                    definedBy is not null, 
+                    'RETURN "Cannot delete node " + description.descriptionID + " because it has CharacterInstances" AS result', 
+                    'DELETE enteredBy, applicationOf, describedBy, description RETURN  dID + " deleted" AS result',
+                    {definedBy: definedBy, enteredBy:enteredBy, applicationOf: applicationOf, describedBy: describedBy,  description: description, dID: dID}
+                ) YIELD value
+				WITH {
+					descriptionID: value.result
+				} AS result
+                RETURN result                
+            """
+        )
+
     """NOTE: No when is needed for the HAS_STATE value property below since setting properties to null 
     means they don't exist."""
     CustomCreateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance!
