@@ -39,7 +39,7 @@ const getUser = async (driver, email) => {
                 )
             }           
         `, {
-            email: email//'douglasm@arizona.edu'
+            email: email
         }
     )
     .then(result => {
