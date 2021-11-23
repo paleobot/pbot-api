@@ -337,7 +337,17 @@ type Mutation {
             """
         )
 
-    CustomCreateReference(data: ReferenceInput!): Reference!
+    CustomDeletePerson(data: PersonInput!): Person!
+        @cypher(
+            statement: """
+				WITH {
+					personID: "Not yet implemented"
+				} AS result
+                RETURN result                
+            """
+        )
+
+        CustomCreateReference(data: ReferenceInput!): Reference!
         @cypher(
             statement: """
                 MATCH 
@@ -385,6 +395,16 @@ type Mutation {
             """
         )
         
+    CustomDeleteReference(data: ReferenceInput!): Reference!
+        @cypher(
+            statement: """
+				WITH {
+					referenceID: "Not yet implemented"
+				} AS result
+                RETURN result                
+            """
+        )
+
     CustomCreateSchema(data: SchemaInput!): Schema!
         @cypher(
             statement: """
@@ -444,6 +464,16 @@ type Mutation {
             """
         )
         
+    CustomDeleteSchema(data: SchemaInput!): Schema!
+        @cypher(
+            statement: """
+				WITH {
+					schemaID: "Not yet implemented"
+				} AS result
+                RETURN result                
+            """
+        )
+
     CustomCreateCharacter(data: CharacterInput!): Character!
         @cypher(
             statement: """
@@ -481,6 +511,16 @@ type Mutation {
             """
         )
         
+    CustomDeleteCharacter(data: CharacterInput!): Character!
+        @cypher(
+            statement: """
+				WITH {
+					characterID: "Not yet implemented"
+				} AS result
+                RETURN result                
+            """
+        )
+
     CustomCreateState(data: StateInput!): State!
         @cypher(
             statement: """
@@ -529,6 +569,16 @@ type Mutation {
             """
         )
         
+    CustomDeleteState(data: StateInput!): State!
+        @cypher(
+            statement: """
+				WITH {
+					stateID: "Not yet implemented"
+				} AS result
+                RETURN result                
+            """
+        )
+
     CustomCreateDescription(data: DescriptionInput!): Description!
         @cypher(
             statement: """
@@ -657,7 +707,17 @@ type Mutation {
                 RETURN characterInstance
             """
         )
-        
+
+    CustomDeleteCharacterInstance(data: CharacterInstanceInput!): CharacterInstance!
+        @cypher(
+            statement: """
+				WITH {
+					characterInstanceID: "Not yet implemented"
+				} AS result
+                RETURN result                
+            """
+        )
+
     CustomCreateSpecimen(data: SpecimenInput!): Specimen!
         @cypher(
             statement: """
@@ -738,6 +798,16 @@ type Mutation {
             """
         )
         
+    CustomDeleteSpecimen(data: SpecimenInput!): Specimen!
+        @cypher(
+            statement: """
+				WITH {
+					specimenID: "Not yet implemented"
+				} AS result
+                RETURN result                
+            """
+        )
+
     CustomCreateOrgan(data: OrganInput!): Organ!
         @cypher(
             statement: """
@@ -751,4 +821,15 @@ type Mutation {
                 RETURN organ
             """
         )
+        
+    CustomDeleteOrgan(data: OrganInput!): Organ!
+        @cypher(
+            statement: """
+				WITH {
+					organID: "Not yet implemented"
+				} AS result
+                RETURN result                
+            """
+        )
+
 }
