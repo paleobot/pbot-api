@@ -420,10 +420,11 @@ type Mutation {
                 UNWIND $data.authors AS aID
                     MATCH (author:Person {personID: aID}) 
                     CREATE (schema)-[:AUTHORED_BY]->(author)
-                WITH collect(aID) as dummy, DISTINCT schema
+                WITH collect(aID) as dummy, schema
                 UNWIND $data.references as rID
                     MATCH (reference:Reference {referenceID: rID})
                     CREATE (reference)-[:CITED_BY]->(schema)
+                WITH collect(rID)as dummy, schema
                 RETURN schema
             """
         )
@@ -536,7 +537,8 @@ type Mutation {
                     CREATE 
                         (parent)<-[:STATE_OF]-(state:State {
                             stateID: apoc.create.uuid(),
-                            name: $data.name
+                            name: $data.name,
+                            definition:$data.definition
                         })-[:ENTERED_BY {timestamp: datetime()}]->(person)
                     RETURN state           
             """
