@@ -21,7 +21,7 @@ const getUser = async (driver, email) => {
         OPTIONAL MATCH (person)-[:HAS_ROLE]->(role:Role) 
         RETURN 
             person{
-                .personID,
+                .pbotID,
                 .given, 
                 .surname, 
                 .email,
@@ -74,7 +74,7 @@ const createUser = async (driver, user) => {
         MERGE 
             (person:Person {email : $email})
             ON CREATE SET
-                person.personID = apoc.create.uuid(),
+                person.pbotID = apoc.create.uuid(),
                 person.given = $given,
                 person.surname = $surname,
                 person.password = $password

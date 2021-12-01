@@ -11,7 +11,7 @@ union Statable = Character | State
     Ideally, this would be handled by a relation directive, but that does not appear to
     work with unions. """
 type Person {
-    personID: ID!
+    pbotID: ID!
     given: String
     surname: String
     email: String
@@ -23,7 +23,7 @@ type Person {
 }
 
 type Reference {
-    referenceID: ID!
+    pbotID: ID!
     title: String
     year: String
     publisher: String
@@ -34,7 +34,7 @@ type Reference {
 }
 
 type Schema {
-    schemaID: ID!
+    pbotID: ID!
     title: String
     year: String
     cites: [Reference!]! @relation(name: "CITED_BY", direction: IN)
@@ -45,7 +45,7 @@ type Schema {
 }
 
 type Character {
-    characterID: ID!
+    pbotID: ID!
     name: String
     definition: String
     characterOfSchema: Schema! @relation(name: "CHARACTER_OF", direction: OUT)
@@ -55,7 +55,7 @@ type Character {
 }
 
 type State {
-    stateID: ID!
+    pbotID: ID!
     name: String
     definition: String
     stateOf:  Statable! @cypher(
@@ -68,7 +68,7 @@ type State {
 
 """ Description Complex types """
 type Organ {
-    organID: ID!
+    pbotID: ID!
     type: String
     specimens: [Specimen!]! @relation(name: "IS_TYPE" direction: IN)
     enteredBy: [OrganEnteredBy]
@@ -76,7 +76,7 @@ type Organ {
 
 """Note: schema should be non null, but isn't right now due to missing data"""
 type Description {
-    descriptionID: ID!
+    pbotID: ID!
     type: String
 	name: String
 	family: String
@@ -91,7 +91,7 @@ type Description {
 }
 
 type CharacterInstance {
-    characterInstanceID: ID!
+    pbotID: ID!
     character: Character @relation(name: "INSTANCE_OF", direction: OUT)
     state: HasState
     candidateForArchtype: Description @relation(name: "CANDIDATE_FOR", direction: OUT)
@@ -100,7 +100,7 @@ type CharacterInstance {
 }
 
 type Specimen {
-    specimenID: ID!
+    pbotID: ID!
     name: String
     locality: String
     organ: Organ @relation(name: "IS_TYPE", direction: OUT)
@@ -195,7 +195,7 @@ type Query {
         @cypher(
             statement: """
                 match 
-                    (:Character {characterID: $characterID})<-[:STATE_OF*1..100]-(n:State) 
+                    (:Character {pbotID: $characterID})<-[:STATE_OF*1..100]-(n:State) 
                 where  
                     not (n)<-[:STATE_OF]-(:State) 
                 return n            
@@ -206,7 +206,7 @@ type Query {
         @cypher(
             statement: """
                 match 
-                    (:Character {characterID: $characterID})<-[:STATE_OF*1..100]-(n:State) 
+                    (:Character {pbotID: $characterID})<-[:STATE_OF*1..100]-(n:State) 
                 return n            
             """
         )
@@ -218,7 +218,7 @@ Mutations overrides. We might want to think about only using these, rather than 
     TODO: To make these true overrides, delete the 'Custom' prefix. """
 
 input PersonInput {
-    personID: String
+    pbotID: String
     given: String
 	surname: String
 	email: String
@@ -227,7 +227,7 @@ input PersonInput {
 } 
 
 input ReferenceInput {
-    referenceID: String
+    pbotID: String
     title: String
 	year: String
 	publisher: String
@@ -237,7 +237,7 @@ input ReferenceInput {
 } 
 
 input SchemaInput {
-    schemaID: String
+    pbotID: String
     title: String
 	year: String
 	references: [String]
@@ -246,7 +246,7 @@ input SchemaInput {
 }
 
 input CharacterInput {
-    characterID: String
+    pbotID: String
     name: String
     definition: String
     schemaID: String
@@ -254,7 +254,7 @@ input CharacterInput {
 }
 
 input StateInput {
-    stateID: String
+    pbotID: String
     name: String
     definition: String
     characterID: String
@@ -263,7 +263,7 @@ input StateInput {
 }
 
 input DescriptionInput {
-    descriptionID: String
+    pbotID: String
     type: String!
     specimenID: String
 	name: String!
@@ -275,7 +275,7 @@ input DescriptionInput {
 }
 
 input CharacterInstanceInput {
-    characterInstanceID: String
+    pbotID: String
     descriptionID: String!
     characterID: String!
     stateID: String!
@@ -284,7 +284,7 @@ input CharacterInstanceInput {
 }
 
 input SpecimenInput {
-    specimenID: String
+    pbotID: String
     name: String!
     locality: String
     preservationMode: String
@@ -307,10 +307,10 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (ePerson:Person {personID: $data.enteredByPersonID})
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
                 CREATE 
                     (person: Person {
-                        personID: apoc.create.uuid(),
+                        pbotID: apoc.create.uuid(),
                         given: $data.given,
                         surname: $data.surname,
                         email: $data.email,
@@ -324,8 +324,8 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (person:Person {personID: $data.personID}),
-                    (ePerson:Person {personID: $data.enteredByPersonID})
+                    (person:Person {pbotID: $data.pbotID}),
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
                 SET 
                     person.given = $data.given,
                     person.surname = $data.surname,
@@ -341,7 +341,7 @@ type Mutation {
         @cypher(
             statement: """
 				WITH {
-					personID: "Not yet implemented"
+					pbotID: "Not yet implemented"
 				} AS result
                 RETURN result                
             """
@@ -351,10 +351,10 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (person:Person {personID: $data.enteredByPersonID})
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 CREATE 
                     (reference: Reference {
-                        referenceID: apoc.create.uuid(),
+                        pbotID: apoc.create.uuid(),
                         title: $data.title,
                         year: $data.year,
                         publisher: $data.publisher,
@@ -362,7 +362,7 @@ type Mutation {
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person)
                 WITH reference
                 UNWIND $data.authors AS aID
-                    MATCH (author:Person {personID: aID}) 
+                    MATCH (author:Person {pbotID: aID}) 
                     CREATE (reference)-[:AUTHORED_BY]->(author)
                 RETURN reference
             """
@@ -372,8 +372,8 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-					(reference:Reference {referenceID: $data.referenceID}),
-                    (person:Person {personID: $data.enteredByPersonID})
+					(reference:Reference {pbotID: $data.pbotID}),
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 OPTIONAL MATCH
 					(:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(reference)
                 WITH reference, person, collect(oldAuthorRelationship) AS oars
@@ -386,7 +386,7 @@ type Mutation {
 					(reference)-[:ENTERED_BY {timestamp: datetime()}]->(person)
                 WITH reference, oars
                 UNWIND $data.authors AS aID
-                    MATCH (author:Person {personID: aID}) 
+                    MATCH (author:Person {pbotID: aID}) 
                     CREATE (reference)-[:AUTHORED_BY]->(author)
                 WITH collect(aID) as dummy, reference, oars
                 UNWIND oars AS ar
@@ -399,7 +399,7 @@ type Mutation {
         @cypher(
             statement: """
 				WITH {
-					referenceID: "Not yet implemented"
+					pbotID: "Not yet implemented"
 				} AS result
                 RETURN result                
             """
@@ -409,20 +409,20 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (person:Person {personID: $data.enteredByPersonID})
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 CREATE 
                     (schema:Schema {
-                        schemaID: apoc.create.uuid(),
+                        pbotID: apoc.create.uuid(),
                         title: $data.title,
                         year: $data.year
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person)
                 WITH schema
                 UNWIND $data.authors AS aID
-                    MATCH (author:Person {personID: aID}) 
+                    MATCH (author:Person {pbotID: aID}) 
                     CREATE (schema)-[:AUTHORED_BY]->(author)
                 WITH collect(aID) as dummy, schema
                 UNWIND $data.references as rID
-                    MATCH (reference:Reference {referenceID: rID})
+                    MATCH (reference:Reference {pbotID: rID})
                     CREATE (reference)-[:CITED_BY]->(schema)
                 WITH collect(rID)as dummy, schema
                 RETURN schema
@@ -433,8 +433,8 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-					(schema:Schema {schemaID: $data.schemaID}),
-                    (person:Person {personID: $data.enteredByPersonID})
+					(schema:Schema {pbotID: $data.pbotID}),
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 OPTIONAL MATCH
 					(:Reference)-[oldCitationRelationship:CITED_BY]->(schema)
                 WITH schema, person, collect(oldCitationRelationship) AS ocrs
@@ -448,14 +448,14 @@ type Mutation {
 					(schema)-[:ENTERED_BY {timestamp: datetime()}]->(person)
                 WITH schema, ocrs, oars
                 UNWIND $data.references AS rID
-                    MATCH (reference:Reference {referenceID: rID}) 
+                    MATCH (reference:Reference {pbotID: rID}) 
                     CREATE (reference)-[:CITED_BY]->(schema)
                 WITH collect(rID) AS dummy, schema, ocrs, oars
                 UNWIND ocrs AS cr
                     DELETE cr
                 WITH collect(cr) AS dummy, schema, oars
                 UNWIND $data.authors AS aID
-                    MATCH (author:Person {personID: aID}) 
+                    MATCH (author:Person {pbotID: aID}) 
                     CREATE (schema)-[:AUTHORED_BY]->(author)
                 WITH collect (aID) as dummy, schema, oars
                 UNWIND oars AS ar
@@ -469,7 +469,7 @@ type Mutation {
         @cypher(
             statement: """
 				WITH {
-					schemaID: "Not yet implemented"
+					pbotID: "Not yet implemented"
 				} AS result
                 RETURN result                
             """
@@ -479,12 +479,13 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (schema:Schema {schemaID: $data.schemaID}),
-                    (person:Person {personID: $data.enteredByPersonID})
+                    (schema:Schema {pbotID: $data.schemaID}),
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 CREATE 
                     (schema)<-[:CHARACTER_OF]-(character:Character {
-                        characterID: apoc.create.uuid(),
-                        name: $data.name
+                        pbotID: apoc.create.uuid(),
+                        name: $data.name,
+                        definition: $data.definition
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person)
                 RETURN character
             """
@@ -494,9 +495,9 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-					(character:Character {characterID: $data.characterID}),
-                    (schema:Schema {schemaID: $data.schemaID}),
-                    (person:Person {personID: $data.enteredByPersonID})
+					(character:Character {pbotID: $data.pbotID}),
+                    (schema:Schema {pbotID: $data.schemaID}),
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 OPTIONAL MATCH
 					(:Schema)<-[oldSchemaRelationship:CHARACTER_OF]-(character)
                 WITH character, schema, person, oldSchemaRelationship
@@ -516,7 +517,7 @@ type Mutation {
         @cypher(
             statement: """
 				WITH {
-					characterID: "Not yet implemented"
+					pbotID: "Not yet implemented"
 				} AS result
                 RETURN result                
             """
@@ -526,17 +527,17 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (person:Person {personID: $data.enteredByPersonID})
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 CALL apoc.case([
-                    $data.parentStateID is null, "MATCH (parent:Character {characterID: characterID}) RETURN parent",
-                    $data.parentStateID is not null, "MATCH (parent:State {stateID: parentStateID}) RETURN parent"],
+                    $data.parentStateID is null, "MATCH (parent:Character {pbotID: characterID}) RETURN parent",
+                    $data.parentStateID is not null, "MATCH (parent:State {pbotID: parentStateID}) RETURN parent"],
                     'RETURN "" as parent',
                     {characterID: $data.characterID, parentStateID: $data.parentStateID}
                 ) YIELD value 
                 WITH value.parent as parent, person
                     CREATE 
                         (parent)<-[:STATE_OF]-(state:State {
-                            stateID: apoc.create.uuid(),
+                            pbotID: apoc.create.uuid(),
                             name: $data.name,
                             definition:$data.definition
                         })-[:ENTERED_BY {timestamp: datetime()}]->(person)
@@ -548,13 +549,13 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-					(state:State {stateID: $data.stateID}),
-                    (person:Person {personID: $data.enteredByPersonID})
+					(state:State {pbotID: $data.pbotID}),
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 OPTIONAL MATCH
 					()<-[oldParentRelationship:STATE_OF]-(state)
                 CALL apoc.case([
-                    $data.parentStateID is null, "MATCH (parent:Character {characterID: characterID}) RETURN parent",
-                    $data.parentStateID is not null, "MATCH (parent:State {stateID: parentStateID}) RETURN parent"],
+                    $data.parentStateID is null, "MATCH (parent:Character {pbotID: characterID}) RETURN parent",
+                    $data.parentStateID is not null, "MATCH (parent:State {pbotID: parentStateID}) RETURN parent"],
                     'RETURN "" as parent',
                     {characterID: $data.characterID, parentStateID: $data.parentStateID}
                 ) YIELD value 
@@ -575,7 +576,7 @@ type Mutation {
         @cypher(
             statement: """
 				WITH {
-					stateID: "Not yet implemented"
+					pbotID: "Not yet implemented"
 				} AS result
                 RETURN result                
             """
@@ -585,13 +586,13 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (schema:Schema {schemaID: $data.schemaID}),
-                    (person:Person {personID: $data.enteredByPersonID})
+                    (schema:Schema {pbotID: $data.schemaID}),
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 OPTIONAL MATCH
-                    (specimen:Specimen {specimenID: $data.specimenID})
+                    (specimen:Specimen {pbotID: $data.specimenID})
                 CREATE 
                     (schema)<-[:APPLICATION_OF]-(description: Description {
-                        descriptionID: apoc.create.uuid(),
+                        pbotID: apoc.create.uuid(),
                         type: $data.type,
                         name: $data.name,
                         family: $data.family,
@@ -613,11 +614,11 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-					(description:Description {descriptionID: $data.descriptionID}),
-                    (schema:Schema {schemaID: $data.schemaID}),
-                    (person:Person {personID: $data.enteredByPersonID})
+					(description:Description {pbotID: $data.pbotID}),
+                    (schema:Schema {pbotID: $data.schemaID}),
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 OPTIONAL MATCH
-                    (specimen:Specimen {specimenID: $data.specimenID})
+                    (specimen:Specimen {pbotID: $data.specimenID})
                 OPTIONAL MATCH
 					(:Schema)<-[oldSchemaRelationship:APPLICATION_OF]-(description)
                 OPTIONAL MATCH
@@ -644,27 +645,31 @@ type Mutation {
             """
         )
         
-    """NOTE: For now, only allowing delete of nodes entered by same user. Will likely need further logic here."""
+    """NOTE: For now, only allowing delete of nodes entered by same user. Will likely need further logic here.
+    ALSO NOTE: This only works if there is one ENTERED_BY relationship. It's weird. Executing manually without the apoc.do.when,
+    it works just fine. But with the apoc call, it chokes with a "node still has relationships" error. I'm guessing that only 
+    one ENTERED_BY is passed into the apoc routine at a time. If so, would need to wrap the apoc call in an UNWIND. Not quite
+    sure how to do that."""
     CustomDeleteDescription(data: DescriptionInput!): Description!
         @cypher(
             statement: """
                 MATCH 
-                    (description:Description {descriptionID: $data.descriptionID})-[enteredBy:ENTERED_BY]->(person:Person {personID:$data.enteredByPersonID})
+                    (description:Description {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(person:Person {pbotID:$data.enteredByPersonID})
                 OPTIONAL MATCH
                     (description)-[applicationOf:APPLICATION_OF]->(:Schema)
                 OPTIONAL MATCH
                     (description)-[definedBy:DEFINED_BY]->(:CharacterInstance)
                 OPTIONAL MATCH
                     (description)<-[describedBy:DESCRIBED_BY]-(:Specimen)
-                WITH definedBy, enteredBy, applicationOf, describedBy, description, description.descriptionID AS dID
+                WITH definedBy, enteredBy, applicationOf, describedBy, description
                 CALL apoc.do.when(
                     definedBy is not null, 
-                    'RETURN "Cannot delete node " + description.descriptionID + " because it has CharacterInstances" AS result', 
-                    'DELETE enteredBy, applicationOf, describedBy, description RETURN  dID + " deleted" AS result',
-                    {definedBy: definedBy, enteredBy:enteredBy, applicationOf: applicationOf, describedBy: describedBy,  description: description, dID: dID}
+                    'RETURN "Cannot delete node " + description.pbotID + " because it has CharacterInstances" AS result', 
+                    'UNWIND enteredBy AS eb DELETE eb WITH collect(eb) AS dummy, applicationOf, describedBy, description DELETE applicationOf, describedBy WITH description, description.pbotID AS dID DELETE description RETURN dID + " deleted" AS result',
+                    {definedBy: definedBy, enteredBy:enteredBy, applicationOf: applicationOf, describedBy: describedBy,  description: description}
                 ) YIELD value
 				WITH {
-					descriptionID: value.result
+					pbotID: value.result
 				} AS result
                 RETURN result                
             """
@@ -676,12 +681,12 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (description:Description {descriptionID: $data.descriptionID}),
-                    (character:Character {characterID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {stateID: $data.stateID}),
-                    (person:Person {personID: $data.enteredByPersonID})
+                    (description:Description {pbotID: $data.descriptionID}),
+                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {pbotID: $data.stateID}),
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 CREATE 
                     (description)-[:DEFINED_BY]->(characterInstance:CharacterInstance {
-                        characterInstanceID: apoc.create.uuid()
+                        pbotID: apoc.create.uuid()
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person),
                     (character)<-[:INSTANCE_OF]-(characterInstance),
                     (state)<-[:HAS_STATE {value: $data.quantity}]-(characterInstance) 
@@ -693,9 +698,9 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (characterInstance:CharacterInstance {characterInstanceID: $data.characterInstanceID}),
-                    (character:Character {characterID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {stateID: $data.stateID}),
-                    (person:Person {personID: $data.enteredByPersonID})
+                    (characterInstance:CharacterInstance {pbotID: $data.pbotID}),
+                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {pbotID: $data.stateID}),
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 OPTIONAL MATCH
 					(:Character)<-[oldCharacterRelationship:INSTANCE_OF]-(characterInstance)
                 OPTIONAL MATCH
@@ -714,7 +719,7 @@ type Mutation {
         @cypher(
             statement: """
 				WITH {
-					characterInstanceID: "Not yet implemented"
+					pbotID: "Not yet implemented"
 				} AS result
                 RETURN result                
             """
@@ -724,15 +729,15 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (person:Person {personID: $data.enteredByPersonID}),
-                    (organ:Organ {organID: $data.organID})
+                    (person:Person {pbotID: $data.enteredByPersonID}),
+                    (organ:Organ {pbotID: $data.organID})
                 OPTIONAL MATCH
-                    (description:Description {descriptionID: $data.descriptionID})
+                    (description:Description {pbotID: $data.descriptionID})
                 OPTIONAL MATCH
-                    (otu:Description {descriptionID: $data.otuID})
+                    (otu:Description {pbotID: $data.otuID})
                 CREATE
                     (organ)<-[:IS_TYPE]-(specimen:Specimen {
-                        specimenID: apoc.create.uuid(),
+                        pbotID: apoc.create.uuid(),
                         name: $data.name,
                         locality: $data.locality,
                         preservationMode: $data.preservationMode,
@@ -760,14 +765,14 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-					(specimen:Specimen {specimenID: $data.specimenID}),
-                    (person:Person {personID: $data.enteredByPersonID}),
-                    (organ:Organ {organID: $data.organID}),
+					(specimen:Specimen {pbotID: $data.pbotID}),
+                    (person:Person {pbotID: $data.enteredByPersonID}),
+                    (organ:Organ {pbotID: $data.organID}),
 					(specimen)-[oldOrganRelationship:IS_TYPE]->(:Organ)
                 OPTIONAL MATCH
                     (description:Description {descriptionID: $data.descriptionID})
                 OPTIONAL MATCH
-                    (otu:Description {descriptionID: $data.otuID})
+                    (otu:Description {pbotID: $data.otuID})
                 OPTIONAL MATCH
 					(specimen)-[oldDescribedByRelationship:DESCRIBED_BY]->(:Description)
                 OPTIONAL MATCH
@@ -804,7 +809,7 @@ type Mutation {
         @cypher(
             statement: """
 				WITH {
-					specimenID: "Not yet implemented"
+					pbotID: "Not yet implemented"
 				} AS result
                 RETURN result                
             """
@@ -814,10 +819,10 @@ type Mutation {
         @cypher(
             statement: """
                 MATCH 
-                    (person:Person {personID: $data.enteredByPersonID})
+                    (person:Person {pbotID: $data.enteredByPersonID})
                 CREATE 
                     (organ:Organ {
-                        organID: apoc.create.uuid(),
+                        pbotID: apoc.create.uuid(),
                         type: $data.type
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person)
                 RETURN organ
@@ -828,7 +833,7 @@ type Mutation {
         @cypher(
             statement: """
 				WITH {
-					organID: "Not yet implemented"
+					pbotID: "Not yet implemented"
 				} AS result
                 RETURN result                
             """
