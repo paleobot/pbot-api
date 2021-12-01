@@ -340,33 +340,40 @@ type Mutation {
     CustomDeletePerson(data: PersonInput!): Person!
         @cypher(
             statement: """
-				WITH {
-					pbotID: "Not yet implemented"
-				} AS result
-                RETURN result                
+                MATCH 
+                    (person:Person {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID})
+                WITH enteredBy, person
+                UNWIND enteredBy AS eb 
+                    DELETE eb
+                WITH collect(eb) AS dummy, person, person.pbotID AS pID
+                    DELETE person
+                WITH {
+                    pbotID: pID + " deleted"
+                } AS result
+                RETURN result
             """
         )
 
-        CustomCreateReference(data: ReferenceInput!): Reference!
-        @cypher(
-            statement: """
-                MATCH 
-                    (person:Person {pbotID: $data.enteredByPersonID})
-                CREATE 
-                    (reference: Reference {
-                        pbotID: apoc.create.uuid(),
-                        title: $data.title,
-                        year: $data.year,
-                        publisher: $data.publisher,
-                        doi: $data.doi
-                    })-[:ENTERED_BY {timestamp: datetime()}]->(person)
-                WITH reference
-                UNWIND $data.authors AS aID
-                    MATCH (author:Person {pbotID: aID}) 
-                    CREATE (reference)-[:AUTHORED_BY]->(author)
-                RETURN reference
-            """
-        )
+    CustomCreateReference(data: ReferenceInput!): Reference!
+    @cypher(
+        statement: """
+            MATCH 
+                (person:Person {pbotID: $data.enteredByPersonID})
+            CREATE 
+                (reference: Reference {
+                    pbotID: apoc.create.uuid(),
+                    title: $data.title,
+                    year: $data.year,
+                    publisher: $data.publisher,
+                    doi: $data.doi
+                })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+            WITH reference
+            UNWIND $data.authors AS aID
+                MATCH (author:Person {pbotID: aID}) 
+                CREATE (reference)-[:AUTHORED_BY]->(author)
+            RETURN reference
+        """
+    )
 
     CustomUpdateReference(data: ReferenceInput!): Reference!
         @cypher(
@@ -398,10 +405,22 @@ type Mutation {
     CustomDeleteReference(data: ReferenceInput!): Reference!
         @cypher(
             statement: """
-				WITH {
-					pbotID: "Not yet implemented"
-				} AS result
-                RETURN result                
+                MATCH 
+                    (reference:Reference {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID})
+                OPTIONAL MATCH
+					(:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(reference)
+                WITH enteredBy, oldAuthorRelationship, reference
+                UNWIND oldAuthorRelationship AS oAR 
+                    DELETE oAR
+                WITH collect(oAR) AS dummy, enteredBy, reference
+                UNWIND enteredBy AS eb 
+                    DELETE eb
+                WITH collect(eb) AS dummy, reference, reference.pbotID AS rID
+                    DELETE reference
+                WITH {
+                    pbotID: rID + " deleted"
+                } AS result
+                RETURN result
             """
         )
 
@@ -468,10 +487,27 @@ type Mutation {
     CustomDeleteSchema(data: SchemaInput!): Schema!
         @cypher(
             statement: """
-				WITH {
-					pbotID: "Not yet implemented"
-				} AS result
-                RETURN result                
+                MATCH 
+                    (schema:Schema {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID})
+                OPTIONAL MATCH
+					(:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(schema)
+                OPTIONAL MATCH
+					(:Reference)-[oldCitationRelationship:CITED_BY]->(schema)
+                WITH enteredBy, oldAuthorRelationship, oldCitationRelationship, schema
+                UNWIND oldAuthorRelationship AS oAR 
+                    DELETE oAR
+                WITH collect(oAR) AS dummy, enteredBy, oldCitationRelationship, schema
+                UNWIND oldCitationRelationship AS oCR 
+                    DELETE oCR
+                WITH collect(oCR) AS dummy, enteredBy, schema
+                UNWIND enteredBy AS eb 
+                    DELETE eb
+                WITH collect(eb) AS dummy, schema, schema.pbotID AS sID
+                    DELETE schema
+                WITH {
+                    pbotID: sID + " deleted"
+                } AS result
+                RETURN result
             """
         )
 
@@ -516,10 +552,20 @@ type Mutation {
     CustomDeleteCharacter(data: CharacterInput!): Character!
         @cypher(
             statement: """
-				WITH {
-					pbotID: "Not yet implemented"
-				} AS result
-                RETURN result                
+                MATCH 
+                    (character:Character {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID})
+                OPTIONAL MATCH
+					(:Schema)<-[oldSchemaRelationship:CHARACTER_OF]-(character)
+                WITH enteredBy, oldSchemaRelationship, character
+                UNWIND enteredBy AS eb 
+                    DELETE eb
+                WITH collect(eb) AS dummy, oldSchemaRelationship, character, character.pbotID AS cID
+                    DELETE oldSchemaRelationship
+                    DELETE character
+                WITH {
+                    pbotID: cID + " deleted"
+                } AS result
+                RETURN result
             """
         )
 
@@ -575,10 +621,19 @@ type Mutation {
     CustomDeleteState(data: StateInput!): State!
         @cypher(
             statement: """
-				WITH {
-					pbotID: "Not yet implemented"
-				} AS result
-                RETURN result                
+                MATCH 
+                    (state:State {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID}),
+                    ()<-[oldParentRelationship:STATE_OF]-(state)
+                WITH enteredBy, oldParentRelationship, state
+                UNWIND enteredBy AS eb 
+                    DELETE eb
+                WITH collect(eb) AS dummy, oldParentRelationship, state, state.pbotID AS sID
+                    DELETE oldParentRelationship
+                    DELETE state
+                WITH {
+                    pbotID: sID + " deleted"
+                } AS result
+                RETURN result
             """
         )
 
@@ -646,10 +701,9 @@ type Mutation {
         )
         
     """NOTE: For now, only allowing delete of nodes entered by same user. Will likely need further logic here.
-    ALSO NOTE: This only works if there is one ENTERED_BY relationship. It's weird. Executing manually without the apoc.do.when,
-    it works just fine. But with the apoc call, it chokes with a "node still has relationships" error. I'm guessing that only 
-    one ENTERED_BY is passed into the apoc routine at a time. If so, would need to wrap the apoc call in an UNWIND. Not quite
-    sure how to do that."""
+    ALSO NOTE: Error reporting is not the best here. I had tried to use apoc.do.when to check for DEFINED_BY before deleting, but
+    it seems that routine only accepts one relationship of a type at a time, so can't UNWIND within it. Instead, I'm just ignoring
+    DEFINED_BY ad letting cypher catch the problem and rollback the operation. But this results in less than ideal error messaging to the client."""
     CustomDeleteDescription(data: DescriptionInput!): Description!
         @cypher(
             statement: """
@@ -658,20 +712,18 @@ type Mutation {
                 OPTIONAL MATCH
                     (description)-[applicationOf:APPLICATION_OF]->(:Schema)
                 OPTIONAL MATCH
-                    (description)-[definedBy:DEFINED_BY]->(:CharacterInstance)
-                OPTIONAL MATCH
                     (description)<-[describedBy:DESCRIBED_BY]-(:Specimen)
-                WITH definedBy, enteredBy, applicationOf, describedBy, description
-                CALL apoc.do.when(
-                    definedBy is not null, 
-                    'RETURN "Cannot delete node " + description.pbotID + " because it has CharacterInstances" AS result', 
-                    'UNWIND enteredBy AS eb DELETE eb WITH collect(eb) AS dummy, applicationOf, describedBy, description DELETE applicationOf, describedBy WITH description, description.pbotID AS dID DELETE description RETURN dID + " deleted" AS result',
-                    {definedBy: definedBy, enteredBy:enteredBy, applicationOf: applicationOf, describedBy: describedBy,  description: description}
-                ) YIELD value
-				WITH {
-					pbotID: value.result
-				} AS result
-                RETURN result                
+                WITH enteredBy, applicationOf, describedBy, description
+                UNWIND enteredBy AS eb 
+                    DELETE eb
+                WITH collect(eb) AS dummy, applicationOf, describedBy, description 
+                    DELETE applicationOf, describedBy 
+                WITH description, description.pbotID AS dID
+                    DELETE description
+                WITH {
+                    pbotID: dID + " deleted"
+                } AS result
+                RETURN result
             """
         )
 
@@ -718,10 +770,14 @@ type Mutation {
     CustomDeleteCharacterInstance(data: CharacterInstanceInput!): CharacterInstance!
         @cypher(
             statement: """
-				WITH {
-					pbotID: "Not yet implemented"
-				} AS result
-                RETURN result                
+                MATCH 
+                    (characterInstance:CharacterInstance {pbotID: $data.pbotID})-[:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID})
+                WITH characterInstance, characterInstance.pbotID AS cIID
+                    DETACH DELETE characterInstance
+                WITH {
+                    pbotID: cIID + " deleted"
+                } AS result
+                RETURN result
             """
         )
 
@@ -808,10 +864,14 @@ type Mutation {
     CustomDeleteSpecimen(data: SpecimenInput!): Specimen!
         @cypher(
             statement: """
-				WITH {
-					pbotID: "Not yet implemented"
-				} AS result
-                RETURN result                
+                MATCH 
+                    (specimen:Specimen {pbotID: $data.pbotID})-[:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID})
+                WITH specimen, specimen.pbotID AS sID
+                    DETACH DELETE specimen
+                WITH {
+                    pbotID: sID + " deleted"
+                } AS result
+                RETURN result
             """
         )
 
@@ -829,13 +889,33 @@ type Mutation {
             """
         )
         
+    CustomUpdateOrgan(data: OrganInput!): Organ!
+        @cypher(
+            statement: """
+                MATCH 
+                    (organ:Organ {pbotID: $data.pbotID}),
+                    (person:Person {pbotID: $data.enteredByPersonID})
+                SET 
+                    organ.type = $data.type
+                CREATE
+                    (organ)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                RETURN organ
+            """
+        )
     CustomDeleteOrgan(data: OrganInput!): Organ!
         @cypher(
             statement: """
-				WITH {
-					pbotID: "Not yet implemented"
-				} AS result
-                RETURN result                
+                MATCH 
+                    (organ:Organ {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID})
+                WITH enteredBy, organ
+                UNWIND enteredBy AS eb 
+                    DELETE eb
+                WITH collect(eb) AS dummy, organ, organ.pbotID AS oID
+                    DELETE organ
+                WITH {
+                    pbotID: oID + " deleted"
+                } AS result
+                RETURN result
             """
         )
 
