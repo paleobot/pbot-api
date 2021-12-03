@@ -316,7 +316,7 @@ type Mutation {
                         surname: $data.surname,
                         email: $data.email,
                         orcid: $data.orcid
-                    })-[:ENTERED_BY {timestamp: datetime()}]->(ePerson)
+                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(ePerson)
                 RETURN person
             """
         )
@@ -333,7 +333,7 @@ type Mutation {
                     person.email = $data.email,
                     person.orcid = $data.orcid
                 CREATE
-                    (person)-[:ENTERED_BY {timestamp: datetime()}]->(ePerson)
+                    (person)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
                 RETURN person
             """
         )
@@ -367,7 +367,7 @@ type Mutation {
                     year: $data.year,
                     publisher: $data.publisher,
                     doi: $data.doi
-                })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
             WITH reference
             UNWIND $data.authors AS aID
                 MATCH (author:Person {pbotID: aID}) 
@@ -391,7 +391,7 @@ type Mutation {
                     reference.publisher = $data.publisher,
                     reference.doi = $data.doi
 				CREATE
-					(reference)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+					(reference)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
                 WITH reference, oars
                 UNWIND $data.authors AS aID
                     MATCH (author:Person {pbotID: aID}) 
@@ -435,7 +435,7 @@ type Mutation {
                         pbotID: apoc.create.uuid(),
                         title: $data.title,
                         year: $data.year
-                    })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
                 WITH schema
                 UNWIND $data.authors AS aID
                     MATCH (author:Person {pbotID: aID}) 
@@ -465,7 +465,7 @@ type Mutation {
                     schema.title = $data.title,
                     schema.year = $data.year
 				CREATE
-					(schema)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+					(schema)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
                 WITH schema, ocrs, oars
                 UNWIND $data.references AS rID
                     MATCH (reference:Reference {pbotID: rID}) 
@@ -523,7 +523,7 @@ type Mutation {
                         pbotID: apoc.create.uuid(),
                         name: $data.name,
                         definition: $data.definition
-                    })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
                 RETURN character
             """
         )
@@ -542,7 +542,7 @@ type Mutation {
                     character.name = $data.name,
                     character.definition = $data.definition
 				CREATE
-					(character)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+					(character)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
                 DELETE oldSchemaRelationship
                 CREATE
                     (character)-[:CHARACTER_OF]->(schema)
@@ -587,7 +587,7 @@ type Mutation {
                             pbotID: apoc.create.uuid(),
                             name: $data.name,
                             definition:$data.definition
-                        })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                        })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
                     RETURN state           
             """
         )
@@ -611,7 +611,7 @@ type Mutation {
                     state.name = $data.name,
                     state.definition = $data.definition
                 CREATE
-					(state)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+					(state)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
                 DELETE oldParentRelationship
                 CREATE
                     (state)-[:STATE_OF]->(parent)
@@ -654,7 +654,7 @@ type Mutation {
                         family: $data.family,
                         genus: $data.genus,
                         species: $data.species
-                    })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
                 WITH description, specimen
                 CALL apoc.do.when(
                     specimen is not null, 
@@ -689,7 +689,7 @@ type Mutation {
                 CREATE 
                     (schema)<-[:APPLICATION_OF]-(description)
 				CREATE
-					(description)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+					(description)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
                 WITH description, specimen, oldSpecimenRelationship
                 CALL apoc.do.when(
                     specimen is not null, 
@@ -742,7 +742,7 @@ type Mutation {
                         pbotID: apoc.create.uuid()
                     })-[:ENTERED_BY {timestamp: datetime()}]->(person),
                     (character)<-[:INSTANCE_OF]-(characterInstance),
-                    (state)<-[:HAS_STATE {value: $data.quantity}]-(characterInstance) 
+                    (state)<-[:HAS_STATE {value: $data.quantity, type:"CREATE"}]-(characterInstance) 
                 RETURN characterInstance
             """
         )
@@ -761,7 +761,7 @@ type Mutation {
                 DELETE oldCharacterRelationship
                 DELETE oldStateRelationship
                 CREATE 
-                    (characterInstance)-[:ENTERED_BY {timestamp: datetime()}]->(person),
+                    (characterInstance)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person),
                     (character)<-[:INSTANCE_OF]-(characterInstance),
                     (state)<-[:HAS_STATE {value: $data.quantity}]-(characterInstance) 
                 RETURN characterInstance
@@ -801,7 +801,7 @@ type Mutation {
                         idigbiouuid: $data.idigbiouuid,
                         pbdbcid: $data.pbdbcid,
                         pbdboccid: $data.pbdboccid
-                    })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
                 WITH specimen, description, otu
                     CALL apoc.do.when(
                         description IS NOT NULL,
@@ -845,7 +845,7 @@ type Mutation {
                 CREATE 
                     (organ)<-[:IS_TYPE]-(specimen)
 				CREATE
-					(specimen)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+					(specimen)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
                 WITH specimen, description, otu, oldDescribedByRelationship, oldExampleOfRelationship
                     CALL apoc.do.when(
                         description IS NOT NULL,
@@ -885,7 +885,7 @@ type Mutation {
                     (organ:Organ {
                         pbotID: apoc.create.uuid(),
                         type: $data.type
-                    })-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
                 RETURN organ
             """
         )
@@ -899,7 +899,7 @@ type Mutation {
                 SET 
                     organ.type = $data.type
                 CREATE
-                    (organ)-[:ENTERED_BY {timestamp: datetime()}]->(person)
+                    (organ)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
                 RETURN organ
             """
         )
