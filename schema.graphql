@@ -327,13 +327,42 @@ type Mutation {
                 MATCH 
                     (person:Person {pbotID: $data.pbotID}),
                     (ePerson:Person {pbotID: $data.enteredByPersonID})
+                CREATE
+                    (person)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+                WITH person, eb
+                    CALL apoc.do.when(
+                        person.given <> $data.given, 
+                        "SET eb.given = person.given RETURN eb",
+                        "RETURN eb",
+                        {person: person, eb:eb}
+                    ) YIELD value
+                WITH person, value.eb AS eb
+                    CALL apoc.do.when(
+                        person.surname <> $data.surname, 
+                        "SET eb.surname = person.surname RETURN eb",
+                        "RETURN eb",
+                        {person: person, eb:eb}
+                    ) YIELD value
+                WITH person, value.eb AS eb
+                    CALL apoc.do.when(
+                        person.email <> $data.email, 
+                        "SET eb.email = person.email RETURN eb",
+                        "RETURN eb",
+                        {person: person, eb:eb}
+                    ) YIELD value
+                WITH person, value.eb AS eb
+                    CALL apoc.do.when(
+                        person.orcid <> $data.orcid, 
+                        "SET eb.orcid = person.orcid RETURN eb",
+                        "RETURN eb",
+                        {person: person, eb:eb}
+                    ) YIELD value
+                WITH person
                 SET 
                     person.given = $data.given,
                     person.surname = $data.surname,
                     person.email = $data.email,
                     person.orcid = $data.orcid
-                CREATE
-                    (person)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
                 RETURN person
             """
         )
