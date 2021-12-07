@@ -410,24 +410,65 @@ type Mutation {
             statement: """
                 MATCH 
 					(reference:Reference {pbotID: $data.pbotID}),
-                    (person:Person {pbotID: $data.enteredByPersonID})
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
+                WITH reference, ePerson					
+				CREATE
+					(reference)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+                WITH reference, eb
+                    CALL apoc.do.when(
+                        reference.title IS NOT NULL AND reference.title <> $data.title, 
+                        "SET eb.title = reference.title RETURN eb",
+                        "RETURN eb",
+                        {reference: reference, eb:eb}
+                    ) YIELD value
+                WITH reference, value.eb AS eb
+                    CALL apoc.do.when(
+                        reference.year IS NOT NULL AND reference.year <> $data.year, 
+                        "SET eb.year = reference.year RETURN eb",
+                        "RETURN eb",
+                        {reference: reference, eb:eb}
+                    ) YIELD value
+                WITH reference, value.eb AS eb
+                    CALL apoc.do.when(
+                        reference.publisher IS NOT NULL AND reference.publisher <> $data.publisher, 
+                        "SET eb.publisher = reference.publisher RETURN eb",
+                        "RETURN eb",
+                        {reference: reference, eb:eb}
+                    ) YIELD value
+                WITH reference, value.eb AS eb
+                    CALL apoc.do.when(
+                        reference.doi IS NOT NULL AND reference.doi <> $data.doi, 
+                        "SET eb.doi = reference.doi RETURN eb",
+                        "RETURN eb",
+                        {reference: reference, eb:eb}
+                    ) YIELD value
+                WITH reference, value.eb AS eb
                 OPTIONAL MATCH
-					(:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(reference)
-                WITH reference, person, collect(oldAuthorRelationship) AS oars
+					(person:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(reference)
+                WITH 
+                    collect(person.pbotID) as oldAuthors, collect(oldAuthorRelationship) AS oars, reference, eb
+                UNWIND oars AS ar
+                    DELETE ar
+                WITH collect(ar) as dummy, oldAuthors, reference, apoc.coll.disjunction(oldAuthors, $data.authors ) AS diffList, eb
+                CALL
+                    apoc.do.when(
+                        SIZE(diffList)<>0,
+                        "SET eb.authors = oldAuthors RETURN eb",
+                        "RETURN eb",
+                        {diffList: diffList, oldAuthors: oldAuthors, eb: eb}
+                    )
+                YIELD value
+                WITH reference
                 SET 
                     reference.title = $data.title,
                     reference.year = $data.year,
                     reference.publisher = $data.publisher,
                     reference.doi = $data.doi
-				CREATE
-					(reference)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
-                WITH reference, oars
+                WITH reference
                 UNWIND $data.authors AS aID
                     MATCH (author:Person {pbotID: aID}) 
                     CREATE (reference)-[:AUTHORED_BY]->(author)
-                WITH collect(aID) as dummy, reference, oars
-                UNWIND oars AS ar
-                    DELETE ar
+                WITH collect(aID) as dummy, reference
                 RETURN reference
             """
         )
@@ -483,33 +524,66 @@ type Mutation {
             statement: """
                 MATCH 
 					(schema:Schema {pbotID: $data.pbotID}),
-                    (person:Person {pbotID: $data.enteredByPersonID})
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
+				WITH schema, ePerson
+				CREATE
+					(schema)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+                WITH schema, eb
+                    CALL apoc.do.when(
+                        schema.title IS NOT NULL AND schema.title <> $data.title, 
+                        "SET eb.title = schema.title RETURN eb",
+                        "RETURN eb",
+                        {schema: schema, eb:eb}
+                    ) YIELD value
+                WITH schema, value.eb AS eb
+                    CALL apoc.do.when(
+                        schema.year IS NOT NULL AND schema.year <> $data.year, 
+                        "SET eb.year = schema.year RETURN eb",
+                        "RETURN eb",
+                        {schema: schema, eb:eb}
+                    ) YIELD value
                 OPTIONAL MATCH
-					(:Reference)-[oldCitationRelationship:CITED_BY]->(schema)
-                WITH schema, person, collect(oldCitationRelationship) AS ocrs
+					(reference:Reference)-[oldCitationRelationship:CITED_BY]->(schema)
+                WITH schema, eb, collect(reference.pbotID) AS oldRefs, collect(oldCitationRelationship) AS ocrs
+                UNWIND ocrs AS cr
+                    DELETE cr
+                WITH collect(cr) as dummy, schema, oldRefs, apoc.coll.disjunction(oldRefs, $data.references ) AS diffList, eb
+                CALL
+                    apoc.do.when(
+                        SIZE(diffList)<>0,
+                        "SET eb.references = oldRefs RETURN eb",
+                        "RETURN eb",
+                        {diffList: diffList, oldRefs: oldRefs, eb: eb}
+                    )
+                YIELD value
+				WITH schema, eb
                 OPTIONAL MATCH
-					(:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(schema)
-                WITH schema, person, ocrs, collect(oldAuthorRelationship) AS oars
+					(person:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(schema)
+                WITH schema, eb, collect(person.pbotID) as oldAuthors, collect(oldAuthorRelationship) AS oars
+                UNWIND oars AS ar
+                    DELETE ar
+                WITH collect(ar) as dummy, schema, oldAuthors, apoc.coll.disjunction(oldAuthors, $data.authors ) AS diffList, eb
+                CALL
+                    apoc.do.when(
+                        SIZE(diffList)<>0,
+                        "SET eb.authors = oldAuthors RETURN eb",
+                        "RETURN eb",
+                        {diffList: diffList, oldAuthors: oldAuthors, eb: eb}
+                    )
+                YIELD value
+				WITH schema
                 SET 
                     schema.title = $data.title,
                     schema.year = $data.year
-				CREATE
-					(schema)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
-                WITH schema, ocrs, oars
+                WITH schema
                 UNWIND $data.references AS rID
                     MATCH (reference:Reference {pbotID: rID}) 
                     CREATE (reference)-[:CITED_BY]->(schema)
-                WITH collect(rID) AS dummy, schema, ocrs, oars
-                UNWIND ocrs AS cr
-                    DELETE cr
-                WITH collect(cr) AS dummy, schema, oars
+                WITH collect(rID) AS dummy, schema
                 UNWIND $data.authors AS aID
                     MATCH (author:Person {pbotID: aID}) 
                     CREATE (schema)-[:AUTHORED_BY]->(author)
-                WITH collect (aID) as dummy, schema, oars
-                UNWIND oars AS ar
-                    DELETE ar
-                WITH schema
+                WITH collect (aID) as dummy, schema
                 RETURN schema
             """
         )
@@ -562,19 +636,28 @@ type Mutation {
             statement: """
                 MATCH 
 					(character:Character {pbotID: $data.pbotID}),
-                    (schema:Schema {pbotID: $data.schemaID}),
-                    (person:Person {pbotID: $data.enteredByPersonID})
-                OPTIONAL MATCH
-					(:Schema)<-[oldSchemaRelationship:CHARACTER_OF]-(character)
-                WITH character, schema, person, oldSchemaRelationship
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
+                WITH character, ePerson					
+				CREATE
+					(character)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+                WITH character, eb
+                    CALL apoc.do.when(
+                        character.name IS NOT NULL AND character.name <> $data.name, 
+                        "SET eb.name = character.name RETURN eb",
+                        "RETURN eb",
+                        {character: character, eb:eb}
+                    ) YIELD value
+                WITH character, value.eb AS eb
+                    CALL apoc.do.when(
+                        character.definition IS NOT NULL AND character.definition <> $data.definition, 
+                        "SET eb.definition = character.definition RETURN eb",
+                        "RETURN eb",
+                        {character: character, eb:eb}
+                    ) YIELD value
+				WITH character
                 SET 
                     character.name = $data.name,
                     character.definition = $data.definition
-				CREATE
-					(character)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
-                DELETE oldSchemaRelationship
-                CREATE
-                    (character)-[:CHARACTER_OF]->(schema)
                 RETURN character
             """
         )
@@ -626,22 +709,47 @@ type Mutation {
             statement: """
                 MATCH 
 					(state:State {pbotID: $data.pbotID}),
-                    (person:Person {pbotID: $data.enteredByPersonID})
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
+				CREATE
+					(state)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+                WITH state, eb
+                    CALL apoc.do.when(
+                        state.name IS NOT NULL AND state.name <> $data.name, 
+                        "SET eb.name = state.name RETURN eb",
+                        "RETURN eb",
+                        {state: state, eb:eb}
+                    ) YIELD value
+                WITH state, value.eb AS eb
+                    CALL apoc.do.when(
+                        state.definition IS NOT NULL AND state.definition <> $data.definition, 
+                        "SET eb.definition = state.definition RETURN eb",
+                        "RETURN eb",
+                        {state: state, eb:eb}
+                    ) YIELD value
+				WITH state, eb
                 OPTIONAL MATCH
-					()<-[oldParentRelationship:STATE_OF]-(state)
+					(oldParent)<-[oldParentRelationship:STATE_OF]-(state)
+				DELETE oldParentRelationship
+                WITH state, eb, oldParent.pbotID AS oldParent
                 CALL apoc.case([
                     $data.parentStateID is null, "MATCH (parent:Character {pbotID: characterID}) RETURN parent",
                     $data.parentStateID is not null, "MATCH (parent:State {pbotID: parentStateID}) RETURN parent"],
                     'RETURN "" as parent',
                     {characterID: $data.characterID, parentStateID: $data.parentStateID}
                 ) YIELD value 
-                WITH value.parent as parent, person, state, oldParentRelationship
+                WITH value.parent as parent, state, oldParent, eb
+                CALL
+                    apoc.do.when(
+                        oldParent <> parent.pbotID,
+                        "SET eb.parent = oldParent RETURN eb",
+                        "RETURN eb",
+                        {oldParent: oldParent, eb: eb}
+                    )
+                YIELD value
+				WITH state, parent
                 SET 
                     state.name = $data.name,
                     state.definition = $data.definition
-                CREATE
-					(state)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
-                DELETE oldParentRelationship
                 CREATE
                     (state)-[:STATE_OF]->(parent)
                 RETURN state           
