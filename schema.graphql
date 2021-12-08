@@ -808,31 +808,89 @@ type Mutation {
             statement: """
                 MATCH 
 					(description:Description {pbotID: $data.pbotID}),
-                    (schema:Schema {pbotID: $data.schemaID}),
-                    (person:Person {pbotID: $data.enteredByPersonID})
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
+				CREATE
+					(description)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+                WITH description, eb
+                    CALL apoc.do.when(
+                        description.type IS NOT NULL AND description.type <> $data.type, 
+                        "SET eb.type = description.type RETURN eb",
+                        "RETURN eb",
+                        {description: description, eb:eb}
+                    ) YIELD value
+                WITH description, value.eb AS eb
+                    CALL apoc.do.when(
+                        description.name IS NOT NULL AND description.name <> $data.name, 
+                        "SET eb.name = description.name RETURN eb",
+                        "RETURN eb",
+                        {description: description, eb:eb}
+                    ) YIELD value
+                WITH description, value.eb AS eb
+                    CALL apoc.do.when(
+                        description.family IS NOT NULL AND description.family <> $data.family, 
+                        "SET eb.family = description.family RETURN eb",
+                        "RETURN eb",
+                        {description: description, eb:eb}
+                    ) YIELD value
+                WITH description, value.eb AS eb
+                    CALL apoc.do.when(
+                        description.genus IS NOT NULL AND description.genus <> $data.genus, 
+                        "SET eb.genus = description.genus RETURN eb",
+                        "RETURN eb",
+                        {description: description, eb:eb}
+                    ) YIELD value
+                WITH description, value.eb AS eb
+                    CALL apoc.do.when(
+                        description.species IS NOT NULL AND description.species <> $data.species, 
+                        "SET eb.species = description.species RETURN eb",
+                        "RETURN eb",
+                        {description: description, eb:eb}
+                    ) YIELD value
+                WITH description, value.eb AS eb
                 OPTIONAL MATCH
-                    (specimen:Specimen {pbotID: $data.specimenID})
+					(oldSchema:Schema)<-[oldSchemaRelationship:APPLICATION_OF]-(description)
+				DELETE oldSchemaRelationship
+                WITH description, eb, oldSchema.pbotID AS oldSchema
+                CALL
+                    apoc.do.when(
+                        oldSchema <> $data.schemaID,
+                        "SET eb.schema = oldSchema RETURN eb",
+                        "RETURN eb",
+                        {oldSchema: oldSchema, eb: eb}
+                    )
+                YIELD value
                 OPTIONAL MATCH
-					(:Schema)<-[oldSchemaRelationship:APPLICATION_OF]-(description)
-                OPTIONAL MATCH
-					(:Specimen)-[oldSpecimenRelationship:DESCRIBED_BY]->(description)
+					(oldSpecimen:Specimen)-[oldSpecimenRelationship:DESCRIBED_BY]->(description)
+				DELETE oldSpecimenRelationship
+				WITH description, value.eb as eb, oldSpecimen.pbotID as oldSpecimen 	
+                CALL
+                    apoc.do.when(
+                        oldSpecimen <> $data.specimenID,
+                        "SET eb.specimen = oldSpecimen RETURN eb",
+                        "RETURN eb",
+                        {oldSpecimen: oldSpecimen, eb: eb}
+                    )
+                YIELD value
+				WITH description	
+                MATCH 
+                    (schema:Schema {pbotID: $data.schemaID})
 				SET
 					description.type = $data.type,
 					description.name = $data.name,
 					description.family = $data.family,
 					description.genus = $data.genus,
 					description.species = $data.species
-				DELETE oldSchemaRelationship 
                 CREATE 
                     (schema)<-[:APPLICATION_OF]-(description)
-				CREATE
-					(description)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
-                WITH description, specimen, oldSpecimenRelationship
+				WITH description 
+                OPTIONAL MATCH
+                    (specimen:Specimen {pbotID: $data.specimenID})
+                WITH description, specimen
                 CALL apoc.do.when(
                     specimen is not null, 
-                    'DELETE oldSpecimenRelationship CREATE (specimen)-[:DESCRIBED_BY]->(description) RETURN description', 
+                    'CREATE (specimen)-[:DESCRIBED_BY]->(description) RETURN description', 
                     'RETURN description',
-                    {specimen: specimen, description: description, oldSpecimenRelationship: oldSpecimenRelationship}
+                    {specimen: specimen, description: description}
                 ) YIELD value
                 RETURN value.description AS description                
             """
@@ -889,16 +947,40 @@ type Mutation {
             statement: """
                 MATCH 
                     (characterInstance:CharacterInstance {pbotID: $data.pbotID}),
-                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {pbotID: $data.stateID}),
-                    (person:Person {pbotID: $data.enteredByPersonID})
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
+                WITH characterInstance, ePerson					
+				CREATE
+					(characterInstance)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+				WITH characterInstance, eb
                 OPTIONAL MATCH
-					(:Character)<-[oldCharacterRelationship:INSTANCE_OF]-(characterInstance)
+					(oldCharacter:Character)<-[oldCharacterRelationship:INSTANCE_OF]-(characterInstance)
+				DELETE oldCharacterRelationship
+                WITH characterInstance, eb, oldCharacter.pbotID AS oldCharacter					
+                CALL
+                    apoc.do.when(
+                        oldCharacter <> $data.characterID,
+                        "SET eb.character = oldCharacter RETURN eb",
+                        "RETURN eb",
+                        {oldCharacter: oldCharacter, eb: eb}
+                    )
+                YIELD value
+				WITH characterInstance, eb					
                 OPTIONAL MATCH
-					(:State)<-[oldStateRelationship:HAS_STATE]-(characterInstance)
-                DELETE oldCharacterRelationship
+					(oldState:State)<-[oldStateRelationship:HAS_STATE]-(characterInstance)
                 DELETE oldStateRelationship
+                WITH characterInstance, eb, oldState.pbotID AS oldState					
+                CALL
+                    apoc.do.when(
+                        oldState <> $data.stateID,
+                        "SET eb.state = oldState RETURN eb",
+                        "RETURN eb",
+                        {oldState: oldState, eb: eb}
+                    )
+                YIELD value
+				WITH characterInstance
+				MATCH
+                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {pbotID: $data.stateID})
                 CREATE 
-                    (characterInstance)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person),
                     (character)<-[:INSTANCE_OF]-(characterInstance),
                     (state)<-[:HAS_STATE {value: $data.quantity}]-(characterInstance) 
                 RETURN characterInstance
