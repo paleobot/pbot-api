@@ -1042,17 +1042,107 @@ type Mutation {
             statement: """
                 MATCH 
 					(specimen:Specimen {pbotID: $data.pbotID}),
-                    (person:Person {pbotID: $data.enteredByPersonID}),
-                    (organ:Organ {pbotID: $data.organID}),
-					(specimen)-[oldOrganRelationship:IS_TYPE]->(:Organ)
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
+                WITH specimen, ePerson					
+				CREATE
+					(specimen)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+                WITH specimen, eb
+                    CALL apoc.do.case([
+                        specimen.name IS NULL AND $data.name IS NOT NULL,
+                        "SET eb.name = 'not present' RETURN eb",
+                        specimen.name IS NOT NULL AND specimen.name <> $data.name, 
+                        "SET eb.name = specimen.name RETURN eb"],
+                        "RETURN eb",
+                        {specimen: specimen, eb:eb}
+                    ) YIELD value
+                WITH specimen, value.eb AS eb
+                    CALL apoc.do.case([
+                        specimen.locality IS NULL AND $data.locality IS NOT NULL,
+                        "SET eb.locality = 'not present' RETURN eb",
+                        specimen.locality IS NOT NULL AND specimen.locality <> $data.locality, 
+                        "SET eb.locality = specimen.locality RETURN eb"],
+                        "RETURN eb",
+                        {specimen: specimen, eb:eb}
+                    ) YIELD value
+                WITH specimen, value.eb AS eb
+                    CALL apoc.do.case([
+                        specimen.preservationMode IS NULL AND $data.preservationMode IS NOT NULL,
+                        "SET eb.preservationMode = 'not present' RETURN eb",
+                        specimen.preservationMode IS NOT NULL AND specimen.preservationMode <> $data.preservationMode, 
+                        "SET eb.preservationMode = specimen.preservationMode RETURN eb"],
+                        "RETURN eb",
+                        {specimen: specimen, eb:eb}
+                    ) YIELD value
+                WITH specimen, value.eb AS eb
+                    CALL apoc.do.case([
+                        specimen.idigbiouuid IS NULL AND $data.idigbiouuid IS NOT NULL,
+                        "SET eb.idigbiouuid = 'not present' RETURN eb",
+                        specimen.idigbiouuid IS NOT NULL AND specimen.idigbiouuid <> $data.idigbiouuid, 
+                        "SET eb.idigbiouuid = specimen.idigbiouuid RETURN eb"],
+                        "RETURN eb",
+                        {specimen: specimen, eb:eb}
+                    ) YIELD value
+                WITH specimen, value.eb AS eb
+                    CALL apoc.do.case([
+                        specimen.pbdbcid IS NULL AND $data.pbdbcid IS NOT NULL,
+                        "SET eb.pbdbcid = 'not present' RETURN eb",
+                        specimen.pbdbcid IS NOT NULL AND specimen.pbdbcid <> $data.pbdbcid, 
+                        "SET eb.pbdbcid = specimen.pbdbcid RETURN eb"],
+                        "RETURN eb",
+                        {specimen: specimen, eb:eb}
+                    ) YIELD value
+                WITH specimen, value.eb AS eb
+                    CALL apoc.do.case([
+                        specimen.pbdboccid IS NULL AND $data.pbdboccid IS NOT NULL,
+                        "SET eb.pbdboccid = 'not present' RETURN eb",
+                        specimen.pbdboccid IS NOT NULL AND specimen.pbdboccid <> $data.pbdboccid, 
+                        "SET eb.pbdboccid = specimen.pbdboccid RETURN eb"],
+                        "RETURN eb",
+                        {specimen: specimen, eb:eb}
+                    ) YIELD value
+                WITH specimen, value.eb AS eb
                 OPTIONAL MATCH
-                    (description:Description {descriptionID: $data.descriptionID})
+					(specimen)-[oldDescribedByRelationship:DESCRIBED_BY]->(oldDBDesc:Description)
+				DELETE oldDescribedByRelationship
+                WITH specimen, eb, oldDBDesc					
+                    CALL
+                        apoc.do.case([
+                            oldDBDesc IS NULL AND $data.otuID IS NOT NULL,
+                            "SET eb.description = 'not present' RETURN eb",
+                            oldDBDesc IS NOT NULL AND oldDBDesc.pbotID  <> $data.descriptionID,
+                            "SET eb.description = oldDBDesc.pbotID RETURN eb"],
+                            "RETURN eb",
+                            {oldDBDesc: oldDBDesc, eb: eb}
+                        ) YIELD value
+				WITH specimen, eb	
                 OPTIONAL MATCH
-                    (otu:Description {pbotID: $data.otuID})
-                OPTIONAL MATCH
-					(specimen)-[oldDescribedByRelationship:DESCRIBED_BY]->(:Description)
-                OPTIONAL MATCH
-					(specimen)-[oldExampleOfRelationship:EXAMPLE_OF]->(:Description)
+					(specimen)-[oldExampleOfRelationship:EXAMPLE_OF]->(oldERDesc:Description)
+				DELETE oldExampleOfRelationship
+                WITH specimen, eb, oldERDesc					
+                    CALL
+                        apoc.do.case([
+                            oldERDesc IS NULL AND $data.otuID IS NOT NULL,
+                            "SET eb.archtypeDescription = 'not present' RETURN eb",
+                            oldERDesc IS NOT NULL AND oldERDesc.pbotID  <> $data.otuID,
+                            "SET eb.archtypeDescription = oldERDesc.pbotID RETURN eb"],
+                            "RETURN eb",
+                            {oldERDesc: oldERDesc, eb: eb}
+                        ) YIELD value
+				WITH specimen, eb	
+                MATCH
+					(specimen)-[oldOrganRelationship:IS_TYPE]->(oldOrgan:Organ)
+				DELETE oldOrganRelationship
+                WITH specimen, eb, oldOrgan					
+                    CALL
+                        apoc.do.case([
+                            oldOrgan IS NULL AND $data.organID IS NOT NULL,
+                            "SET eb.organ = 'not present' RETURN eb",
+                            oldOrgan IS NOT NULL AND oldOrgan.pbotID  <> $data.organID,
+                            "SET eb.organ = oldOrgan.pbotID RETURN eb"],
+                            "RETURN eb",
+                            {oldOrgan: oldOrgan, eb: eb}
+                        ) YIELD value
+				WITH specimen	
 				SET
                     specimen.name = $data.name,
                     specimen.locality = $data.locality,
@@ -1060,23 +1150,27 @@ type Mutation {
                     specimen.idigbiouuid = $data.idigbiouuid,
                     specimen.pbdbcid = $data.pbdbcid,
                     specimen.pbdboccid = $data.pbdboccid
-				DELETE oldOrganRelationship 
+                WITH specimen
+				MATCH	
+                    (organ:Organ {pbotID: $data.organID})
+                OPTIONAL MATCH
+                    (description:Description {pbotID: $data.descriptionID})
+                OPTIONAL MATCH
+                    (otu:Description {pbotID: $data.otuID})
                 CREATE 
                     (organ)<-[:IS_TYPE]-(specimen)
-				CREATE
-					(specimen)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
-                WITH specimen, description, otu, oldDescribedByRelationship, oldExampleOfRelationship
+                WITH specimen, description, otu
                     CALL apoc.do.when(
                         description IS NOT NULL,
-                        "DELETE oldDescribedByRelationship CREATE (description)<-[:DESCRIBED_BY]-(specimen) RETURN specimen",
+                        "CREATE (description)<-[:DESCRIBED_BY]-(specimen) RETURN specimen",
                         "RETURN specimen",
-                        {description: description, specimen: specimen, oldDescribedByRelationship: oldDescribedByRelationship}) YIELD value
-                    WITH value.specimen AS specimen, otu, oldExampleOfRelationship
+                        {description: description, specimen: specimen}) YIELD value
+                WITH value.specimen AS specimen, otu
                     CALL apoc.do.when(
                         otu IS NOT NULL,
-                        "DELETE oldExampleOfRelationship CREATE (otu)<-[:EXAMPLE_OF]-(specimen) RETURN specimen",
+                        "CREATE (otu)<-[:EXAMPLE_OF]-(specimen) RETURN specimen",
                         "RETURN specimen",
-                        {otu: otu, specimen: specimen, oldExampleOfRelationship: oldExampleOfRelationship}) YIELD value
+                        {otu: otu, specimen: specimen}) YIELD value
                 RETURN value.specimen as specimen           
             """
         )
@@ -1114,11 +1208,22 @@ type Mutation {
             statement: """
                 MATCH 
                     (organ:Organ {pbotID: $data.pbotID}),
-                    (person:Person {pbotID: $data.enteredByPersonID})
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
+				CREATE
+					(organ)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+                WITH organ, eb
+                    CALL apoc.do.case([
+                        organ.type IS NULL AND $data.type IS NOT NULL,
+                        "SET eb.type = 'not present' RETURN eb",
+                        organ.type IS NOT NULL AND organ.type <> $data.type, 
+                        "SET eb.type = organ.type RETURN eb"],
+                        "RETURN eb",
+                        {organ: organ, eb:eb}
+                    ) 
+                    YIELD value
+				WITH organ
                 SET 
                     organ.type = $data.type
-                CREATE
-                    (organ)-[:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(person)
                 RETURN organ
             """
         )
