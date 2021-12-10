@@ -330,30 +330,38 @@ type Mutation {
                 CREATE
                     (person)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
                 WITH person, eb
-                    CALL apoc.do.when(
-                        person.given <> $data.given, 
-                        "SET eb.given = person.given RETURN eb",
+                    CALL apoc.do.case([
+                        person.given IS NULL AND $data.given IS NOT NULL,
+                        "SET eb.given = 'not present' RETURN eb",
+                        person.given IS NOT NULL AND ($data.given IS NULL OR person.given <> $data.given), 
+                        "SET eb.given = person.given RETURN eb"],
                         "RETURN eb",
                         {person: person, eb:eb}
                     ) YIELD value
                 WITH person, value.eb AS eb
-                    CALL apoc.do.when(
-                        person.surname <> $data.surname, 
-                        "SET eb.surname = person.surname RETURN eb",
+                    CALL apoc.do.case([
+                        person.surname IS NULL AND $data.surname IS NOT NULL,
+                        "SET eb.surname = 'not present' RETURN eb",
+                        person.surname IS NOT NULL AND ($data.surname IS NULL OR person.surname <> $data.surname), 
+                        "SET eb.surname = person.surname RETURN eb"],
                         "RETURN eb",
                         {person: person, eb:eb}
                     ) YIELD value
                 WITH person, value.eb AS eb
-                    CALL apoc.do.when(
-                        person.email <> $data.email, 
-                        "SET eb.email = person.email RETURN eb",
+                    CALL apoc.do.case([
+                        person.email IS NULL AND $data.email IS NOT NULL,
+                        "SET eb.email = 'not present' RETURN eb",
+                        person.email IS NOT NULL AND ($data.email IS NULL OR person.email <> $data.email), 
+                        "SET eb.email = person.email RETURN eb"],
                         "RETURN eb",
                         {person: person, eb:eb}
                     ) YIELD value
                 WITH person, value.eb AS eb
-                    CALL apoc.do.when(
-                        person.orcid <> $data.orcid, 
-                        "SET eb.orcid = person.orcid RETURN eb",
+                    CALL apoc.do.case([
+                        person.orcid IS NULL AND $data.orcid IS NOT NULL,
+                        "SET eb.orcid = 'not present' RETURN eb",
+                        person.orcid IS NOT NULL AND ($data.orcid IS NULL OR person.orcid <> $data.orcid), 
+                        "SET eb.orcid = person.orcid RETURN eb"],
                         "RETURN eb",
                         {person: person, eb:eb}
                     ) YIELD value
@@ -415,30 +423,38 @@ type Mutation {
 				CREATE
 					(reference)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
                 WITH reference, eb
-                    CALL apoc.do.when(
-                        reference.title IS NOT NULL AND reference.title <> $data.title, 
-                        "SET eb.title = reference.title RETURN eb",
+                    CALL apoc.do.case([
+                        reference.title IS NULL AND $data.title IS NOT NULL,
+                        "SET eb.title = 'not present' RETURN eb",
+                        reference.title IS NOT NULL AND ($data.title IS NULL OR reference.title <> $data.title), 
+                        "SET eb.title = reference.title RETURN eb"],
                         "RETURN eb",
                         {reference: reference, eb:eb}
                     ) YIELD value
                 WITH reference, value.eb AS eb
-                    CALL apoc.do.when(
-                        reference.year IS NOT NULL AND reference.year <> $data.year, 
-                        "SET eb.year = reference.year RETURN eb",
+                    CALL apoc.do.case([
+                        reference.year IS NULL AND $data.year IS NOT NULL,
+                        "SET eb.year = 'not present' RETURN eb",
+                        reference.year IS NOT NULL AND ($data.year IS NULL OR reference.year <> $data.year), 
+                        "SET eb.year = reference.year RETURN eb"],
                         "RETURN eb",
                         {reference: reference, eb:eb}
                     ) YIELD value
                 WITH reference, value.eb AS eb
-                    CALL apoc.do.when(
-                        reference.publisher IS NOT NULL AND reference.publisher <> $data.publisher, 
-                        "SET eb.publisher = reference.publisher RETURN eb",
+                    CALL apoc.do.case([
+                        reference.publisher IS NULL AND $data.publisher IS NOT NULL,
+                        "SET eb.publisher = 'not present' RETURN eb",
+                        reference.publisher IS NOT NULL AND ($data.publisher IS NULL OR reference.publisher <> $data.publisher), 
+                        "SET eb.publisher = reference.publisher RETURN eb"],
                         "RETURN eb",
                         {reference: reference, eb:eb}
                     ) YIELD value
                 WITH reference, value.eb AS eb
-                    CALL apoc.do.when(
-                        reference.doi IS NOT NULL AND reference.doi <> $data.doi, 
-                        "SET eb.doi = reference.doi RETURN eb",
+                    CALL apoc.do.case([
+                        reference.doi IS NULL AND $data.doi IS NOT NULL,
+                        "SET eb.doi = 'not present' RETURN eb",
+                        reference.doi IS NOT NULL AND ($data.doi IS NULL OR reference.doi <> $data.doi), 
+                        "SET eb.doi = reference.doi RETURN eb"],
                         "RETURN eb",
                         {reference: reference, eb:eb}
                     ) YIELD value
@@ -529,16 +545,20 @@ type Mutation {
 				CREATE
 					(schema)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
                 WITH schema, eb
-                    CALL apoc.do.when(
-                        schema.title IS NOT NULL AND schema.title <> $data.title, 
-                        "SET eb.title = schema.title RETURN eb",
+                    CALL apoc.do.case([
+                        schema.title IS NULL AND $data.title IS NOT NULL,
+                        "SET eb.title = 'not present' RETURN eb",
+                        schema.title IS NOT NULL AND ($data.title IS NULL OR schema.title <> $data.title), 
+                        "SET eb.title = schema.title RETURN eb"],
                         "RETURN eb",
                         {schema: schema, eb:eb}
                     ) YIELD value
                 WITH schema, value.eb AS eb
-                    CALL apoc.do.when(
-                        schema.year IS NOT NULL AND schema.year <> $data.year, 
-                        "SET eb.year = schema.year RETURN eb",
+                    CALL apoc.do.case([
+                        schema.year IS NULL AND $data.year IS NOT NULL,
+                        "SET eb.year = 'not present' RETURN eb",
+                        schema.year IS NOT NULL AND ($data.year IS NULL OR schema.year <> $data.year), 
+                        "SET eb.year = schema.year RETURN eb"],
                         "RETURN eb",
                         {schema: schema, eb:eb}
                     ) YIELD value
@@ -641,16 +661,20 @@ type Mutation {
 				CREATE
 					(character)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
                 WITH character, eb
-                    CALL apoc.do.when(
-                        character.name IS NOT NULL AND character.name <> $data.name, 
-                        "SET eb.name = character.name RETURN eb",
+                    CALL apoc.do.case([
+                        character.name IS NULL AND $data.name IS NOT NULL,
+                        "SET eb.name = 'not present' RETURN eb",
+                        character.name IS NOT NULL AND ($data.name IS NULL OR character.name <> $data.name), 
+                        "SET eb.name = character.name RETURN eb"],
                         "RETURN eb",
                         {character: character, eb:eb}
                     ) YIELD value
                 WITH character, value.eb AS eb
-                    CALL apoc.do.when(
-                        character.definition IS NOT NULL AND character.definition <> $data.definition, 
-                        "SET eb.definition = character.definition RETURN eb",
+                    CALL apoc.do.case([
+                        character.definition IS NULL AND $data.definition IS NOT NULL,
+                        "SET eb.definition = 'not present' RETURN eb",
+                        character.definition IS NOT NULL AND ($data.definition IS NULL OR character.definition <> $data.definition), 
+                        "SET eb.definition = character.definition RETURN eb"],
                         "RETURN eb",
                         {character: character, eb:eb}
                     ) YIELD value
