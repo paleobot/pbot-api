@@ -713,16 +713,20 @@ type Mutation {
 				CREATE
 					(state)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
                 WITH state, eb
-                    CALL apoc.do.when(
-                        state.name IS NOT NULL AND state.name <> $data.name, 
-                        "SET eb.name = state.name RETURN eb",
+                    CALL apoc.do.case([
+                        state.name IS NULL AND $data.name IS NOT NULL,
+                        "SET eb.name = 'not present' RETURN eb",
+                        state.name IS NOT NULL AND ($data.name IS NULL OR state.name <> $data.name), 
+                        "SET eb.name = state.name RETURN eb"],
                         "RETURN eb",
                         {state: state, eb:eb}
                     ) YIELD value
                 WITH state, value.eb AS eb
-                    CALL apoc.do.when(
-                        state.definition IS NOT NULL AND state.definition <> $data.definition, 
-                        "SET eb.definition = state.definition RETURN eb",
+                    CALL apoc.do.case([
+                        state.definition IS NULL AND $data.definition IS NOT NULL,
+                        "SET eb.definition = 'not present' RETURN eb",
+                        state.definition IS NOT NULL AND ($data.definition IS NULL OR state.definition <> $data.definition), 
+                        "SET eb.definition = state.definition RETURN eb"],
                         "RETURN eb",
                         {state: state, eb:eb}
                     ) YIELD value
@@ -730,22 +734,24 @@ type Mutation {
                 OPTIONAL MATCH
 					(oldParent)<-[oldParentRelationship:STATE_OF]-(state)
 				DELETE oldParentRelationship
-                WITH state, eb, oldParent.pbotID AS oldParent
+                WITH state, eb, oldParent
                 CALL apoc.case([
-                    $data.parentStateID is null, "MATCH (parent:Character {pbotID: characterID}) RETURN parent",
-                    $data.parentStateID is not null, "MATCH (parent:State {pbotID: parentStateID}) RETURN parent"],
-                    'RETURN "" as parent',
+                    $data.parentStateID is null and $data.characterID is not null, 
+                    "MATCH (parent:Character {pbotID: characterID}) RETURN parent",
+                    $data.parentStateID is not null, 
+                    "MATCH (parent:State {pbotID: parentStateID}) RETURN parent"],
+                    'RETURN null as parent',
                     {characterID: $data.characterID, parentStateID: $data.parentStateID}
                 ) YIELD value 
                 WITH value.parent as parent, state, oldParent, eb
-                CALL
-                    apoc.do.when(
-                        oldParent <> parent.pbotID,
-                        "SET eb.parent = oldParent RETURN eb",
-                        "RETURN eb",
-                        {oldParent: oldParent, eb: eb}
-                    )
-                YIELD value
+                    CALL apoc.do.case([
+                            oldParent IS NULL AND parent IS NOT NULL,
+                            "SET eb.parent = 'not present' RETURN eb",
+                            oldParent IS NOT NULL AND (parent IS NULL OR oldParent.pbotID  <> parent.pbotID),
+                            "SET eb.parent = oldParent.pbotID RETURN eb"],
+                            "RETURN eb",
+                            {oldParent: oldParent, eb: eb}
+                        ) YIELD value
 				WITH state, parent
                 SET 
                     state.name = $data.name,
@@ -812,37 +818,47 @@ type Mutation {
 				CREATE
 					(description)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
                 WITH description, eb
-                    CALL apoc.do.when(
-                        description.type IS NOT NULL AND description.type <> $data.type, 
-                        "SET eb.type = description.type RETURN eb",
+                    CALL apoc.do.case([
+                        description.type IS NULL AND $data.type IS NOT NULL,
+                        "SET eb.type = 'not present' RETURN eb",
+                        description.type IS NOT NULL AND ($data.type IS NULL OR description.type <> $data.type), 
+                        "SET eb.type = description.type RETURN eb"],
                         "RETURN eb",
                         {description: description, eb:eb}
                     ) YIELD value
                 WITH description, value.eb AS eb
-                    CALL apoc.do.when(
-                        description.name IS NOT NULL AND description.name <> $data.name, 
-                        "SET eb.name = description.name RETURN eb",
+                    CALL apoc.do.case([
+                        description.name IS NULL AND $data.name IS NOT NULL,
+                        "SET eb.name = 'not present' RETURN eb",
+                        description.name IS NOT NULL AND ($data.name IS NULL OR description.name <> $data.name), 
+                        "SET eb.name = description.name RETURN eb"],
                         "RETURN eb",
                         {description: description, eb:eb}
                     ) YIELD value
                 WITH description, value.eb AS eb
-                    CALL apoc.do.when(
-                        description.family IS NOT NULL AND description.family <> $data.family, 
-                        "SET eb.family = description.family RETURN eb",
+                    CALL apoc.do.case([
+                        description.family IS NULL AND $data.family IS NOT NULL,
+                        "SET eb.family = 'not present' RETURN eb",
+                        description.family IS NOT NULL AND ($data.family IS NULL OR description.family <> $data.family), 
+                        "SET eb.family = description.family RETURN eb"],
                         "RETURN eb",
                         {description: description, eb:eb}
                     ) YIELD value
                 WITH description, value.eb AS eb
-                    CALL apoc.do.when(
-                        description.genus IS NOT NULL AND description.genus <> $data.genus, 
-                        "SET eb.genus = description.genus RETURN eb",
+                    CALL apoc.do.case([
+                        description.genus IS NULL AND $data.genus IS NOT NULL,
+                        "SET eb.genus = 'not present' RETURN eb",
+                        description.genus IS NOT NULL AND ($data.genus IS NULL OR description.genus <> $data.genus), 
+                        "SET eb.genus = description.genus RETURN eb"],
                         "RETURN eb",
                         {description: description, eb:eb}
                     ) YIELD value
                 WITH description, value.eb AS eb
-                    CALL apoc.do.when(
-                        description.species IS NOT NULL AND description.species <> $data.species, 
-                        "SET eb.species = description.species RETURN eb",
+                    CALL apoc.do.case([
+                        description.species IS NULL AND $data.species IS NOT NULL,
+                        "SET eb.species = 'not present' RETURN eb",
+                        description.species IS NOT NULL AND ($data.species IS NULL OR description.species <> $data.species), 
+                        "SET eb.species = description.species RETURN eb"],
                         "RETURN eb",
                         {description: description, eb:eb}
                     ) YIELD value
@@ -850,27 +866,27 @@ type Mutation {
                 OPTIONAL MATCH
 					(oldSchema:Schema)<-[oldSchemaRelationship:APPLICATION_OF]-(description)
 				DELETE oldSchemaRelationship
-                WITH description, eb, oldSchema.pbotID AS oldSchema
-                CALL
-                    apoc.do.when(
-                        oldSchema <> $data.schemaID,
-                        "SET eb.schema = oldSchema RETURN eb",
-                        "RETURN eb",
-                        {oldSchema: oldSchema, eb: eb}
-                    )
-                YIELD value
+                WITH description, eb, oldSchema
+                    CALL apoc.do.case([
+                            oldSchema IS NULL AND $data.schemaID IS NOT NULL,
+                            "SET eb.schema = 'not present' RETURN eb",
+                            oldSchema IS NOT NULL AND ($data.schemaID IS NULL OR oldSchema.pbotID  <> $data.schemaID),
+                            "SET eb.schema = oldSchema.pbotID RETURN eb"],
+                            "RETURN eb",
+                            {oldSchema: oldSchema, eb: eb}
+                        ) YIELD value
                 OPTIONAL MATCH
 					(oldSpecimen:Specimen)-[oldSpecimenRelationship:DESCRIBED_BY]->(description)
 				DELETE oldSpecimenRelationship
-				WITH description, value.eb as eb, oldSpecimen.pbotID as oldSpecimen 	
-                CALL
-                    apoc.do.when(
-                        oldSpecimen <> $data.specimenID,
-                        "SET eb.specimen = oldSpecimen RETURN eb",
-                        "RETURN eb",
-                        {oldSpecimen: oldSpecimen, eb: eb}
-                    )
-                YIELD value
+				WITH description, value.eb as eb, oldSpecimen 	
+                    CALL apoc.do.case([
+                            oldSpecimen IS NULL AND $data.specimenID IS NOT NULL,
+                            "SET eb.specimen = 'not present' RETURN eb",
+                            oldSpecimen IS NOT NULL AND ($data.specimenID IS NULL OR oldSpecimen.pbotID  <> $data.specimenID),
+                            "SET eb.specimen = oldSpecimen.pbotID RETURN eb"],
+                            "RETURN eb",
+                            {oldSpecimen: oldSpecimen, eb: eb}
+                        ) YIELD value
 				WITH description	
                 MATCH 
                     (schema:Schema {pbotID: $data.schemaID})
@@ -955,28 +971,28 @@ type Mutation {
                 OPTIONAL MATCH
 					(oldCharacter:Character)<-[oldCharacterRelationship:INSTANCE_OF]-(characterInstance)
 				DELETE oldCharacterRelationship
-                WITH characterInstance, eb, oldCharacter.pbotID AS oldCharacter					
-                CALL
-                    apoc.do.when(
-                        oldCharacter <> $data.characterID,
-                        "SET eb.character = oldCharacter RETURN eb",
-                        "RETURN eb",
-                        {oldCharacter: oldCharacter, eb: eb}
-                    )
-                YIELD value
-				WITH characterInstance, eb					
+                WITH characterInstance, eb, oldCharacter					
+                    CALL apoc.do.case([
+                            oldCharacter IS NULL AND $data.characterID IS NOT NULL,
+                            "SET eb.character = 'not present' RETURN eb",
+                            oldCharacter IS NOT NULL AND ($data.characterID IS NULL OR oldCharacter.pbotID  <> $data.characterID),
+                            "SET eb.character = oldCharacter.pbotID RETURN eb"],
+                            "RETURN eb",
+                            {oldCharacter: oldCharacter, eb: eb}
+                        ) YIELD value
+                WITH characterInstance, eb					
                 OPTIONAL MATCH
 					(oldState:State)<-[oldStateRelationship:HAS_STATE]-(characterInstance)
                 DELETE oldStateRelationship
-                WITH characterInstance, eb, oldState.pbotID AS oldState					
-                CALL
-                    apoc.do.when(
-                        oldState <> $data.stateID,
-                        "SET eb.state = oldState RETURN eb",
-                        "RETURN eb",
-                        {oldState: oldState, eb: eb}
-                    )
-                YIELD value
+                WITH characterInstance, eb, oldState				
+                    CALL apoc.do.case([
+                            oldState IS NULL AND $data.stateID IS NOT NULL,
+                            "SET eb.state = 'not present' RETURN eb",
+                            oldState IS NOT NULL AND ($data.stateID IS NULL OR oldState.pbotID  <> $data.stateID),
+                            "SET eb.state = oldState.pbotID RETURN eb"],
+                            "RETURN eb",
+                            {oldState: oldState, eb: eb}
+                        ) YIELD value
 				WITH characterInstance
 				MATCH
                     (character:Character {pbotID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {pbotID: $data.stateID})
@@ -1050,7 +1066,7 @@ type Mutation {
                     CALL apoc.do.case([
                         specimen.name IS NULL AND $data.name IS NOT NULL,
                         "SET eb.name = 'not present' RETURN eb",
-                        specimen.name IS NOT NULL AND specimen.name <> $data.name, 
+                        specimen.name IS NOT NULL AND ($data.name IS NULL OR specimen.name <> $data.name), 
                         "SET eb.name = specimen.name RETURN eb"],
                         "RETURN eb",
                         {specimen: specimen, eb:eb}
@@ -1059,7 +1075,7 @@ type Mutation {
                     CALL apoc.do.case([
                         specimen.locality IS NULL AND $data.locality IS NOT NULL,
                         "SET eb.locality = 'not present' RETURN eb",
-                        specimen.locality IS NOT NULL AND specimen.locality <> $data.locality, 
+                        specimen.locality IS NOT NULL AND ($data.locality IS NULL OR specimen.locality <> $data.locality), 
                         "SET eb.locality = specimen.locality RETURN eb"],
                         "RETURN eb",
                         {specimen: specimen, eb:eb}
@@ -1068,7 +1084,7 @@ type Mutation {
                     CALL apoc.do.case([
                         specimen.preservationMode IS NULL AND $data.preservationMode IS NOT NULL,
                         "SET eb.preservationMode = 'not present' RETURN eb",
-                        specimen.preservationMode IS NOT NULL AND specimen.preservationMode <> $data.preservationMode, 
+                        specimen.preservationMode IS NOT NULL AND ($data.preservationMode IS NULL OR specimen.preservationMode <> $data.preservationMode), 
                         "SET eb.preservationMode = specimen.preservationMode RETURN eb"],
                         "RETURN eb",
                         {specimen: specimen, eb:eb}
@@ -1077,7 +1093,7 @@ type Mutation {
                     CALL apoc.do.case([
                         specimen.idigbiouuid IS NULL AND $data.idigbiouuid IS NOT NULL,
                         "SET eb.idigbiouuid = 'not present' RETURN eb",
-                        specimen.idigbiouuid IS NOT NULL AND specimen.idigbiouuid <> $data.idigbiouuid, 
+                        specimen.idigbiouuid IS NOT NULL AND ($data.idigbiouuid IS NULL OR specimen.idigbiouuid <> $data.idigbiouuid), 
                         "SET eb.idigbiouuid = specimen.idigbiouuid RETURN eb"],
                         "RETURN eb",
                         {specimen: specimen, eb:eb}
@@ -1086,7 +1102,7 @@ type Mutation {
                     CALL apoc.do.case([
                         specimen.pbdbcid IS NULL AND $data.pbdbcid IS NOT NULL,
                         "SET eb.pbdbcid = 'not present' RETURN eb",
-                        specimen.pbdbcid IS NOT NULL AND specimen.pbdbcid <> $data.pbdbcid, 
+                        specimen.pbdbcid IS NOT NULL AND ($data.pbdbcid IS NULL OR specimen.pbdbcid <> $data.pbdbcid), 
                         "SET eb.pbdbcid = specimen.pbdbcid RETURN eb"],
                         "RETURN eb",
                         {specimen: specimen, eb:eb}
@@ -1095,7 +1111,7 @@ type Mutation {
                     CALL apoc.do.case([
                         specimen.pbdboccid IS NULL AND $data.pbdboccid IS NOT NULL,
                         "SET eb.pbdboccid = 'not present' RETURN eb",
-                        specimen.pbdboccid IS NOT NULL AND specimen.pbdboccid <> $data.pbdboccid, 
+                        specimen.pbdboccid IS NOT NULL AND ($data.pbdboccid IS NULL OR specimen.pbdboccid <> $data.pbdboccid), 
                         "SET eb.pbdboccid = specimen.pbdboccid RETURN eb"],
                         "RETURN eb",
                         {specimen: specimen, eb:eb}
@@ -1107,9 +1123,9 @@ type Mutation {
                 WITH specimen, eb, oldDBDesc					
                     CALL
                         apoc.do.case([
-                            oldDBDesc IS NULL AND $data.otuID IS NOT NULL,
+                            oldDBDesc IS NULL AND $data.descriptionID IS NOT NULL,
                             "SET eb.description = 'not present' RETURN eb",
-                            oldDBDesc IS NOT NULL AND oldDBDesc.pbotID  <> $data.descriptionID,
+                            oldDBDesc IS NOT NULL AND ($data.descriptionID IS NULL OR oldDBDesc.pbotID  <> $data.descriptionID),
                             "SET eb.description = oldDBDesc.pbotID RETURN eb"],
                             "RETURN eb",
                             {oldDBDesc: oldDBDesc, eb: eb}
@@ -1123,7 +1139,7 @@ type Mutation {
                         apoc.do.case([
                             oldERDesc IS NULL AND $data.otuID IS NOT NULL,
                             "SET eb.archtypeDescription = 'not present' RETURN eb",
-                            oldERDesc IS NOT NULL AND oldERDesc.pbotID  <> $data.otuID,
+                            oldERDesc IS NOT NULL AND ($data.otuID IS NULL OR oldERDesc.pbotID  <> $data.otuID),
                             "SET eb.archtypeDescription = oldERDesc.pbotID RETURN eb"],
                             "RETURN eb",
                             {oldERDesc: oldERDesc, eb: eb}
@@ -1137,7 +1153,7 @@ type Mutation {
                         apoc.do.case([
                             oldOrgan IS NULL AND $data.organID IS NOT NULL,
                             "SET eb.organ = 'not present' RETURN eb",
-                            oldOrgan IS NOT NULL AND oldOrgan.pbotID  <> $data.organID,
+                            oldOrgan IS NOT NULL AND ($data.organID IS NULL OR oldOrgan.pbotID  <> $data.organID),
                             "SET eb.organ = oldOrgan.pbotID RETURN eb"],
                             "RETURN eb",
                             {oldOrgan: oldOrgan, eb: eb}
@@ -1215,7 +1231,7 @@ type Mutation {
                     CALL apoc.do.case([
                         organ.type IS NULL AND $data.type IS NOT NULL,
                         "SET eb.type = 'not present' RETURN eb",
-                        organ.type IS NOT NULL AND organ.type <> $data.type, 
+                        organ.type IS NOT NULL AND ($data.type IS NULL OR organ.type <> $data.type), 
                         "SET eb.type = organ.type RETURN eb"],
                         "RETURN eb",
                         {organ: organ, eb:eb}
