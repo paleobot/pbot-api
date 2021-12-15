@@ -17,6 +17,8 @@ import { applyMiddleware } from "graphql-middleware";
 import  permissions  from './permissions.js';
 import {getUser, handleLogin, handleRegistration, handleReset} from './UserManagement.js';
 
+import {DeletionResolvers} from './DeletionResolvers.js';
+
 dotenv.config();
 
 const app = express()
@@ -45,11 +47,11 @@ const driver = neo4j.driver(
   )
 )
 
-
 // Connect to existing Neo4j instance, infer GraphQL typedefs
 // generate CRUD GraphQL API using makeAugmentedSchema
 const schema = makeAugmentedSchema({
-      typeDefs: typeDefs
+      typeDefs: typeDefs,
+      resolvers: DeletionResolvers
 });
 
 console.log(schema);
@@ -89,7 +91,7 @@ const addUserID = async (resolve, root, args, context, info) => {
   console.log("addUserID");
   console.log(context.user);
   console.log(args);
-  args.data.enteredByPersonID = context.user.personID;
+  args.data.enteredByPersonID = context.user.pbotID;
   console.log(args);
   console.log("here goes...");
   const result = await resolve(root, args, context, info)
@@ -154,9 +156,9 @@ const server = new ApolloServer({
     schema: applyMiddleware(schema, permissions, middleware),
     introspection: true,
     playground: true,
-    plugins: [
-        debugPlugin,
-    ],
+    //plugins: [
+    //    debugPlugin,
+    //],
 })
 
 // Specify host, port and path for GraphQL endpoint

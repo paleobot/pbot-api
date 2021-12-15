@@ -375,22 +375,7 @@ type Mutation {
             """
         )
 
-    CustomDeletePerson(data: PersonInput!): Person!
-        @cypher(
-            statement: """
-                MATCH 
-                    (person:Person {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID})
-                WITH enteredBy, person
-                UNWIND enteredBy AS eb 
-                    DELETE eb
-                WITH collect(eb) AS dummy, person, person.pbotID AS pID
-                    DELETE person
-                WITH {
-                    pbotID: pID + " deleted"
-                } AS result
-                RETURN result
-            """
-        )
+    CustomDeletePerson(data: PersonInput!): Person! @neo4j_ignore
 
     CustomCreateReference(data: ReferenceInput!): Reference!
     @cypher(
