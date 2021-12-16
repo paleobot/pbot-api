@@ -375,7 +375,6 @@ type Mutation {
             """
         )
 
-    CustomDeletePerson(data: PersonInput!): Person! @neo4j_ignore
 
     CustomCreateReference(data: ReferenceInput!): Reference!
     @cypher(
@@ -474,27 +473,7 @@ type Mutation {
             """
         )
         
-    CustomDeleteReference(data: ReferenceInput!): Reference!
-        @cypher(
-            statement: """
-                MATCH 
-                    (reference:Reference {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID})
-                OPTIONAL MATCH
-					(:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(reference)
-                WITH enteredBy, oldAuthorRelationship, reference
-                UNWIND oldAuthorRelationship AS oAR 
-                    DELETE oAR
-                WITH collect(oAR) AS dummy, enteredBy, reference
-                UNWIND enteredBy AS eb 
-                    DELETE eb
-                WITH collect(eb) AS dummy, reference, reference.pbotID AS rID
-                    DELETE reference
-                WITH {
-                    pbotID: rID + " deleted"
-                } AS result
-                RETURN result
-            """
-        )
+    CustomDeleteReference(data: ReferenceInput!): Reference! @neo4j_ignore
 
     CustomCreateSchema(data: SchemaInput!): Schema!
         @cypher(
