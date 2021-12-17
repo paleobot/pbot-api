@@ -74,7 +74,69 @@ export const DeletionResolvers = {
                 return result.records[0]._fields[0];
             }
             
-        }
+        },
+        
+        CustomDeleteSchema: async (obj, args, context, info) => {
+            const driver = context.driver;
+            const session = driver.session()
+            
+            console.log("args");
+            console.log(args);
+            
+            if (await hasRelationships(session, args.data.pbotID, ["APPLICATION_OF", "CHARACTER_OF"])) {
+                console.log("cannot delete");
+                return {pbotID: "Cannot delete " + args.data.pbotID}
+            } else {
+                console.log("can delete");
+                //return {pbotID: "Can delete " + args.data.pbotID}
+                const result = await session.run(
+                    `
+                    MATCH 
+                        (schema:Schema {pbotID: $pbotID}),
+                        (ePerson:Person {pbotID: $enteredByPersonID})
+                    WITH schema, ePerson					
+                        CREATE
+                            (schema)-[:ENTERED_BY {timestamp: datetime(), type:"DELETE"}]->(ePerson)
+                    WITH schema	
+                        REMOVE schema:Schema SET schema:_Schema
+                    WITH schema
+                        OPTIONAL MATCH (schema)-[authoredBy:AUTHORED_BY]->(node1)
+                        CALL apoc.do.when(
+                            authoredBy IS NOT NULL,
+                            "CREATE (schema)-[archivedAuthoredBy:_AUTHORED_BY]->(node) SET archivedAuthoredBy = authoredBy DELETE authoredBy RETURN schema",
+                            "RETURN schema",
+                            {schema: schema, node: node1, authoredBy: authoredBy}
+                        ) YIELD value
+                    WITH distinct value.schema AS schema 
+                        OPTIONAL MATCH (schema)-[enteredBy:ENTERED_BY]->(node2)
+                        CALL apoc.do.when(
+                            enteredBy IS NOT NULL,
+                            "CREATE (schema)-[archivedEnteredBy:_ENTERED_BY]->(node) SET archivedEnteredBy = enteredBy DELETE enteredBy RETURN schema",
+                            "RETURN schema",
+                            {schema: schema, node: node2, enteredBy: enteredBy}
+                        ) YIELD value
+                    WITH distinct value.schema AS schema 
+                        OPTIONAL MATCH (schema)<-[citedBy:CITED_BY]-(node3)
+                        CALL apoc.do.when(
+                            citedBy IS NOT NULL,
+                            "CREATE (schema)<-[archivedCitedBy:_CITED_BY]-(node) SET archivedCitedBy = citedBy DELETE citedBy RETURN schema",
+                            "RETURN schema",
+                            {schema: schema, node: node3, citedBy: citedBy}
+                        ) YIELD value
+                    WITH distinct value.schema AS schema
+                    RETURN {
+                        pbotID: schema.pbotID + " deleted"
+                    } 
+                    `,
+                    {pbotID: args.data.pbotID, enteredByPersonID: args.data.enteredByPersonID}
+                );
+                console.log("result");
+                console.log(result);
+                return result.records[0]._fields[0];
+            }
+            
+        },
+        
     }
 };
 

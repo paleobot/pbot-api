@@ -572,32 +572,8 @@ type Mutation {
             """
         )
         
-    CustomDeleteSchema(data: SchemaInput!): Schema!
-        @cypher(
-            statement: """
-                MATCH 
-                    (schema:Schema {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID})
-                OPTIONAL MATCH
-					(:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(schema)
-                OPTIONAL MATCH
-					(:Reference)-[oldCitationRelationship:CITED_BY]->(schema)
-                WITH enteredBy, oldAuthorRelationship, oldCitationRelationship, schema
-                UNWIND oldAuthorRelationship AS oAR 
-                    DELETE oAR
-                WITH collect(oAR) AS dummy, enteredBy, oldCitationRelationship, schema
-                UNWIND oldCitationRelationship AS oCR 
-                    DELETE oCR
-                WITH collect(oCR) AS dummy, enteredBy, schema
-                UNWIND enteredBy AS eb 
-                    DELETE eb
-                WITH collect(eb) AS dummy, schema, schema.pbotID AS sID
-                    DELETE schema
-                WITH {
-                    pbotID: sID + " deleted"
-                } AS result
-                RETURN result
-            """
-        )
+    CustomDeleteSchema(data: SchemaInput!): Schema! @neo4j_ignore
+    
 
     CustomCreateCharacter(data: CharacterInput!): Character!
         @cypher(
