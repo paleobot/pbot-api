@@ -1,16 +1,23 @@
 //import * as neo4j from 'neo4j-driver';
 
-const hasRelationships = async (session, pbotID, relationship) => {
+const hasRelationships = async (session, pbotID, relationships) => {
+    let queryStr = relationships.reduce((str, relationship) => `
+        ${str}
+        MATCH
+            (n) WHERE n.pbotID="${pbotID}"
+        WITH n
+            OPTIONAL MATCH 
+                (n)-[r:${relationship}]-()
+        RETURN 
+            r
+        UNION ALL
+    `,'');
+    queryStr = queryStr.substring(0, queryStr.lastIndexOf("UNION ALL"))
+    console.log(queryStr);
+    
     let result;
     result = await session.run(
-            `
-            MATCH 
-                (n) WHERE n.pbotID = $pbotID
-            WITH n
-                MATCH (n)-[ab:${relationship}]-()
-            RETURN
-                ab
-            `,
+        queryStr,
         {pbotID: pbotID}
     )
     console.log("------result----------");
@@ -31,7 +38,7 @@ export const DeletionResolvers = {
             console.log("args");
             console.log(args);
             
-            if (await hasRelationships(session, args.data.pbotID, "CITED_BY")) {
+            if (await hasRelationships(session, args.data.pbotID, ["CITED_BY"])) {
                 console.log("cannot delete");
                 return {pbotID: "Cannot delete " + args.data.pbotID}
             } else {
