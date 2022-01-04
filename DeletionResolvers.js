@@ -23,33 +23,14 @@ const hasRelationships = async (session, pbotID, relationships) => {
     console.log("------result----------");
     console.log(result);
     console.log("records returned: " + result.records.length)
-    result = result.records.length > 0; //TODO: !!!!!!!this doesn't work. Need to check each record for null
-
-    console.log("returning " + result);
-    return result;
+    //check each record for non-null
+    const res = result.records.reduce((acc, rec) => acc || (rec._fields[0] !== null), false);
+    //result = result.records.length > 0; //TODO: !!!!!!!this doesn't work. Need to check each record for null
+    //console.log("res = " + res);
+    //console.log("returning " + result);
+    //return result;
+    return res;
 }
-
-/*
-const generateRelationshipDelete = async (session, nodeName, relationships) => {
-    let queryStr = `
-        WITH ${nodeName}
-    `;
-    queryStr = relationships.reduce((str, relationship) => `
-        ${str}
-            OPTIONAL MATCH (${nodeName})-[rel:${relationship}]->(node1)
-            CALL apoc.do.when(
-                rel IS NOT NULL,
-                "CREATE (${nodeName})-[archivedRel:_${relationship}]->(node) SET archivedRel = rel DELETE rel RETURN ${nodeName}",
-                "RETURN ${nodeName}",
-                {${nodeName}: ${nodeName}, node: node1, rel: rel}
-            ) YIELD value
-        WITH distinct value.${nodeName} AS ${nodeName} 
-    `, queryStr);
-    console.log(queryStr);
-    
-    return queryStr;
-}
-*/
 
 const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relationships) => {
     console.log("handleDelete");
@@ -68,10 +49,10 @@ const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relati
     
     queryStr = relationships.reduce((str, relationship) => `
         ${str}
-            OPTIONAL MATCH (baseNode)-[rel:${relationship}]->(remoteNode)
+            OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
             CALL apoc.do.when(
                 rel IS NOT NULL,
-                "CREATE (baseNode)-[archivedRel:_${relationship}]->(node) SET archivedRel = rel DELETE rel RETURN baseNode",
+                "CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[archivedRel:_${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(node) SET archivedRel = rel DELETE rel RETURN baseNode",
                 "RETURN baseNode",
                 {baseNode: baseNode, node: remoteNode, rel: rel}
             ) YIELD value
@@ -86,8 +67,10 @@ const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relati
     `;
         
     console.log(queryStr);
+    //return queryStr;
     
-    return queryStr;
+    const result = await session.run(queryStr);
+    return result;
 }
 
 
@@ -105,7 +88,22 @@ export const DeletionResolvers = {
                 return {pbotID: "Cannot delete " + args.data.pbotID}
             } else {
                 console.log("can delete");
+                const result = await handleDelete(
+                    session, 
+                    'Reference', 
+                    args.data.pbotID, 
+                    args.data.enteredByPersonID, 
+                    [{
+                        type: "AUTHORED_BY",
+                        direction: "out"
+                    }, {
+                        type: "ENTERED_BY",
+                        direction: "out"
+                    }]
+                );
                 //return {pbotID: "Can delete " + args.data.pbotID}
+                /*
+                 * handleDelete generates this, but with generalized variable names
                 const result = await session.run(
                     `
                     MATCH 
@@ -131,6 +129,7 @@ export const DeletionResolvers = {
                     `,
                     {pbotID: args.data.pbotID, enteredByPersonID: args.data.enteredByPersonID}
                 );
+                */
                 console.log("result");
                 console.log(result);
                 return result.records[0]._fields[0];
@@ -148,12 +147,27 @@ export const DeletionResolvers = {
             
             if (await hasRelationships(session, args.data.pbotID, ["APPLICATION_OF", "CHARACTER_OF"])) {
                 console.log("cannot delete");
-                handleDelete(session, 'Schema', args.data.pbotID, args.data.enteredByPersonID, ["AUTHORED_BY", "ENTERED_BY", "CITED_BY"]);
                 return {pbotID: "Cannot delete " + args.data.pbotID}
             } else {
                 console.log("can delete");
-                handleDelete(session, 'Schema', args.data.pbotID, args.data.enteredByPersonID, ["AUTHORED_BY", "ENTERED_BY", "CITED_BY"]);
+                const result = await handleDelete(
+                    session, 
+                    'Schema', 
+                    args.data.pbotID, 
+                    args.data.enteredByPersonID, 
+                    [{
+                        type: "AUTHORED_BY",
+                        direction: "out"
+                    }, {
+                        type: "ENTERED_BY",
+                        direction: "out"
+                    }, {
+                        type: "CITED_BY",
+                        direction: "in"
+                    }]);
                 //return {pbotID: "Can delete " + args.data.pbotID}
+                /*
+                 * handleDelete generates this, but with generalized variable names
                 const result = await session.run(
                     `
                     MATCH 
@@ -195,13 +209,46 @@ export const DeletionResolvers = {
                     `,
                     {pbotID: args.data.pbotID, enteredByPersonID: args.data.enteredByPersonID}
                 );
+                */
                 console.log("result");
                 console.log(result);
                 return result.records[0]._fields[0];
             }
             
         },
-        
+
+        CustomDeleteCharacter: async (obj, args, context, info) => {
+            const driver = context.driver;
+            const session = driver.session()
+            
+            console.log("args");
+            console.log(args);
+            
+            if (await hasRelationships(session, args.data.pbotID, ["STATE_OF", "INSTANCE_OF"])) {
+                console.log("cannot delete");
+                return {pbotID: "Cannot delete " + args.data.pbotID}
+            } else {
+                console.log("can delete");
+                const result = await handleDelete(
+                    session, 
+                    'Character', 
+                    args.data.pbotID, 
+                    args.data.enteredByPersonID, 
+                    [{
+                        type: "CHARACTER_OF",
+                        direction: "out"
+                    }, {
+                        type: "ENTERED_BY",
+                        direction: "out"
+                    }]
+                );
+                console.log("result");
+                console.log(result);
+                return result.records[0]._fields[0];
+            }
+            
+        },
+
     }
 };
 

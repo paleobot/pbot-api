@@ -626,25 +626,7 @@ type Mutation {
             """
         )
         
-    CustomDeleteCharacter(data: CharacterInput!): Character!
-        @cypher(
-            statement: """
-                MATCH 
-                    (character:Character {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID})
-                OPTIONAL MATCH
-					(:Schema)<-[oldSchemaRelationship:CHARACTER_OF]-(character)
-                WITH enteredBy, oldSchemaRelationship, character
-                UNWIND enteredBy AS eb 
-                    DELETE eb
-                WITH collect(eb) AS dummy, oldSchemaRelationship, character, character.pbotID AS cID
-                    DELETE oldSchemaRelationship
-                    DELETE character
-                WITH {
-                    pbotID: cID + " deleted"
-                } AS result
-                RETURN result
-            """
-        )
+    CustomDeleteCharacter(data: CharacterInput!): Character! @neo4j_ignore
 
     CustomCreateState(data: StateInput!): State!
         @cypher(
