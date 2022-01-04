@@ -23,11 +23,73 @@ const hasRelationships = async (session, pbotID, relationships) => {
     console.log("------result----------");
     console.log(result);
     console.log("records returned: " + result.records.length)
-    result = result.records.length > 0;
+    result = result.records.length > 0; //TODO: !!!!!!!this doesn't work. Need to check each record for null
 
     console.log("returning " + result);
     return result;
 }
+
+/*
+const generateRelationshipDelete = async (session, nodeName, relationships) => {
+    let queryStr = `
+        WITH ${nodeName}
+    `;
+    queryStr = relationships.reduce((str, relationship) => `
+        ${str}
+            OPTIONAL MATCH (${nodeName})-[rel:${relationship}]->(node1)
+            CALL apoc.do.when(
+                rel IS NOT NULL,
+                "CREATE (${nodeName})-[archivedRel:_${relationship}]->(node) SET archivedRel = rel DELETE rel RETURN ${nodeName}",
+                "RETURN ${nodeName}",
+                {${nodeName}: ${nodeName}, node: node1, rel: rel}
+            ) YIELD value
+        WITH distinct value.${nodeName} AS ${nodeName} 
+    `, queryStr);
+    console.log(queryStr);
+    
+    return queryStr;
+}
+*/
+
+const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relationships) => {
+    console.log("handleDelete");
+    
+    let queryStr = `
+        MATCH 
+            (baseNode:${nodeType} {pbotID: "${pbotID}"}),
+            (ePerson:Person {pbotID: "${enteredByPersonID}"})
+        WITH baseNode, ePerson					
+            CREATE
+                (baseNode)-[:ENTERED_BY {timestamp: datetime(), type:"DELETE"}]->(ePerson)
+        WITH baseNode	
+            REMOVE baseNode:${nodeType} SET baseNode:_${nodeType}
+        WITH baseNode
+    `;
+    
+    queryStr = relationships.reduce((str, relationship) => `
+        ${str}
+            OPTIONAL MATCH (baseNode)-[rel:${relationship}]->(remoteNode)
+            CALL apoc.do.when(
+                rel IS NOT NULL,
+                "CREATE (baseNode)-[archivedRel:_${relationship}]->(node) SET archivedRel = rel DELETE rel RETURN baseNode",
+                "RETURN baseNode",
+                {baseNode: baseNode, node: remoteNode, rel: rel}
+            ) YIELD value
+        WITH distinct value.baseNode AS baseNode 
+    `, queryStr);
+    
+    queryStr = `
+        ${queryStr}
+        RETURN {
+            pbotID: baseNode.pbotID + " deleted"
+        }
+    `;
+        
+    console.log(queryStr);
+    
+    return queryStr;
+}
+
 
 export const DeletionResolvers = {
     Mutation: {
@@ -77,6 +139,7 @@ export const DeletionResolvers = {
         },
         
         CustomDeleteSchema: async (obj, args, context, info) => {
+            console.log("CustomDeleteSchema");
             const driver = context.driver;
             const session = driver.session()
             
@@ -85,9 +148,11 @@ export const DeletionResolvers = {
             
             if (await hasRelationships(session, args.data.pbotID, ["APPLICATION_OF", "CHARACTER_OF"])) {
                 console.log("cannot delete");
+                handleDelete(session, 'Schema', args.data.pbotID, args.data.enteredByPersonID, ["AUTHORED_BY", "ENTERED_BY", "CITED_BY"]);
                 return {pbotID: "Cannot delete " + args.data.pbotID}
             } else {
                 console.log("can delete");
+                handleDelete(session, 'Schema', args.data.pbotID, args.data.enteredByPersonID, ["AUTHORED_BY", "ENTERED_BY", "CITED_BY"]);
                 //return {pbotID: "Can delete " + args.data.pbotID}
                 const result = await session.run(
                     `
