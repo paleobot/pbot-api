@@ -708,24 +708,7 @@ type Mutation {
             """
         )
         
-    CustomDeleteState(data: StateInput!): State!
-        @cypher(
-            statement: """
-                MATCH 
-                    (state:State {pbotID: $data.pbotID})-[enteredBy:ENTERED_BY]->(:Person {pbotID:$data.enteredByPersonID}),
-                    ()<-[oldParentRelationship:STATE_OF]-(state)
-                WITH enteredBy, oldParentRelationship, state
-                UNWIND enteredBy AS eb 
-                    DELETE eb
-                WITH collect(eb) AS dummy, oldParentRelationship, state, state.pbotID AS sID
-                    DELETE oldParentRelationship
-                    DELETE state
-                WITH {
-                    pbotID: sID + " deleted"
-                } AS result
-                RETURN result
-            """
-        )
+    CustomDeleteState(data: StateInput!): State! @neo4j_ignore
 
     CustomCreateDescription(data: DescriptionInput!): Description!
         @cypher(

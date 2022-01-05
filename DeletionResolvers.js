@@ -7,7 +7,7 @@ const hasRelationships = async (session, pbotID, relationships) => {
             (n) WHERE n.pbotID="${pbotID}"
         WITH n
             OPTIONAL MATCH 
-                (n)-[r:${relationship}]-()
+                (n)${relationship.direction === "in" ? "<-" : "-"}[r:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}()
         RETURN 
             r
         UNION ALL
@@ -83,7 +83,14 @@ export const DeletionResolvers = {
             console.log("args");
             console.log(args);
             
-            if (await hasRelationships(session, args.data.pbotID, ["CITED_BY"])) {
+            if (await hasRelationships(
+                session, 
+                args.data.pbotID, 
+                [{
+                    type: "CITED_BY",
+                    direction: "out"
+                }]
+            )) {
                 console.log("cannot delete");
                 return {pbotID: "Cannot delete " + args.data.pbotID}
             } else {
@@ -145,7 +152,17 @@ export const DeletionResolvers = {
             console.log("args");
             console.log(args);
             
-            if (await hasRelationships(session, args.data.pbotID, ["APPLICATION_OF", "CHARACTER_OF"])) {
+            if (await hasRelationships(
+                session, 
+                args.data.pbotID, 
+                [{
+                    type: "APPLICATION_OF",
+                    direction: "in"
+                }, {
+                    type: "CHARACTER_OF",
+                    direction: "in"
+                }]
+            )) {
                 console.log("cannot delete");
                 return {pbotID: "Cannot delete " + args.data.pbotID}
             } else {
@@ -224,7 +241,17 @@ export const DeletionResolvers = {
             console.log("args");
             console.log(args);
             
-            if (await hasRelationships(session, args.data.pbotID, ["STATE_OF", "INSTANCE_OF"])) {
+            if (await hasRelationships(
+                session, 
+                args.data.pbotID, 
+                [{
+                    type: "STATE_OF",
+                    direction: "in"
+                }, {
+                    type: "INSTANCE_OF",
+                    direction: "in"
+                }]
+            )) {
                 console.log("cannot delete");
                 return {pbotID: "Cannot delete " + args.data.pbotID}
             } else {
@@ -249,6 +276,48 @@ export const DeletionResolvers = {
             
         },
 
+        CustomDeleteState: async (obj, args, context, info) => {
+            const driver = context.driver;
+            const session = driver.session()
+            
+            console.log("args");
+            console.log(args);
+            
+            if (await hasRelationships(
+                    session, 
+                    args.data.pbotID, 
+                    [{
+                        type: "STATE_OF",
+                        direction: "in"
+                    }, {
+                        type: "HAS_STATE",
+                        direction: "in"
+                    }]
+            )) {
+                console.log("cannot delete");
+                return {pbotID: "Cannot delete " + args.data.pbotID}
+            } else {
+                console.log("can delete");
+                const result = await handleDelete(
+                    session, 
+                    'State', 
+                    args.data.pbotID, 
+                    args.data.enteredByPersonID, 
+                    [{
+                        type: "STATE_OF",
+                        direction: "out"
+                    }, {
+                        type: "ENTERED_BY",
+                        direction: "out"
+                    }]
+                );
+                console.log("result");
+                console.log(result);
+                return result.records[0]._fields[0];
+            }
+            
+        },
+        
     }
 };
 
