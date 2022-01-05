@@ -83,64 +83,72 @@ export const DeletionResolvers = {
             console.log("args");
             console.log(args);
             
-            if (await hasRelationships(
-                session, 
-                args.data.pbotID, 
-                [{
-                    type: "CITED_BY",
-                    direction: "out"
-                }]
-            )) {
-                console.log("cannot delete");
-                return {pbotID: "Cannot delete " + args.data.pbotID}
-            } else {
-                console.log("can delete");
-                const result = await handleDelete(
-                    session, 
-                    'Reference', 
-                    args.data.pbotID, 
-                    args.data.enteredByPersonID, 
-                    [{
-                        type: "AUTHORED_BY",
-                        direction: "out"
-                    }, {
-                        type: "ENTERED_BY",
-                        direction: "out"
-                    }]
-                );
-                //return {pbotID: "Can delete " + args.data.pbotID}
-                /*
-                 * handleDelete generates this, but with generalized variable names
-                const result = await session.run(
-                    `
-                    MATCH 
-                        (reference:Reference {pbotID: $pbotID}),
-                        (ePerson:Person {pbotID: $enteredByPersonID})
-                    WITH reference, ePerson					
-                        CREATE
-                            (reference)-[:ENTERED_BY {timestamp: datetime(), type:"DELETE"}]->(ePerson)
-                    WITH reference	
-                        REMOVE reference:Reference SET reference:_Reference
-                    WITH reference
-                        OPTIONAL MATCH (reference)-[authoredBy:AUTHORED_BY]->(node)
-                        CALL apoc.do.when(
-                            authoredBy IS NOT NULL,
-                            "CREATE (reference)-[archivedAuthoredBy:_AUTHORED_BY]->(node) SET archivedAuthoredBy = authoredBy DELETE authoredBy RETURN reference",
-                            "RETURN reference",
-                            {reference: reference, node: node, authoredBy: authoredBy}
-                        ) YIELD value
-                    WITH distinct value.reference AS reference 
-                    RETURN {
-                        pbotID: reference.pbotID + " deleted"
-                    } 
-                    `,
-                    {pbotID: args.data.pbotID, enteredByPersonID: args.data.enteredByPersonID}
-                );
-                */
-                console.log("result");
-                console.log(result);
-                return result.records[0]._fields[0];
+            let result;
+            try {
+                result = await session.writeTransaction(async tx => {           
+                    if (await hasRelationships(
+                        tx, 
+                        args.data.pbotID, 
+                        [{
+                            type: "CITED_BY",
+                            direction: "out"
+                        }]
+                    )) {
+                        console.log("cannot delete");
+                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                    } else {
+                        console.log("can delete");
+                        const result = await handleDelete(
+                            tx, 
+                            'Reference', 
+                            args.data.pbotID, 
+                            args.data.enteredByPersonID, 
+                            [{
+                                type: "AUTHORED_BY",
+                                direction: "out"
+                            }, {
+                                type: "ENTERED_BY",
+                                direction: "out"
+                            }]
+                        );
+                        //return {pbotID: "Can delete " + args.data.pbotID}
+                        /*
+                        * handleDelete generates this, but with generalized variable names
+                        const result = await session.run(
+                            `
+                            MATCH 
+                                (reference:Reference {pbotID: $pbotID}),
+                                (ePerson:Person {pbotID: $enteredByPersonID})
+                            WITH reference, ePerson					
+                                CREATE
+                                    (reference)-[:ENTERED_BY {timestamp: datetime(), type:"DELETE"}]->(ePerson)
+                            WITH reference	
+                                REMOVE reference:Reference SET reference:_Reference
+                            WITH reference
+                                OPTIONAL MATCH (reference)-[authoredBy:AUTHORED_BY]->(node)
+                                CALL apoc.do.when(
+                                    authoredBy IS NOT NULL,
+                                    "CREATE (reference)-[archivedAuthoredBy:_AUTHORED_BY]->(node) SET archivedAuthoredBy = authoredBy DELETE authoredBy RETURN reference",
+                                    "RETURN reference",
+                                    {reference: reference, node: node, authoredBy: authoredBy}
+                                ) YIELD value
+                            WITH distinct value.reference AS reference 
+                            RETURN {
+                                pbotID: reference.pbotID + " deleted"
+                            } 
+                            `,
+                            {pbotID: args.data.pbotID, enteredByPersonID: args.data.enteredByPersonID}
+                        );
+                        */
+                        console.log("result");
+                        console.log(result);
+                        return result.records[0]._fields[0];
+                    }
+                });
+            } finally {
+                await session.close();
             }
+            return result;
             
         },
         
@@ -152,86 +160,93 @@ export const DeletionResolvers = {
             console.log("args");
             console.log(args);
             
-            if (await hasRelationships(
-                session, 
-                args.data.pbotID, 
-                [{
-                    type: "APPLICATION_OF",
-                    direction: "in"
-                }, {
-                    type: "CHARACTER_OF",
-                    direction: "in"
-                }]
-            )) {
-                console.log("cannot delete");
-                return {pbotID: "Cannot delete " + args.data.pbotID}
-            } else {
-                console.log("can delete");
-                const result = await handleDelete(
-                    session, 
-                    'Schema', 
-                    args.data.pbotID, 
-                    args.data.enteredByPersonID, 
-                    [{
-                        type: "AUTHORED_BY",
-                        direction: "out"
-                    }, {
-                        type: "ENTERED_BY",
-                        direction: "out"
-                    }, {
-                        type: "CITED_BY",
-                        direction: "in"
-                    }]);
-                //return {pbotID: "Can delete " + args.data.pbotID}
-                /*
-                 * handleDelete generates this, but with generalized variable names
-                const result = await session.run(
-                    `
-                    MATCH 
-                        (schema:Schema {pbotID: $pbotID}),
-                        (ePerson:Person {pbotID: $enteredByPersonID})
-                    WITH schema, ePerson					
-                        CREATE
-                            (schema)-[:ENTERED_BY {timestamp: datetime(), type:"DELETE"}]->(ePerson)
-                    WITH schema	
-                        REMOVE schema:Schema SET schema:_Schema
-                    WITH schema
-                        OPTIONAL MATCH (schema)-[authoredBy:AUTHORED_BY]->(node1)
-                        CALL apoc.do.when(
-                            authoredBy IS NOT NULL,
-                            "CREATE (schema)-[archivedAuthoredBy:_AUTHORED_BY]->(node) SET archivedAuthoredBy = authoredBy DELETE authoredBy RETURN schema",
-                            "RETURN schema",
-                            {schema: schema, node: node1, authoredBy: authoredBy}
-                        ) YIELD value
-                    WITH distinct value.schema AS schema 
-                        OPTIONAL MATCH (schema)-[enteredBy:ENTERED_BY]->(node2)
-                        CALL apoc.do.when(
-                            enteredBy IS NOT NULL,
-                            "CREATE (schema)-[archivedEnteredBy:_ENTERED_BY]->(node) SET archivedEnteredBy = enteredBy DELETE enteredBy RETURN schema",
-                            "RETURN schema",
-                            {schema: schema, node: node2, enteredBy: enteredBy}
-                        ) YIELD value
-                    WITH distinct value.schema AS schema 
-                        OPTIONAL MATCH (schema)<-[citedBy:CITED_BY]-(node3)
-                        CALL apoc.do.when(
-                            citedBy IS NOT NULL,
-                            "CREATE (schema)<-[archivedCitedBy:_CITED_BY]-(node) SET archivedCitedBy = citedBy DELETE citedBy RETURN schema",
-                            "RETURN schema",
-                            {schema: schema, node: node3, citedBy: citedBy}
-                        ) YIELD value
-                    WITH distinct value.schema AS schema
-                    RETURN {
-                        pbotID: schema.pbotID + " deleted"
-                    } 
-                    `,
-                    {pbotID: args.data.pbotID, enteredByPersonID: args.data.enteredByPersonID}
-                );
-                */
-                console.log("result");
-                console.log(result);
-                return result.records[0]._fields[0];
+            let result;
+            try {
+                result = await session.writeTransaction(async tx => {           
+                    if (await hasRelationships(
+                        tx, 
+                        args.data.pbotID, 
+                        [{
+                            type: "APPLICATION_OF",
+                            direction: "in"
+                        }, {
+                            type: "CHARACTER_OF",
+                            direction: "in"
+                        }]
+                    )) {
+                        console.log("cannot delete");
+                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                    } else {
+                        console.log("can delete");
+                        const result = await handleDelete(
+                            tx, 
+                            'Schema', 
+                            args.data.pbotID, 
+                            args.data.enteredByPersonID, 
+                            [{
+                                type: "AUTHORED_BY",
+                                direction: "out"
+                            }, {
+                                type: "ENTERED_BY",
+                                direction: "out"
+                            }, {
+                                type: "CITED_BY",
+                                direction: "in"
+                            }]);
+                        //return {pbotID: "Can delete " + args.data.pbotID}
+                        /*
+                        * handleDelete generates this, but with generalized variable names
+                        const result = await session.run(
+                            `
+                            MATCH 
+                                (schema:Schema {pbotID: $pbotID}),
+                                (ePerson:Person {pbotID: $enteredByPersonID})
+                            WITH schema, ePerson					
+                                CREATE
+                                    (schema)-[:ENTERED_BY {timestamp: datetime(), type:"DELETE"}]->(ePerson)
+                            WITH schema	
+                                REMOVE schema:Schema SET schema:_Schema
+                            WITH schema
+                                OPTIONAL MATCH (schema)-[authoredBy:AUTHORED_BY]->(node1)
+                                CALL apoc.do.when(
+                                    authoredBy IS NOT NULL,
+                                    "CREATE (schema)-[archivedAuthoredBy:_AUTHORED_BY]->(node) SET archivedAuthoredBy = authoredBy DELETE authoredBy RETURN schema",
+                                    "RETURN schema",
+                                    {schema: schema, node: node1, authoredBy: authoredBy}
+                                ) YIELD value
+                            WITH distinct value.schema AS schema 
+                                OPTIONAL MATCH (schema)-[enteredBy:ENTERED_BY]->(node2)
+                                CALL apoc.do.when(
+                                    enteredBy IS NOT NULL,
+                                    "CREATE (schema)-[archivedEnteredBy:_ENTERED_BY]->(node) SET archivedEnteredBy = enteredBy DELETE enteredBy RETURN schema",
+                                    "RETURN schema",
+                                    {schema: schema, node: node2, enteredBy: enteredBy}
+                                ) YIELD value
+                            WITH distinct value.schema AS schema 
+                                OPTIONAL MATCH (schema)<-[citedBy:CITED_BY]-(node3)
+                                CALL apoc.do.when(
+                                    citedBy IS NOT NULL,
+                                    "CREATE (schema)<-[archivedCitedBy:_CITED_BY]-(node) SET archivedCitedBy = citedBy DELETE citedBy RETURN schema",
+                                    "RETURN schema",
+                                    {schema: schema, node: node3, citedBy: citedBy}
+                                ) YIELD value
+                            WITH distinct value.schema AS schema
+                            RETURN {
+                                pbotID: schema.pbotID + " deleted"
+                            } 
+                            `,
+                            {pbotID: args.data.pbotID, enteredByPersonID: args.data.enteredByPersonID}
+                        );
+                        */
+                        console.log("result");
+                        console.log(result);
+                        return result.records[0]._fields[0];
+                    }
+                });
+            } finally {
+                await session.close();
             }
-            
+            return result;            
         },
 
         CustomDeleteCharacter: async (obj, args, context, info) => {
@@ -240,40 +255,46 @@ export const DeletionResolvers = {
             
             console.log("args");
             console.log(args);
-            
-            if (await hasRelationships(
-                session, 
-                args.data.pbotID, 
-                [{
-                    type: "STATE_OF",
-                    direction: "in"
-                }, {
-                    type: "INSTANCE_OF",
-                    direction: "in"
-                }]
-            )) {
-                console.log("cannot delete");
-                return {pbotID: "Cannot delete " + args.data.pbotID}
-            } else {
-                console.log("can delete");
-                const result = await handleDelete(
-                    session, 
-                    'Character', 
-                    args.data.pbotID, 
-                    args.data.enteredByPersonID, 
-                    [{
-                        type: "CHARACTER_OF",
-                        direction: "out"
-                    }, {
-                        type: "ENTERED_BY",
-                        direction: "out"
-                    }]
-                );
-                console.log("result");
-                console.log(result);
-                return result.records[0]._fields[0];
+            let result;
+            try {
+                result = await session.writeTransaction(async tx => {           
+                    if (await hasRelationships(
+                        tx, 
+                        args.data.pbotID, 
+                        [{
+                            type: "STATE_OF",
+                            direction: "in"
+                        }, {
+                            type: "INSTANCE_OF",
+                            direction: "in"
+                        }]
+                    )) {
+                        console.log("cannot delete");
+                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                    } else {
+                        console.log("can delete");
+                        const result = await handleDelete(
+                            tx, 
+                            'Character', 
+                            args.data.pbotID, 
+                            args.data.enteredByPersonID, 
+                            [{
+                                type: "CHARACTER_OF",
+                                direction: "out"
+                            }, {
+                                type: "ENTERED_BY",
+                                direction: "out"
+                            }]
+                        );
+                        console.log("result");
+                        console.log(result);
+                        return result.records[0]._fields[0];
+                    }
+                });
+            } finally {
+                await session.close();
             }
-            
+            return result;
         },
 
         CustomDeleteState: async (obj, args, context, info) => {
@@ -283,38 +304,46 @@ export const DeletionResolvers = {
             console.log("args");
             console.log(args);
             
-            if (await hasRelationships(
-                    session, 
-                    args.data.pbotID, 
-                    [{
-                        type: "STATE_OF",
-                        direction: "in"
-                    }, {
-                        type: "HAS_STATE",
-                        direction: "in"
-                    }]
-            )) {
-                console.log("cannot delete");
-                return {pbotID: "Cannot delete " + args.data.pbotID}
-            } else {
-                console.log("can delete");
-                const result = await handleDelete(
-                    session, 
-                    'State', 
-                    args.data.pbotID, 
-                    args.data.enteredByPersonID, 
-                    [{
-                        type: "STATE_OF",
-                        direction: "out"
-                    }, {
-                        type: "ENTERED_BY",
-                        direction: "out"
-                    }]
-                );
-                console.log("result");
-                console.log(result);
-                return result.records[0]._fields[0];
+            let result;
+            try {
+                result = await session.writeTransaction(async tx => {           
+                    if (await hasRelationships(
+                            tx, 
+                            args.data.pbotID, 
+                            [{
+                                type: "STATE_OF",
+                                direction: "in"
+                            }, {
+                                type: "HAS_STATE",
+                                direction: "in"
+                            }]
+                    )) {
+                        console.log("cannot delete");
+                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                    } else {
+                        console.log("can delete");
+                        const result = await handleDelete(
+                            tx, 
+                            'State', 
+                            args.data.pbotID, 
+                            args.data.enteredByPersonID, 
+                            [{
+                                type: "STATE_OF",
+                                direction: "out"
+                            }, {
+                                type: "ENTERED_BY",
+                                direction: "out"
+                            }]
+                        );
+                        console.log("result");
+                        console.log(result);
+                        return result.records[0]._fields[0];
+                    }
+                });
+            } finally {
+                await session.close();
             }
+            return result;
             
         },
         
