@@ -1,4 +1,5 @@
 //import * as neo4j from 'neo4j-driver';
+import {ValidationError} from 'apollo-server';
 
 const hasRelationships = async (session, pbotID, relationships) => {
     let queryStr = relationships.reduce((str, relationship) => `
@@ -62,7 +63,7 @@ const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relati
     queryStr = `
         ${queryStr}
         RETURN {
-            pbotID: baseNode.pbotID + " deleted"
+            pbotID: baseNode.pbotID
         }
     `;
         
@@ -95,7 +96,7 @@ export const DeletionResolvers = {
                         }]
                     )) {
                         console.log("cannot delete");
-                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                        throw new ValidationError("Reference is cited by existing Schemas");
                     } else {
                         console.log("can delete");
                         const result = await handleDelete(
@@ -175,7 +176,7 @@ export const DeletionResolvers = {
                         }]
                     )) {
                         console.log("cannot delete");
-                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                        throw new ValidationError("Schema either has Characters or is in use by existing Descriptions");
                     } else {
                         console.log("can delete");
                         const result = await handleDelete(
@@ -270,7 +271,7 @@ export const DeletionResolvers = {
                         }]
                     )) {
                         console.log("cannot delete");
-                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                        throw new ValidationError("Character either has States or is in use by existing CharacterInstances");
                     } else {
                         console.log("can delete");
                         const result = await handleDelete(
@@ -319,7 +320,7 @@ export const DeletionResolvers = {
                             }]
                     )) {
                         console.log("cannot delete");
-                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                        throw new ValidationError("State either has sub-States or is in use by existing CharacterInstances");
                     } else {
                         console.log("can delete");
                         const result = await handleDelete(
@@ -368,7 +369,7 @@ export const DeletionResolvers = {
                             }]
                     )) {
                         console.log("cannot delete");
-                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                        throw new ValidationError("Description has CharacterInstances");
                     } else {
                         console.log("can delete");
                         const result = await handleDelete(
@@ -462,7 +463,7 @@ export const DeletionResolvers = {
                             }]
                     )) {
                         console.log("cannot delete");
-                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                        throw new ValidationError("Specimen is associated with a Description");
                     } else {
                         console.log("can delete");
                         const result = await handleDelete(
