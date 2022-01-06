@@ -344,7 +344,152 @@ export const DeletionResolvers = {
                 await session.close();
             }
             return result;
+        },
+
+        CustomDeleteDescription: async (obj, args, context, info) => {
+            const driver = context.driver;
+            const session = driver.session()
             
+            console.log("args");
+            console.log(args);
+            
+            let result;
+            try {
+                result = await session.writeTransaction(async tx => {           
+                    if (await hasRelationships(
+                            tx, 
+                            args.data.pbotID, 
+                            [{
+                                type: "DEFINED_BY",
+                                direction: "out"
+                            }, {
+                                type: "CANDIDATE_FOR",
+                                direction: "in"
+                            }]
+                    )) {
+                        console.log("cannot delete");
+                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                    } else {
+                        console.log("can delete");
+                        const result = await handleDelete(
+                            tx, 
+                            'Description', 
+                            args.data.pbotID, 
+                            args.data.enteredByPersonID, 
+                            [{
+                                type: "APPLICATION_OF",
+                                direction: "out"
+                            }, {
+                                type: "DESCRIBED_BY",
+                                direction: "in"
+                            }, {
+                                type: "EXAMPLE_OF",
+                                direction: "in"
+                            }, {
+                                type: "ENTERED_BY",
+                                direction: "out"
+                            }]
+                        );
+                        console.log("result");
+                        console.log(result);
+                        return result.records[0]._fields[0];
+                    }
+                });
+            } finally {
+                await session.close();
+            }
+            return result;
+        },
+
+        CustomDeleteCharacterInstance: async (obj, args, context, info) => {
+            const driver = context.driver;
+            const session = driver.session()
+            
+            console.log("args");
+            console.log(args);
+            
+            let result;
+            try {
+                result = await session.writeTransaction(async tx => {           
+                    const result = await handleDelete(
+                        tx, 
+                        'CharacterInstance', 
+                        args.data.pbotID, 
+                        args.data.enteredByPersonID, 
+                        [{
+                            type: "CANDIDATE_FOR",
+                            direction: "out"
+                        }, {
+                            type: "DEFINED_BY",
+                            direction: "in"
+                        }, {
+                            type: "INSTANCE_OF",
+                            direction: "out"
+                        }, {
+                            type: "HAS_STATE",
+                            direction: "out"
+                        }, {
+                            type: "ENTERED_BY",
+                            direction: "out"
+                        }]
+                    );
+                    console.log("result");
+                    console.log(result);
+                    return result.records[0]._fields[0];
+                });
+            } finally {
+                await session.close();
+            }
+            return result;
+        },
+
+        CustomDeleteSpecimen: async (obj, args, context, info) => {
+            const driver = context.driver;
+            const session = driver.session()
+            
+            console.log("args");
+            console.log(args);
+            
+            let result;
+            try {
+                result = await session.writeTransaction(async tx => {           
+                    if (await hasRelationships(
+                            tx, 
+                            args.data.pbotID, 
+                            [{
+                                type: "DESCRIBED_BY",
+                                direction: "out"
+                            }]
+                    )) {
+                        console.log("cannot delete");
+                        return {pbotID: "Cannot delete " + args.data.pbotID}
+                    } else {
+                        console.log("can delete");
+                        const result = await handleDelete(
+                            tx, 
+                            'Specimen', 
+                            args.data.pbotID, 
+                            args.data.enteredByPersonID, 
+                            [{
+                                type: "IS_TYPE",
+                                direction: "out"
+                            }, {
+                                type: "EXAMPLE_OF",
+                                direction: "out"
+                            }, {
+                                type: "ENTERED_BY",
+                                direction: "out"
+                            }]
+                        );
+                        console.log("result");
+                        console.log(result);
+                        return result.records[0]._fields[0];
+                    }
+                });
+            } finally {
+                await session.close();
+            }
+            return result;
         },
         
     }
