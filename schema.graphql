@@ -574,6 +574,10 @@ type Mutation {
         
     CustomDeleteSchema(data: SchemaInput!): Schema! @neo4j_ignore
     
+    CustomDeleteSchema2(data: SchemaInput!): Schema! @neo4j_ignore
+    CustomDeleteCharacter2(data: CharacterInput!): Character! @neo4j_ignore
+    CustomDeleteState2(data: StateInput!): State! @neo4j_ignore
+    
 
     CustomCreateCharacter(data: CharacterInput!): Character!
         @cypher(

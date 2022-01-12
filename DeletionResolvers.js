@@ -33,6 +33,39 @@ const hasRelationships = async (session, pbotID, relationships) => {
     return res;
 }
 
+const getRelationships = async (session, pbotID, relationships) => {
+    let queryStr = relationships.reduce((str, relationship) => `
+        ${str}
+        MATCH
+            (n)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(r) 
+        WHERE n.pbotID="${pbotID}"
+        RETURN 
+            r
+        UNION ALL
+    `,'');
+    queryStr = queryStr.substring(0, queryStr.lastIndexOf("UNION ALL"))
+    console.log(queryStr);
+    
+    let result;
+    result = await session.run(
+        queryStr,
+        {pbotID: pbotID}
+    )
+    console.log("------result----------");
+    console.log(result);
+    console.log("records returned: " + result.records.length)
+    //check each record for non-null
+    //const res = result.records.reduce((acc, rec) => acc || (rec._fields[0] !== null), false);
+    const res = result.records.map((rec) => ({pbotID: rec.get(0).properties.pbotID}));
+    console.log("res");
+    console.log(res);
+    //result = result.records.length > 0; //TODO: !!!!!!!this doesn't work. Need to check each record for null
+    //console.log("res = " + res);
+    //console.log("returning " + result);
+    //return result;
+    return res;
+}
+
 const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relationships) => {
     console.log("handleDelete");
     
@@ -74,6 +107,149 @@ const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relati
     return result;
 }
 
+const deleteSchema = async (tx, pbotID, enteredByPersonID) => {
+    if (await hasRelationships(
+        tx, 
+        pbotID, 
+        [{
+            type: "APPLICATION_OF",
+            direction: "in"
+        }]
+    )) {
+        console.log("cannot delete");
+        throw new ValidationError("Schema is in use by existing Descriptions");
+    } else {
+        const characters = await getRelationships(
+            tx, 
+            pbotID, 
+            [{
+                type: "CHARACTER_OF",
+                direction: "in"
+            }]
+        );
+        console.log("characters");
+        console.log(characters);
+        await Promise.all(characters.map(character => {
+            console.log(character);
+            return deleteCharacter(tx, character.pbotID, enteredByPersonID)
+        })).catch(error => {
+            console.log(error);
+            throw new ValidationError("Unable to cascade delete Schema");
+        });
+            
+        const result = await handleDelete(
+            tx, 
+            'Schema', 
+            pbotID, 
+            enteredByPersonID, 
+            [{
+                type: "AUTHORED_BY",
+                direction: "out"
+            }, {
+                type: "ENTERED_BY",
+                direction: "out"
+            }, {
+                type: "CITED_BY",
+                direction: "in"
+            }]
+        );
+        console.log("result");
+        console.log(result);
+        return result.records[0]._fields[0];
+    }
+}
+
+const deleteCharacter = async (tx, pbotID, enteredByPersonID) => {
+    if (await hasRelationships(
+        tx, 
+        pbotID, 
+        [{
+            type: "INSTANCE_OF",
+            direction: "in"
+        }]
+    )) {
+        console.log("cannot delete");
+        throw new ValidationError("Character is in use by existing CharacterInstances");
+    } else {
+        const states = await getRelationships(
+            tx, 
+            pbotID, 
+            [{
+                type: "STATE_OF",
+                direction: "in"
+            }]
+        );
+        await Promise.all(states.map(state => {
+            return deleteState(tx, state.pbotID, enteredByPersonID)
+        })).catch(error => {
+            console.log(error);
+            throw new ValidationError("Unable to cascade delete Character");
+        });
+            
+        const result = await handleDelete(
+            tx, 
+            'Character', 
+            pbotID, 
+            enteredByPersonID, 
+            [{
+                type: "CHARACTER_OF",
+                direction: "out"
+            }, {
+                type: "ENTERED_BY",
+                direction: "out"
+            }]
+        );
+        console.log("result");
+        console.log(result);
+        return result.records[0]._fields[0];
+    }
+}
+
+const deleteState = async (tx, pbotID, enteredByPersonID) => {
+    if (await hasRelationships(
+        tx, 
+        pbotID, 
+        [{
+            type: "HAS_STATE",
+            direction: "in"
+        }]
+    )) {
+        console.log("cannot delete");
+        throw new ValidationError("State is in use by existing CharacterInstances");
+    } else {
+        const states = await getRelationships(
+            tx, 
+            pbotID, 
+            [{
+                type: "STATE_OF",
+                direction: "in"
+            }]
+        );
+        await Promise.all(states.map(state => {
+            return deleteState(tx, state.pbotID, enteredByPersonID)
+        })).catch(error => {
+            console.log(error);
+            throw new ValidationError("Unable to cascade delete State");
+        });
+            
+        const result = await handleDelete(
+            tx, 
+            'State', 
+            pbotID, 
+            enteredByPersonID, 
+            [{
+                type: "STATE_OF",
+                direction: "out"
+            }, {
+                type: "ENTERED_BY",
+                direction: "out"
+            }]
+        );
+        console.log("result");
+        console.log(result);
+        return result.records[0]._fields[0];
+    }
+}
 
 export const DeletionResolvers = {
     Mutation: {
@@ -249,7 +425,66 @@ export const DeletionResolvers = {
             }
             return result;            
         },
+        
+        //********************************************************
+        CustomDeleteSchema2: async (obj, args, context, info) => {
+            console.log("CustomDeleteSchema2");
+            const driver = context.driver;
+            const session = driver.session()
+            
+            console.log("args");
+            console.log(args);
+            
+            let result;
+            try {
+                result = await session.writeTransaction(async tx => {
+                    return await deleteSchema(tx, args.data.pbotID, args.data.enteredByPersonID);
+                });
+            } finally {
+                await session.close();
+            }
+            return result;            
+        },
 
+        CustomDeleteCharacter2: async (obj, args, context, info) => {
+            console.log("CustomDeleteCharacter2");
+            const driver = context.driver;
+            const session = driver.session()
+            
+            console.log("args");
+            console.log(args);
+            
+            let result;
+            try {
+                result = await session.writeTransaction(async tx => {
+                    return await deleteCharacter(tx, args.data.pbotID, args.data.enteredByPersonID);
+                });
+            } finally {
+                await session.close();
+            }
+            return result;            
+        },
+        
+        CustomDeleteState2: async (obj, args, context, info) => {
+            console.log("CustomDeleteCharacter2");
+            const driver = context.driver;
+            const session = driver.session()
+            
+            console.log("args");
+            console.log(args);
+            
+            let result;
+            try {
+                result = await session.writeTransaction(async tx => {
+                    return await deleteState(tx, args.data.pbotID, args.data.enteredByPersonID);
+                });
+            } finally {
+                await session.close();
+            }
+            return result;            
+        },
+        //**********************************************************
+        
         CustomDeleteCharacter: async (obj, args, context, info) => {
             const driver = context.driver;
             const session = driver.session()
