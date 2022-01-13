@@ -56,7 +56,7 @@ const getRelationships = async (session, pbotID, relationships) => {
     console.log("records returned: " + result.records.length)
     //check each record for non-null
     //const res = result.records.reduce((acc, rec) => acc || (rec._fields[0] !== null), false);
-    const res = result.records.map((rec) => ({pbotID: rec.get(0).properties.pbotID}));
+    const res = result.records.map((rec) => ({pbotID: rec.get(0).properties.pbotID, nodeType: rec.get(0).labels[0]}));
     console.log("res");
     console.log(res);
     //result = result.records.length > 0; //TODO: !!!!!!!this doesn't work. Need to check each record for null
@@ -107,97 +107,94 @@ const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relati
     return result;
 }
 
-const deleteSchema = async (tx, pbotID, enteredByPersonID) => {
-    if (await hasRelationships(
-        tx, 
-        pbotID, 
-        [{
+const relationshipMap = {
+    Schema: {
+        blockingRelationships:  [{
             type: "APPLICATION_OF",
             direction: "in"
+        }],
+        cascadeRelationships: [{
+            type: "CHARACTER_OF",
+            direction: "in"
+        }],
+        nonblockingRelationships: [{
+            type: "AUTHORED_BY",
+            direction: "out"
+        }, {
+            type: "ENTERED_BY",
+            direction: "out"
+        }, {
+            type: "CITED_BY",
+            direction: "in"
         }]
-    )) {
-        console.log("cannot delete");
-        throw new ValidationError("Schema is in use by existing Descriptions");
-    } else {
-        const characters = await getRelationships(
-            tx, 
-            pbotID, 
-            [{
-                type: "CHARACTER_OF",
-                direction: "in"
-            }]
-        );
-        console.log("characters");
-        console.log(characters);
-        await Promise.all(characters.map(character => {
-            console.log(character);
-            return deleteCharacter(tx, character.pbotID, enteredByPersonID)
-        })).catch(error => {
-            console.log(error);
-            throw new ValidationError("Unable to cascade delete Schema");
-        });
-            
-        const result = await handleDelete(
-            tx, 
-            'Schema', 
-            pbotID, 
-            enteredByPersonID, 
-            [{
-                type: "AUTHORED_BY",
-                direction: "out"
-            }, {
-                type: "ENTERED_BY",
-                direction: "out"
-            }, {
-                type: "CITED_BY",
-                direction: "in"
-            }]
-        );
-        console.log("result");
-        console.log(result);
-        return result.records[0]._fields[0];
-    }
-}
-
-const deleteCharacter = async (tx, pbotID, enteredByPersonID) => {
-    if (await hasRelationships(
-        tx, 
-        pbotID, 
-        [{
+    }, 
+    Character: {
+        blockingRelationships: [{
             type: "INSTANCE_OF",
             direction: "in"
+        }],
+        cascadeRelationships: [{
+            type: "STATE_OF",
+            direction: "in"
+        }],
+        nonblockingRelationships: [{
+            type: "CHARACTER_OF",
+            direction: "out"
+        }, {
+            type: "ENTERED_BY",
+            direction: "out"
         }]
-    )) {
+    },
+    State: {
+        blockingRelationships: [{
+            type: "HAS_STATE",
+            direction: "in"
+        }],
+        cascadeRelationships: [{
+            type: "STATE_OF",
+            direction: "in"
+        }],
+        nonblockingRelationships: [{
+            type: "STATE_OF",
+            direction: "out"
+        }, {
+            type: "ENTERED_BY",
+            direction: "out"
+        }]
+    }
+}
+
+const deleteNode = async (tx, nodeType, pbotID, enteredByPersonID,) => {
+    const blockingRelationships = await getRelationships(
+        tx, 
+        pbotID, 
+        relationshipMap[nodeType].blockingRelationships
+    );
+    if (blockingRelationships.length > 0) {
         console.log("cannot delete");
-        throw new ValidationError("Character is in use by existing CharacterInstances");
+        throw new ValidationError(`${nodeType} has blocking relationships`);
     } else {
-        const states = await getRelationships(
+        const remoteNodes = await getRelationships(
             tx, 
             pbotID, 
-            [{
-                type: "STATE_OF",
-                direction: "in"
-            }]
+            relationshipMap[nodeType].cascadeRelationships
         );
-        await Promise.all(states.map(state => {
-            return deleteState(tx, state.pbotID, enteredByPersonID)
+        console.log("remoteNodes");
+        console.log(remoteNodes);
+        await Promise.all(remoteNodes.map(node => {
+            console.log(node);
+            return deleteNode(tx, node.nodeType, node.pbotID, enteredByPersonID)
         })).catch(error => {
             console.log(error);
-            throw new ValidationError("Unable to cascade delete Character");
+            throw new ValidationError(`Unable to cascade delete ${nodeType}`);
         });
             
         const result = await handleDelete(
             tx, 
-            'Character', 
+            nodeType, 
             pbotID, 
             enteredByPersonID, 
-            [{
-                type: "CHARACTER_OF",
-                direction: "out"
-            }, {
-                type: "ENTERED_BY",
-                direction: "out"
-            }]
+            relationshipMap[nodeType].nonblockingRelationships        
         );
         console.log("result");
         console.log(result);
@@ -205,51 +202,6 @@ const deleteCharacter = async (tx, pbotID, enteredByPersonID) => {
     }
 }
 
-const deleteState = async (tx, pbotID, enteredByPersonID) => {
-    if (await hasRelationships(
-        tx, 
-        pbotID, 
-        [{
-            type: "HAS_STATE",
-            direction: "in"
-        }]
-    )) {
-        console.log("cannot delete");
-        throw new ValidationError("State is in use by existing CharacterInstances");
-    } else {
-        const states = await getRelationships(
-            tx, 
-            pbotID, 
-            [{
-                type: "STATE_OF",
-                direction: "in"
-            }]
-        );
-        await Promise.all(states.map(state => {
-            return deleteState(tx, state.pbotID, enteredByPersonID)
-        })).catch(error => {
-            console.log(error);
-            throw new ValidationError("Unable to cascade delete State");
-        });
-            
-        const result = await handleDelete(
-            tx, 
-            'State', 
-            pbotID, 
-            enteredByPersonID, 
-            [{
-                type: "STATE_OF",
-                direction: "out"
-            }, {
-                type: "ENTERED_BY",
-                direction: "out"
-            }]
-        );
-        console.log("result");
-        console.log(result);
-        return result.records[0]._fields[0];
-    }
-}
 
 export const DeletionResolvers = {
     Mutation: {
@@ -438,7 +390,7 @@ export const DeletionResolvers = {
             let result;
             try {
                 result = await session.writeTransaction(async tx => {
-                    return await deleteSchema(tx, args.data.pbotID, args.data.enteredByPersonID);
+                    return await deleteNode(tx, "Schema", args.data.pbotID, args.data.enteredByPersonID);
                 });
             } finally {
                 await session.close();
@@ -457,7 +409,7 @@ export const DeletionResolvers = {
             let result;
             try {
                 result = await session.writeTransaction(async tx => {
-                    return await deleteCharacter(tx, args.data.pbotID, args.data.enteredByPersonID);
+                    return await deleteNode(tx, "Character", args.data.pbotID, args.data.enteredByPersonID);
                 });
             } finally {
                 await session.close();
@@ -476,7 +428,7 @@ export const DeletionResolvers = {
             let result;
             try {
                 result = await session.writeTransaction(async tx => {
-                    return await deleteState(tx, args.data.pbotID, args.data.enteredByPersonID);
+                    return await deleteNode(tx, "State", args.data.pbotID, args.data.enteredByPersonID);
                 });
             } finally {
                 await session.close();
