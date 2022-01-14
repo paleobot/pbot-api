@@ -243,6 +243,7 @@ input SchemaInput {
 	references: [String]
 	authors: [String]
 	enteredByPersonID: String
+	cascade: Boolean
 }
 
 input CharacterInput {
@@ -251,6 +252,7 @@ input CharacterInput {
     definition: String
     schemaID: String
 	enteredByPersonID: String
+	cascade: Boolean
 }
 
 input StateInput {
@@ -260,6 +262,7 @@ input StateInput {
     characterID: String
     parentStateID: String
 	enteredByPersonID: String
+	cascade: Boolean
 }
 
 input DescriptionInput {
@@ -272,6 +275,7 @@ input DescriptionInput {
 	species: String
 	schemaID: String!
 	enteredByPersonID: String
+	cascade: Boolean
 }
 
 input CharacterInstanceInput {
