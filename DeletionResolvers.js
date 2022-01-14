@@ -145,6 +145,7 @@ const getRelationships = async (session, pbotID, relationships) => {
     queryStr = queryStr.substring(0, queryStr.lastIndexOf("UNION ALL"))
     console.log(queryStr);
     
+    //If our string is empty, there is nothing to query (i.e. no relationships to search for). Return empty array.
     if (queryStr === '') return [];
     
     let result;
@@ -155,15 +156,9 @@ const getRelationships = async (session, pbotID, relationships) => {
     console.log("------result----------");
     console.log(result);
     console.log("records returned: " + result.records.length)
-    //check each record for non-null
-    //const res = result.records.reduce((acc, rec) => acc || (rec._fields[0] !== null), false);
     const res = result.records.map((rec) => ({pbotID: rec.get(0).properties.pbotID, nodeType: rec.get(0).labels[0]}));
     console.log("res");
     console.log(res);
-    //result = result.records.length > 0; //TODO: !!!!!!!this doesn't work. Need to check each record for null
-    //console.log("res = " + res);
-    //console.log("returning " + result);
-    //return result;
     return res;
 }
 
@@ -202,7 +197,6 @@ const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relati
     `;
         
     console.log(queryStr);
-    //return queryStr;
     
     const result = await session.run(queryStr);
     return result;
@@ -257,8 +251,8 @@ const deleteNode = async (tx, nodeType, pbotID, enteredByPersonID, cascade = fal
 
 export const DeletionResolvers = {
     Mutation: {
-        CustomDeleteReference: async (obj, args, context, info) => {
-            console.log("CustomDeleteReference");
+        DeleteReference: async (obj, args, context, info) => {
+            console.log("DeleteReference");
             const driver = context.driver;
             const session = driver.session()
             
@@ -276,8 +270,8 @@ export const DeletionResolvers = {
             return result;            
         },
 
-        CustomDeleteSchema: async (obj, args, context, info) => {
-            console.log("CustomDeleteSchema");
+        DeleteSchema: async (obj, args, context, info) => {
+            console.log("DeleteSchema");
             const driver = context.driver;
             const session = driver.session()
             
@@ -295,8 +289,8 @@ export const DeletionResolvers = {
             return result;            
         },
         
-        CustomDeleteCharacter: async (obj, args, context, info) => {
-            console.log("CustomDeleteCharacter");
+        DeleteCharacter: async (obj, args, context, info) => {
+            console.log("DeleteCharacter");
             const driver = context.driver;
             const session = driver.session()
             
@@ -314,8 +308,8 @@ export const DeletionResolvers = {
             return result;            
         },
 
-        CustomDeleteState: async (obj, args, context, info) => {
-            console.log("CustomDeleteCharacter");
+        DeleteState: async (obj, args, context, info) => {
+            console.log("DeleteCharacter");
             const driver = context.driver;
             const session = driver.session()
             
@@ -333,8 +327,8 @@ export const DeletionResolvers = {
             return result;            
         },
 
-        CustomDeleteDescription: async (obj, args, context, info) => {
-            console.log("CustomDeleteDescription");
+        DeleteDescription: async (obj, args, context, info) => {
+            console.log("DeleteDescription");
             const driver = context.driver;
             const session = driver.session()
             
@@ -352,8 +346,8 @@ export const DeletionResolvers = {
             return result;            
         },
 
-        CustomDeleteCharacterInstance: async (obj, args, context, info) => {
-            console.log("CustomDeleteCharacterInstance");
+        DeleteCharacterInstance: async (obj, args, context, info) => {
+            console.log("DeleteCharacterInstance");
             const driver = context.driver;
             const session = driver.session()
             
@@ -371,8 +365,8 @@ export const DeletionResolvers = {
             return result;            
         },
 
-        CustomDeleteSpecimen: async (obj, args, context, info) => {
-            console.log("CustomDeleteSpecimen");
+        DeleteSpecimen: async (obj, args, context, info) => {
+            console.log("DeleteSpecimen");
             const driver = context.driver;
             const session = driver.session()
             
@@ -389,6 +383,17 @@ export const DeletionResolvers = {
             }
             return result;            
         },        
+
+        DeletePerson: async (obj, args, context, info) => {
+            console.log("DeletePerson");
+            throw new ValidationError(`Cannot delete Person nodes`);
+        },        
+
+        DeleteOrgan: async (obj, args, context, info) => {
+            console.log("DeleteOrgan");
+            throw new ValidationError(`Cannot delete Organ nodes`);
+        },        
+        
     }
 };
 

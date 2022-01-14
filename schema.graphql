@@ -379,6 +379,7 @@ type Mutation {
             """
         )
 
+    DeletePerson(data: PersonInput!): Person! @neo4j_ignore
 
     CustomCreateReference(data: ReferenceInput!): Reference!
     @cypher(
@@ -477,7 +478,7 @@ type Mutation {
             """
         )
         
-    CustomDeleteReference(data: ReferenceInput!): Reference! @neo4j_ignore
+    DeleteReference(data: ReferenceInput!): Reference! @neo4j_ignore
 
     CustomCreateSchema(data: SchemaInput!): Schema!
         @cypher(
@@ -576,13 +577,8 @@ type Mutation {
             """
         )
         
-    CustomDeleteSchema(data: SchemaInput!): Schema! @neo4j_ignore
+    DeleteSchema(data: SchemaInput!): Schema! @neo4j_ignore
     
-    CustomDeleteSchema2(data: SchemaInput!): Schema! @neo4j_ignore
-    CustomDeleteCharacter2(data: CharacterInput!): Character! @neo4j_ignore
-    CustomDeleteState2(data: StateInput!): State! @neo4j_ignore
-    
-
     CustomCreateCharacter(data: CharacterInput!): Character!
         @cypher(
             statement: """
@@ -634,7 +630,7 @@ type Mutation {
             """
         )
         
-    CustomDeleteCharacter(data: CharacterInput!): Character! @neo4j_ignore
+    DeleteCharacter(data: CharacterInput!): Character! @neo4j_ignore
 
     CustomCreateState(data: StateInput!): State!
         @cypher(
@@ -716,7 +712,7 @@ type Mutation {
             """
         )
         
-    CustomDeleteState(data: StateInput!): State! @neo4j_ignore
+    DeleteState(data: StateInput!): State! @neo4j_ignore
 
     CustomCreateDescription(data: DescriptionInput!): Description!
         @cypher(
@@ -849,7 +845,7 @@ type Mutation {
             """
         )
         
-    CustomDeleteDescription(data: DescriptionInput!): Description!  @neo4j_ignore
+    DeleteDescription(data: DescriptionInput!): Description!  @neo4j_ignore
 
     """NOTE: No when is needed for the HAS_STATE value property below since setting properties to null 
     means they don't exist."""
@@ -915,7 +911,7 @@ type Mutation {
             """
         )
 
-    CustomDeleteCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
+    DeleteCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
 
     CustomCreateSpecimen(data: SpecimenInput!): Specimen!
         @cypher(
@@ -1091,7 +1087,7 @@ type Mutation {
             """
         )
         
-    CustomDeleteSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
+    DeleteSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
 
     CustomCreateOrgan(data: OrganInput!): Organ!
         @cypher(
@@ -1131,14 +1127,7 @@ type Mutation {
                 RETURN organ
             """
         )
-    CustomDeleteOrgan(data: OrganInput!): Organ!
-        @cypher(
-            statement: """
-                WITH {
-                    pbotID: "Cannot delete Organ nodes"
-                } AS result
-                RETURN result
-            """
-        )
+        
+    DeleteOrgan(data: OrganInput!): Organ! @neo4j_ignore
 
 }
