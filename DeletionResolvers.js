@@ -202,49 +202,60 @@ const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relati
     return result;
 }
 
-const deleteNode = async (tx, nodeType, pbotID, enteredByPersonID, cascade = false) => {
+const deleteNode = async (context, nodeType, pbotID, enteredByPersonID, cascade = false) => {
     console.log("cascade=" + cascade);
-    console.log(cascade ? 
-            relationshipMap[nodeType].blockingRelationships : 
-            [...relationshipMap[nodeType].blockingRelationships, ...relationshipMap[nodeType].cascadeRelationships]);
-    const blockingRelationships = await getRelationships(
-        tx, 
-        pbotID, 
-        cascade ? 
-            relationshipMap[nodeType].blockingRelationships : 
-            [...relationshipMap[nodeType].blockingRelationships, ...relationshipMap[nodeType].cascadeRelationships]
-    );
-    if (blockingRelationships.length > 0) {
-        console.log("cannot delete");
-        throw new ValidationError(`${nodeType} has blocking relationships`);
-    } else {
-        if (cascade) {
-            const remoteNodes = await getRelationships(
+    
+    const driver = context.driver;
+    const session = driver.session()
+    
+    try {
+        const result = await session.writeTransaction(async tx => {
+            console.log(cascade ? 
+                    relationshipMap[nodeType].blockingRelationships : 
+                    [...relationshipMap[nodeType].blockingRelationships, ...relationshipMap[nodeType].cascadeRelationships]);
+            const blockingRelationships = await getRelationships(
                 tx, 
                 pbotID, 
-                relationshipMap[nodeType].cascadeRelationships
+                cascade ? 
+                    relationshipMap[nodeType].blockingRelationships : 
+                    [...relationshipMap[nodeType].blockingRelationships, ...relationshipMap[nodeType].cascadeRelationships]
             );
-            console.log("remoteNodes");
-            console.log(remoteNodes);
-            await Promise.all(remoteNodes.map(node => {
-                console.log(node);
-                return deleteNode(tx, node.nodeType, node.pbotID, enteredByPersonID, cascade)
-            })).catch(error => {
-                console.log(error);
-                throw new ValidationError(`Unable to cascade delete ${nodeType}`);
-            });
-        }
-            
-        const result = await handleDelete(
-            tx, 
-            nodeType, 
-            pbotID, 
-            enteredByPersonID, 
-            relationshipMap[nodeType].nonblockingRelationships        
-        );
-        console.log("result");
-        console.log(result);
-        return result.records[0]._fields[0];
+            if (blockingRelationships.length > 0) {
+                console.log("cannot delete");
+                throw new ValidationError(`${nodeType} has blocking relationships`);
+            } else {
+                if (cascade) {
+                    const remoteNodes = await getRelationships(
+                        tx, 
+                        pbotID, 
+                        relationshipMap[nodeType].cascadeRelationships
+                    );
+                    console.log("remoteNodes");
+                    console.log(remoteNodes);
+                    await Promise.all(remoteNodes.map(node => {
+                        console.log(node);
+                        return deleteNode(context, node.nodeType, node.pbotID, enteredByPersonID, cascade)
+                    })).catch(error => {
+                        console.log(error);
+                        throw new ValidationError(`Unable to cascade delete ${nodeType}`);
+                    });
+                }
+                    
+                const result = await handleDelete(
+                    tx, 
+                    nodeType, 
+                    pbotID, 
+                    enteredByPersonID, 
+                    relationshipMap[nodeType].nonblockingRelationships        
+                );
+                console.log("result");
+                console.log(result);
+                return result.records[0]._fields[0];
+            }
+        });
+        return result;            
+    } finally {
+        await session.close();
     }
 }
 
@@ -253,135 +264,37 @@ export const DeletionResolvers = {
     Mutation: {
         DeleteReference: async (obj, args, context, info) => {
             console.log("DeleteReference");
-            const driver = context.driver;
-            const session = driver.session()
-            
-            console.log("args");
-            console.log(args);
-            
-            let result;
-            try {
-                result = await session.writeTransaction(async tx => {
-                    return await deleteNode(tx, "Reference", args.data.pbotID, args.data.enteredByPersonID);
-                });
-            } finally {
-                await session.close();
-            }
-            return result;            
+            return await deleteNode(context, "Reference", args.data.pbotID, args.data.enteredByPersonID);
         },
 
         DeleteSchema: async (obj, args, context, info) => {
             console.log("DeleteSchema");
-            const driver = context.driver;
-            const session = driver.session()
-            
-            console.log("args");
-            console.log(args);
-            
-            let result;
-            try {
-                result = await session.writeTransaction(async tx => {
-                    return await deleteNode(tx, "Schema", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
-                });
-            } finally {
-                await session.close();
-            }
-            return result;            
+            return await deleteNode(context, "Schema", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
         },
         
         DeleteCharacter: async (obj, args, context, info) => {
             console.log("DeleteCharacter");
-            const driver = context.driver;
-            const session = driver.session()
-            
-            console.log("args");
-            console.log(args);
-            
-            let result;
-            try {
-                result = await session.writeTransaction(async tx => {
-                    return await deleteNode(tx, "Character", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
-                });
-            } finally {
-                await session.close();
-            }
-            return result;            
+            return await deleteNode(context, "Character", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
         },
 
         DeleteState: async (obj, args, context, info) => {
             console.log("DeleteCharacter");
-            const driver = context.driver;
-            const session = driver.session()
-            
-            console.log("args");
-            console.log(args);
-            
-            let result;
-            try {
-                result = await session.writeTransaction(async tx => {
-                    return await deleteNode(tx, "State", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
-                });
-            } finally {
-                await session.close();
-            }
-            return result;            
+            return await deleteNode(context, "State", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
         },
 
         DeleteDescription: async (obj, args, context, info) => {
             console.log("DeleteDescription");
-            const driver = context.driver;
-            const session = driver.session()
-            
-            console.log("args");
-            console.log(args);
-            
-            let result;
-            try {
-                result = await session.writeTransaction(async tx => {
-                    return await deleteNode(tx, "Description", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
-                });
-            } finally {
-                await session.close();
-            }
-            return result;            
+            return await deleteNode(context, "Description", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
         },
 
         DeleteCharacterInstance: async (obj, args, context, info) => {
             console.log("DeleteCharacterInstance");
-            const driver = context.driver;
-            const session = driver.session()
-            
-            console.log("args");
-            console.log(args);
-            
-            let result;
-            try {
-                result = await session.writeTransaction(async tx => {
-                    return await deleteNode(tx, "CharacterInstance", args.data.pbotID, args.data.enteredByPersonID);
-                });
-            } finally {
-                await session.close();
-            }
-            return result;            
+            return await deleteNode(context, "CharacterInstance", args.data.pbotID, args.data.enteredByPersonID);
         },
 
         DeleteSpecimen: async (obj, args, context, info) => {
             console.log("DeleteSpecimen");
-            const driver = context.driver;
-            const session = driver.session()
-            
-            console.log("args");
-            console.log(args);
-            
-            let result;
-            try {
-                result = await session.writeTransaction(async tx => {
-                    return await deleteNode(tx, "Specimen", args.data.pbotID, args.data.enteredByPersonID);
-                });
-            } finally {
-                await session.close();
-            }
-            return result;            
+            return await deleteNode(context, "Specimen", args.data.pbotID, args.data.enteredByPersonID);
         },        
 
         DeletePerson: async (obj, args, context, info) => {
