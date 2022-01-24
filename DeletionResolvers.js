@@ -2,6 +2,20 @@
 import {ValidationError} from 'apollo-server';
 
 const relationshipMap = {
+    Group: {
+        blockingRelationships: [{
+            type: "MEMBER_OF",
+            direction: "in"
+        }, {
+            type: "ITEM_OF",
+            direction: "in"
+        }],
+        cascadeRelationships: [],
+        nonblockingRelationships: [{
+            type: "ENTERED_BY",
+            direction: "out"
+        }]
+    }, 
     Reference: {
         blockingRelationships: [{
             type: "CITED_BY",
@@ -296,6 +310,11 @@ export const DeletionResolvers = {
             console.log("DeleteSpecimen");
             return await deleteNode(context, "Specimen", args.data.pbotID, args.data.enteredByPersonID);
         },        
+
+        DeleteGroup: async (obj, args, context, info) => {
+            console.log("DeleteGroup");
+            return await deleteNode(context, "Group", args.data.pbotID, args.data.enteredByPersonID);
+        },
 
         DeletePerson: async (obj, args, context, info) => {
             console.log("DeletePerson");

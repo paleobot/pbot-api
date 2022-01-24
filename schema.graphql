@@ -1,11 +1,21 @@
 scalar DateTime
 
 """ These unions are a way for a property to hold references to different types """
-union Enterable = Person | Reference | Schema | Character | State
+union Enterable = Group | Person | Reference | Schema | Character | State | Description | CharacterInstance | Specimen
+
+union Groupable = Reference | Schema | Character | State | Description | CharacterInstance | Specimen
 
 union Authorable = Reference | Schema
 
 union Statable = Character | State
+
+type Group {
+    pbotID: ID!
+    name: String
+    members: [Person!]! @relation(name: "MEMBER_OF", direction: IN)
+    items: [Groupable!]! @relation(name: "ITEM_OF", direction: IN)
+    enteredBy: [GroupEnteredBy]
+}
 
 """ Note that I had to use the cypher directive to populate the entered property.
     Ideally, this would be handled by a relation directive, but that does not appear to
@@ -20,6 +30,7 @@ type Person {
       statement: "match (n)-[:ENTERED_BY]->(this) return n"
     )
     authored: [Authorable!]! @relation(name: "AUTHORED_BY", direction: IN)
+    enteredBy: [PersonEnteredBy]
 }
 
 type Reference {
@@ -113,6 +124,18 @@ type Specimen {
     Ideally, there would be one of these for the ENTERED_BY relationship, with the Enterable union in the
     from property. That does not work. So, I've had to resort to creating a separate type for each node type
     that could be in the from property. I'm not sure of the cons here. It looks like crap though. """
+type GroupEnteredBy @relation(name: "ENTERED_BY") {
+  from: Group
+  to: Person
+  timestamp: DateTime
+}
+
+type PersonEnteredBy @relation(name: "ENTERED_BY") {
+  from: Person
+  to: Person
+  timestamp: DateTime
+}
+
 type ReferenceEnteredBy @relation(name: "ENTERED_BY") {
   from: Reference
   to: Person
@@ -217,6 +240,14 @@ type Query {
 Mutations overrides. We might want to think about only using these, rather than any generated mutations. 
     TODO: To make these true overrides, delete the 'Custom' prefix. """
 
+input GroupInput {
+    pbotID: String
+    name: String
+    members: [String]
+    items: [String]
+    enteredByPersonID: String
+}
+
 input PersonInput {
     pbotID: String
     given: String
@@ -308,6 +339,114 @@ input OrganInput {
 }
 
 type Mutation {
+    CustomCreateGroup(data: GroupInput!): Group!
+        @cypher(
+            statement: """
+                MATCH 
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
+                CREATE 
+                    (group: Group {
+                        pbotID: apoc.create.uuid(),
+                        name: $data.name
+                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(ePerson)
+                WITH group
+                UNWIND (CASE coalesce($data.members,0) WHEN 0 THEN [null] ELSE $data.members END) AS mID
+                    CALL
+                        apoc.do.when(
+                            mID IS NULL,
+                            "RETURN group",
+                            "MATCH (n) WHERE n.pbotID = mID CREATE (n)-[:MEMBER_OF]->(group) RETURN group",
+                            {mID:mID, group:group}
+                        ) YIELD value
+                WITH distinct group
+                UNWIND (CASE coalesce($data.items,0) WHEN 0 THEN [null] ELSE $data.items END) AS iID
+                    CALL
+                        apoc.do.when(
+                            iID IS NULL,
+                            "RETURN group",
+                            "MATCH (n) WHERE n.pbotID = iID CREATE (n)-[:ITEM_OF]->(group) RETURN group",
+                            {iID:iID, group:group}
+                        ) YIELD value
+                WITH distinct group
+                RETURN group
+            """
+        )
+
+    CustomUpdateGroup(data: GroupInput!): Group!
+        @cypher(
+            statement: """
+                MATCH 
+					(group:Group {pbotID: $data.pbotID}),
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
+				WITH group, ePerson
+				CREATE
+					(group)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+                WITH group, eb
+                    CALL apoc.do.case([
+                        group.name IS NULL AND $data.name IS NOT NULL,
+                        "SET eb.name = 'not present' RETURN eb",
+                        group.name IS NOT NULL AND ($data.name IS NULL OR group.name <> $data.name), 
+                        "SET eb.name = group.name RETURN eb"],
+                        "RETURN eb",
+                        {group: group, eb:eb}
+                    ) YIELD value
+                WITH group, value.eb AS eb
+                OPTIONAL MATCH
+					(member:Person)-[oldMemberRelationship:MEMBER_OF]->(group)
+                WITH group, eb, collect(member.pbotID) AS oldMembers, collect(oldMemberRelationship) AS omrs
+                FOREACH (mr IN omrs | DELETE mr)
+                WITH distinct group, oldMembers, apoc.coll.disjunction(oldMembers, $data.members ) AS diffList, eb
+                CALL
+                    apoc.do.when(
+                        SIZE(diffList)<>0,
+                        "SET eb.members = oldMembers RETURN eb",
+                        "RETURN eb",
+                        {diffList: diffList, oldMembers: oldMembers, eb: eb}
+                    )
+                YIELD value
+				WITH group, eb
+                OPTIONAL MATCH
+					(n)-[oldItemRelationship:ITEM_OF]->(group)
+                WITH group, eb, collect(n.pbotID) as oldItems, collect(oldItemRelationship) AS oirs
+                FOREACH (ir IN oirs | DELETE ir)
+                WITH distinct group, oldItems, apoc.coll.disjunction(oldItems, $data.items ) AS diffList, eb
+                CALL
+                    apoc.do.when(
+                        SIZE(diffList)<>0,
+                        "SET eb.items = oldItems RETURN eb",
+                        "RETURN eb",
+                        {diffList: diffList, oldItems: oldItems, eb: eb}
+                    )
+                YIELD value
+				WITH group
+                SET 
+                    group.name = $data.name
+                WITH group
+                UNWIND (CASE coalesce($data.members,0) WHEN 0 THEN [null] ELSE $data.members END) AS mID
+                    CALL
+                        apoc.do.when(
+                            mID IS NULL,
+                            "RETURN group",
+                            "MATCH (member:Person {pbotID: mID}) CREATE (member)-[:MEMBER_OF]->(group) RETURN group",
+                            {mID:mID, group:group}
+                        ) YIELD value
+                WITH distinct group
+                UNWIND (CASE coalesce($data.items,0) WHEN 0 THEN [null] ELSE $data.items END) AS iID
+                    CALL
+                        apoc.do.when(
+                            iID IS NULL,
+                            "RETURN group",
+                            "MATCH (n) WHERE n.pbotID = iID CREATE (n)-[:ITEM_OF]->(group) RETURN group",
+                            {iID:iID, group:group}
+                        ) YIELD value
+                WITH distinct group
+                RETURN group
+            """
+        )
+        
+    DeleteGroup(data: GroupInput!): Group! @neo4j_ignore
+
+        
     CustomCreatePerson(data: PersonInput!): Person!
         @cypher(
             statement: """
