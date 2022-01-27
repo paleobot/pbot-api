@@ -447,78 +447,7 @@ type Mutation {
             """
         )
 
-    CustomUpdateSchema(data: SchemaInput!): Schema!
-        @cypher(
-            statement: """
-                MATCH 
-					(schema:Schema {pbotID: $data.pbotID}),
-                    (ePerson:Person {pbotID: $data.enteredByPersonID})
-				WITH schema, ePerson
-				CREATE
-					(schema)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
-                WITH schema, eb
-                    CALL apoc.do.case([
-                        schema.title IS NULL AND $data.title IS NOT NULL,
-                        "SET eb.title = 'not present' RETURN eb",
-                        schema.title IS NOT NULL AND ($data.title IS NULL OR schema.title <> $data.title), 
-                        "SET eb.title = schema.title RETURN eb"],
-                        "RETURN eb",
-                        {schema: schema, eb:eb}
-                    ) YIELD value
-                WITH schema, value.eb AS eb
-                    CALL apoc.do.case([
-                        schema.year IS NULL AND $data.year IS NOT NULL,
-                        "SET eb.year = 'not present' RETURN eb",
-                        schema.year IS NOT NULL AND ($data.year IS NULL OR schema.year <> $data.year), 
-                        "SET eb.year = schema.year RETURN eb"],
-                        "RETURN eb",
-                        {schema: schema, eb:eb}
-                    ) YIELD value
-                OPTIONAL MATCH
-					(reference:Reference)-[oldCitationRelationship:CITED_BY]->(schema)
-                WITH schema, eb, collect(reference.pbotID) AS oldRefs, collect(oldCitationRelationship) AS ocrs
-                UNWIND ocrs AS cr
-                    DELETE cr
-                WITH collect(cr) as dummy, schema, oldRefs, apoc.coll.disjunction(oldRefs, $data.references ) AS diffList, eb
-                CALL
-                    apoc.do.when(
-                        SIZE(diffList)<>0,
-                        "SET eb.references = oldRefs RETURN eb",
-                        "RETURN eb",
-                        {diffList: diffList, oldRefs: oldRefs, eb: eb}
-                    )
-                YIELD value
-				WITH schema, eb
-                OPTIONAL MATCH
-					(person:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(schema)
-                WITH schema, eb, collect(person.pbotID) as oldAuthors, collect(oldAuthorRelationship) AS oars
-                UNWIND oars AS ar
-                    DELETE ar
-                WITH collect(ar) as dummy, schema, oldAuthors, apoc.coll.disjunction(oldAuthors, $data.authors ) AS diffList, eb
-                CALL
-                    apoc.do.when(
-                        SIZE(diffList)<>0,
-                        "SET eb.authors = oldAuthors RETURN eb",
-                        "RETURN eb",
-                        {diffList: diffList, oldAuthors: oldAuthors, eb: eb}
-                    )
-                YIELD value
-				WITH schema
-                SET 
-                    schema.title = $data.title,
-                    schema.year = $data.year
-                WITH schema
-                UNWIND $data.references AS rID
-                    MATCH (reference:Reference {pbotID: rID}) 
-                    CREATE (reference)-[:CITED_BY]->(schema)
-                WITH collect(rID) AS dummy, schema
-                UNWIND $data.authors AS aID
-                    MATCH (author:Person {pbotID: aID}) 
-                    CREATE (schema)-[:AUTHORED_BY]->(author)
-                WITH collect (aID) as dummy, schema
-                RETURN schema
-            """
-        )
+    CustomUpdateSchema(data: SchemaInput!): Schema! @neo4j_ignore
         
     DeleteSchema(data: SchemaInput!): Schema! @neo4j_ignore
     
@@ -538,40 +467,7 @@ type Mutation {
             """
         )
 
-    CustomUpdateCharacter(data: CharacterInput!): Character!
-        @cypher(
-            statement: """
-                MATCH 
-					(character:Character {pbotID: $data.pbotID}),
-                    (ePerson:Person {pbotID: $data.enteredByPersonID})
-                WITH character, ePerson					
-				CREATE
-					(character)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
-                WITH character, eb
-                    CALL apoc.do.case([
-                        character.name IS NULL AND $data.name IS NOT NULL,
-                        "SET eb.name = 'not present' RETURN eb",
-                        character.name IS NOT NULL AND ($data.name IS NULL OR character.name <> $data.name), 
-                        "SET eb.name = character.name RETURN eb"],
-                        "RETURN eb",
-                        {character: character, eb:eb}
-                    ) YIELD value
-                WITH character, value.eb AS eb
-                    CALL apoc.do.case([
-                        character.definition IS NULL AND $data.definition IS NOT NULL,
-                        "SET eb.definition = 'not present' RETURN eb",
-                        character.definition IS NOT NULL AND ($data.definition IS NULL OR character.definition <> $data.definition), 
-                        "SET eb.definition = character.definition RETURN eb"],
-                        "RETURN eb",
-                        {character: character, eb:eb}
-                    ) YIELD value
-				WITH character
-                SET 
-                    character.name = $data.name,
-                    character.definition = $data.definition
-                RETURN character
-            """
-        )
+    CustomUpdateCharacter(data: CharacterInput!): Character! @neo4j_ignore
         
     DeleteCharacter(data: CharacterInput!): Character! @neo4j_ignore
 
@@ -685,108 +581,7 @@ type Mutation {
             """
         )
 
-    CustomUpdateDescription(data: DescriptionInput!): Description!
-        @cypher(
-            statement: """
-                MATCH 
-					(description:Description {pbotID: $data.pbotID}),
-                    (ePerson:Person {pbotID: $data.enteredByPersonID})
-				CREATE
-					(description)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
-                WITH description, eb
-                    CALL apoc.do.case([
-                        description.type IS NULL AND $data.type IS NOT NULL,
-                        "SET eb.type = 'not present' RETURN eb",
-                        description.type IS NOT NULL AND ($data.type IS NULL OR description.type <> $data.type), 
-                        "SET eb.type = description.type RETURN eb"],
-                        "RETURN eb",
-                        {description: description, eb:eb}
-                    ) YIELD value
-                WITH description, value.eb AS eb
-                    CALL apoc.do.case([
-                        description.name IS NULL AND $data.name IS NOT NULL,
-                        "SET eb.name = 'not present' RETURN eb",
-                        description.name IS NOT NULL AND ($data.name IS NULL OR description.name <> $data.name), 
-                        "SET eb.name = description.name RETURN eb"],
-                        "RETURN eb",
-                        {description: description, eb:eb}
-                    ) YIELD value
-                WITH description, value.eb AS eb
-                    CALL apoc.do.case([
-                        description.family IS NULL AND $data.family IS NOT NULL,
-                        "SET eb.family = 'not present' RETURN eb",
-                        description.family IS NOT NULL AND ($data.family IS NULL OR description.family <> $data.family), 
-                        "SET eb.family = description.family RETURN eb"],
-                        "RETURN eb",
-                        {description: description, eb:eb}
-                    ) YIELD value
-                WITH description, value.eb AS eb
-                    CALL apoc.do.case([
-                        description.genus IS NULL AND $data.genus IS NOT NULL,
-                        "SET eb.genus = 'not present' RETURN eb",
-                        description.genus IS NOT NULL AND ($data.genus IS NULL OR description.genus <> $data.genus), 
-                        "SET eb.genus = description.genus RETURN eb"],
-                        "RETURN eb",
-                        {description: description, eb:eb}
-                    ) YIELD value
-                WITH description, value.eb AS eb
-                    CALL apoc.do.case([
-                        description.species IS NULL AND $data.species IS NOT NULL,
-                        "SET eb.species = 'not present' RETURN eb",
-                        description.species IS NOT NULL AND ($data.species IS NULL OR description.species <> $data.species), 
-                        "SET eb.species = description.species RETURN eb"],
-                        "RETURN eb",
-                        {description: description, eb:eb}
-                    ) YIELD value
-                WITH description, value.eb AS eb
-                OPTIONAL MATCH
-					(oldSchema:Schema)<-[oldSchemaRelationship:APPLICATION_OF]-(description)
-				DELETE oldSchemaRelationship
-                WITH description, eb, oldSchema
-                    CALL apoc.do.case([
-                            oldSchema IS NULL AND $data.schemaID IS NOT NULL,
-                            "SET eb.schema = 'not present' RETURN eb",
-                            oldSchema IS NOT NULL AND ($data.schemaID IS NULL OR oldSchema.pbotID  <> $data.schemaID),
-                            "SET eb.schema = oldSchema.pbotID RETURN eb"],
-                            "RETURN eb",
-                            {oldSchema: oldSchema, eb: eb}
-                        ) YIELD value
-                OPTIONAL MATCH
-					(oldSpecimen:Specimen)-[oldSpecimenRelationship:DESCRIBED_BY]->(description)
-				DELETE oldSpecimenRelationship
-				WITH description, value.eb as eb, oldSpecimen 	
-                    CALL apoc.do.case([
-                            oldSpecimen IS NULL AND $data.specimenID IS NOT NULL,
-                            "SET eb.specimen = 'not present' RETURN eb",
-                            oldSpecimen IS NOT NULL AND ($data.specimenID IS NULL OR oldSpecimen.pbotID  <> $data.specimenID),
-                            "SET eb.specimen = oldSpecimen.pbotID RETURN eb"],
-                            "RETURN eb",
-                            {oldSpecimen: oldSpecimen, eb: eb}
-                        ) YIELD value
-				WITH description	
-                MATCH 
-                    (schema:Schema {pbotID: $data.schemaID})
-				SET
-					description.type = $data.type,
-					description.name = $data.name,
-					description.family = $data.family,
-					description.genus = $data.genus,
-					description.species = $data.species
-                CREATE 
-                    (schema)<-[:APPLICATION_OF]-(description)
-				WITH description 
-                OPTIONAL MATCH
-                    (specimen:Specimen {pbotID: $data.specimenID})
-                WITH description, specimen
-                CALL apoc.do.when(
-                    specimen is not null, 
-                    'CREATE (specimen)-[:DESCRIBED_BY]->(description) RETURN description', 
-                    'RETURN description',
-                    {specimen: specimen, description: description}
-                ) YIELD value
-                RETURN value.description AS description                
-            """
-        )
+    CustomUpdateDescription(data: DescriptionInput!): Description! @neo4j_ignore
         
     DeleteDescription(data: DescriptionInput!): Description!  @neo4j_ignore
 
@@ -809,50 +604,7 @@ type Mutation {
             """
         )
 
-    CustomUpdateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance!
-        @cypher(
-            statement: """
-                MATCH 
-                    (characterInstance:CharacterInstance {pbotID: $data.pbotID}),
-                    (ePerson:Person {pbotID: $data.enteredByPersonID})
-                WITH characterInstance, ePerson					
-				CREATE
-					(characterInstance)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
-				WITH characterInstance, eb
-                OPTIONAL MATCH
-					(oldCharacter:Character)<-[oldCharacterRelationship:INSTANCE_OF]-(characterInstance)
-				DELETE oldCharacterRelationship
-                WITH characterInstance, eb, oldCharacter					
-                    CALL apoc.do.case([
-                            oldCharacter IS NULL AND $data.characterID IS NOT NULL,
-                            "SET eb.character = 'not present' RETURN eb",
-                            oldCharacter IS NOT NULL AND ($data.characterID IS NULL OR oldCharacter.pbotID  <> $data.characterID),
-                            "SET eb.character = oldCharacter.pbotID RETURN eb"],
-                            "RETURN eb",
-                            {oldCharacter: oldCharacter, eb: eb}
-                        ) YIELD value
-                WITH characterInstance, eb					
-                OPTIONAL MATCH
-					(oldState:State)<-[oldStateRelationship:HAS_STATE]-(characterInstance)
-                DELETE oldStateRelationship
-                WITH characterInstance, eb, oldState				
-                    CALL apoc.do.case([
-                            oldState IS NULL AND $data.stateID IS NOT NULL,
-                            "SET eb.state = 'not present' RETURN eb",
-                            oldState IS NOT NULL AND ($data.stateID IS NULL OR oldState.pbotID  <> $data.stateID),
-                            "SET eb.state = oldState.pbotID RETURN eb"],
-                            "RETURN eb",
-                            {oldState: oldState, eb: eb}
-                        ) YIELD value
-				WITH characterInstance
-				MATCH
-                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {pbotID: $data.stateID})
-                CREATE 
-                    (character)<-[:INSTANCE_OF]-(characterInstance),
-                    (state)<-[:HAS_STATE {value: $data.quantity}]-(characterInstance) 
-                RETURN characterInstance
-            """
-        )
+    CustomUpdateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
 
     DeleteCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
 

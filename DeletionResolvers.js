@@ -146,6 +146,18 @@ const relationshipMap = {
     }, 
 }
 
+//In theory, the information contained in this map is already in the schema definion in schema.graphql.
+//However, accessing that information is a challenge. For instance, say we want a list of the properties 
+//allowed for a given node type. We have to do something like this:
+//      Object.keys(context.schema._typeMap.GroupInput._fields)
+//That's ugly. And it's not quite right. The resulting list will include properties we've mapped to 
+//Cypher relationships. We need to exclude those. Also, we don't really want pbotID or enteredByPersonID for our purposes, 
+//so we have to do this:
+//      Object.keys(context.schema._typeMap.GroupInput._fields).filter(property => !["pbotID", "enteredByPersonID"].includes(property) && !context.schema._typeMap.GroupInput._fields[property].type.ofType)
+//Beyond ugly.
+//And we also need to be able to get a list of relationships that includes both their Cypher name and their graphql name.
+//There is probably a way to get this from schema.graphql, but it's probably terrible.
+//So, I'm ok with the extra maintenance required by this map.
 const updateMap = {
     Group: {
         properties: ["name"],
@@ -172,12 +184,90 @@ const updateMap = {
            "doi"
         ],
         relationships: [{
-            type: "AUTHORED_BY",
+                type: "AUTHORED_BY",
+                direction: "out",
+                graphqlName: "authors"
+            }
+        ]
+    },
+    Schema: {
+        properties: [
+           "title",
+           "year"
+        ],
+        relationships: [{
+                type: "CITED_BY",
+                direction: "in",
+                graphqlName: "references"
+            }, {
+                type: "AUTHORED_BY",
+                direction: "out",
+                graphqlName: "authors"
+            }
+        ]
+    },
+    Character: {
+        properties: [
+           "name",
+           "definition"
+        ],
+        relationships: []
+    },
+    //TODO: State doesn't work here due to Character or State parents. Can it be made to work?
+    Description: {
+        properties: [
+            "type",
+			"name",
+			"family",
+			"genus",
+			"species"
+        ],
+        relationships: [{
+            type: "APPLICATION_OF",
             direction: "out",
-            graphqlName: "authors"
+            graphqlName: "schemaID"
+        }, {
+            type: "DESCRIBED_BY",
+            direction: "in",
+            graphqlName: "specimenID"
         }]
-    }
-        
+    },
+    CharacterInstance: {
+        properties: [],
+        relationships: [{
+            type: "INSTANCE_OF",
+            direction: "out",
+            graphqlName: "characterID"
+        }, {
+            type: "HAS_STATE",
+            direction: "out",
+            graphqlName: "stateID"
+        }]
+    },
+    Specimen: {
+        properties: [
+           "name",
+           "locality",
+           "preservationMode",
+           "idigbiouuid",
+           "pbdbcid",
+           "pbdboccid"
+        ],
+        relationships: [{
+            type: "DESCRIBED_BY",
+            direction: "out",
+            graphqlName: "descriptionID"
+        }, {
+            type: "EXAMPLE_OF",
+            direction: "out",
+            graphqlName: "otuID"
+        }, {
+            type: "IS_TYPE",
+            direction: "out",
+            graphqlName: "organID"
+        }]
+    },
+    
 }
 
 const getRelationships = async (session, pbotID, relationships) => {
@@ -319,6 +409,7 @@ const handleUpdate = async (session, nodeType, data) => {
     const properties = updateMap[nodeType].properties;
     const relationships = updateMap[nodeType].relationships;
     
+    //Get base node and create new ENTERED_BY relationship
     let queryStr = `
         MATCH 
             (baseNode:${nodeType} {pbotID: "${pbotID}"}),
@@ -329,6 +420,7 @@ const handleUpdate = async (session, nodeType, data) => {
         WITH baseNode, eb	
     `;
     
+    //Copy old property values into ENTERED_BY
     queryStr = properties.reduce((str, property) => {
         if (data[property]) {
             return `
@@ -346,9 +438,9 @@ const handleUpdate = async (session, nodeType, data) => {
         } else {
             return `
                 ${str}
-                    CALL apoc.do.when ([
-                        baseNode.${property} IS NOT NULL
-                        "SET eb.${property} = baseNode.${property} RETURN eb"],
+                    CALL apoc.do.when (
+                        baseNode.${property} IS NOT NULL,
+                        "SET eb.${property} = baseNode.${property} RETURN eb",
                         "RETURN eb",
                         {baseNode: baseNode, eb:eb}
                     ) YIELD value
@@ -357,23 +449,59 @@ const handleUpdate = async (session, nodeType, data) => {
         }
     }, queryStr);
     
-    queryStr = relationships.reduce((str, relationship) => `
-        ${str}
-            OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
-            WITH baseNode, eb, collect(remoteNode.pbotID) AS remoteNodeIDs, collect(rel) AS oldRels
-            FOREACH (r IN oldRels | DELETE r)
-            WITH distinct baseNode, remoteNodeIDs, apoc.coll.disjunction(remoteNodeIDs, ${JSON.stringify(data[relationship.graphqlName])} ) AS diffList, eb
-            CALL
-                apoc.do.when(
-                    SIZE(diffList)<>0,
-                    "SET eb.${relationship.graphqlName} = remoteNodeIDs RETURN eb",
-                    "RETURN eb",
-                    {diffList: diffList, remoteNodeIDs: remoteNodeIDs, eb: eb}
-                )
-            YIELD value
-            WITH baseNode, eb
-    `, queryStr);
+    //Copy old relationships (as pbotID arrays) into ENTERED_BY. Also, go ahead and delete the relationships here for convenience.
+    queryStr = relationships.reduce((str, relationship) => {
+        if (Array.isArray(JSON.stringify(data[relationship.graphqlName]))) {
+            return `
+                ${str}
+                    OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+                    WITH baseNode, eb, collect(remoteNode.pbotID) AS remoteNodeIDs, collect(rel) AS oldRels
+                    FOREACH (r IN oldRels | DELETE r)
+                    WITH distinct baseNode, remoteNodeIDs, apoc.coll.disjunction(remoteNodeIDs, ${JSON.stringify(data[relationship.graphqlName])} ) AS diffList, eb
+                    CALL
+                        apoc.do.when(
+                            SIZE(diffList)<>0,
+                            "SET eb.${relationship.graphqlName} = remoteNodeIDs RETURN eb",
+                            "RETURN eb",
+                            {diffList: diffList, remoteNodeIDs: remoteNodeIDs, eb: eb}
+                        )
+                    YIELD value
+                    WITH baseNode, eb
+            `
+        } else {
+            if (JSON.stringify(data[relationship.graphqlName])) {
+                return `
+                    ${str}
+                        OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+                        DELETE rel
+                        WITH baseNode, eb, remoteNode 	
+                            CALL apoc.do.case([
+                                    remoteNode IS NULL,
+                                    "SET eb.${relationship.graphqlName} = 'not present' RETURN eb",
+                                    remoteNode.pbotID  <> ${JSON.stringify(data[relationship.graphqlName])},
+                                    "SET eb.${relationship.graphqlName} = remoteNode.pbotID RETURN eb"],
+                                    "RETURN eb",
+                                    {remoteNode: remoteNode, eb: eb}
+                                ) YIELD value
+                        WITH baseNode, eb
+                `
+            } else {
+                return `
+                    ${str}
+                        CALL apoc.do.when([
+                                remoteNode IS NOT NULL,
+                                "SET eb.${relationship.graphqlName} = remoteNode.pbotID RETURN eb"],
+                                "RETURN eb",
+                                {remoteNode: remoteNode, eb: eb}
+                            ) YIELD value
+                        WITH baseNode, eb
+                `
+            }
+        }
+
+    }, queryStr);
     
+    //Set new property values in base node
     queryStr += `
         SET
     `;
@@ -386,6 +514,7 @@ const handleUpdate = async (session, nodeType, data) => {
         WITH baseNode
     `;
     
+    //Create new relationships
     queryStr = relationships.reduce((str, relationship) => {
         if (data[relationship.graphqlName] && data[relationship.graphqlName].length > 0) {
             return `
@@ -424,11 +553,6 @@ const updateNode = async (context, nodeType, data) => {
     
     try {
         const result = await session.writeTransaction(async tx => {
-                //I'm leaving this is for a while as record for how to get at the properties if we don't use an explicit map:
-                //This is a little weird. We want a list of the properties of this node type. But we don't want the pbotID and entererByPersonID. That parts easy. But we also don't want properties that are arrays (those are relationships). The best way I've found is the weird ofType thing below. I don't like it, but it works.
-                //const properties = Object.keys(context.schema._typeMap.GroupInput._fields).filter(property => !["pbotID", "enteredByPersonID"].includes(property) && !context.schema._typeMap.GroupInput._fields[property].type.ofType)
-                //console.log(properties);
-
             const result = await handleUpdate(
                     tx, 
                     nodeType, 
@@ -514,6 +638,33 @@ export const DeletionResolvers = {
         CustomUpdateReference: async (obj, args, context, info) => {
             console.log("CustomUpdateReference");
             return await updateNode(context, "Reference", args.data);
+        },
+
+        CustomUpdateSchema: async (obj, args, context, info) => {
+            console.log("CustomUpdateSchema");
+            return await updateNode(context, "Schema", args.data);
+        },
+        
+        CustomUpdateCharacter: async (obj, args, context, info) => {
+            console.log("CustomUpdateCharacter");
+            return await updateNode(context, "Character", args.data);
+        },
+
+        //TODO: Figure out State
+        
+        CustomUpdateDescription: async (obj, args, context, info) => {
+            console.log("CustomUpdateDescription");
+            return await updateNode(context, "Description", args.data);
+        },
+
+        CustomUpdateCharacterInstance: async (obj, args, context, info) => {
+            console.log("CustomUpdateCharacterInstance");
+            return await updateNode(context, "CharacterInstance", args.data);
+        },
+
+        CustomUpdateSpecimen: async (obj, args, context, info) => {
+            console.log("CustomUpdateSpecimen");
+            return await updateNode(context, "Specimen", args.data);
         },
         
     }
