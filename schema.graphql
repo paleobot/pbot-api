@@ -372,77 +372,7 @@ type Mutation {
             """
         )
 
-    CustomUpdateGroup(data: GroupInput!): Group!
-        @cypher(
-            statement: """
-                MATCH 
-					(group:Group {pbotID: $data.pbotID}),
-                    (ePerson:Person {pbotID: $data.enteredByPersonID})
-				WITH group, ePerson
-				CREATE
-					(group)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
-                WITH group, eb
-                    CALL apoc.do.case([
-                        group.name IS NULL AND $data.name IS NOT NULL,
-                        "SET eb.name = 'not present' RETURN eb",
-                        group.name IS NOT NULL AND ($data.name IS NULL OR group.name <> $data.name), 
-                        "SET eb.name = group.name RETURN eb"],
-                        "RETURN eb",
-                        {group: group, eb:eb}
-                    ) YIELD value
-                WITH group, value.eb AS eb
-                OPTIONAL MATCH
-					(member:Person)-[oldMemberRelationship:MEMBER_OF]->(group)
-                WITH group, eb, collect(member.pbotID) AS oldMembers, collect(oldMemberRelationship) AS omrs
-                FOREACH (mr IN omrs | DELETE mr)
-                WITH distinct group, oldMembers, apoc.coll.disjunction(oldMembers, $data.members ) AS diffList, eb
-                CALL
-                    apoc.do.when(
-                        SIZE(diffList)<>0,
-                        "SET eb.members = oldMembers RETURN eb",
-                        "RETURN eb",
-                        {diffList: diffList, oldMembers: oldMembers, eb: eb}
-                    )
-                YIELD value
-				WITH group, eb
-                OPTIONAL MATCH
-					(n)-[oldItemRelationship:ITEM_OF]->(group)
-                WITH group, eb, collect(n.pbotID) as oldItems, collect(oldItemRelationship) AS oirs
-                FOREACH (ir IN oirs | DELETE ir)
-                WITH distinct group, oldItems, apoc.coll.disjunction(oldItems, $data.items ) AS diffList, eb
-                CALL
-                    apoc.do.when(
-                        SIZE(diffList)<>0,
-                        "SET eb.items = oldItems RETURN eb",
-                        "RETURN eb",
-                        {diffList: diffList, oldItems: oldItems, eb: eb}
-                    )
-                YIELD value
-				WITH group
-                SET 
-                    group.name = $data.name
-                WITH group
-                UNWIND (CASE coalesce($data.members,0) WHEN 0 THEN [null] ELSE $data.members END) AS mID
-                    CALL
-                        apoc.do.when(
-                            mID IS NULL,
-                            "RETURN group",
-                            "MATCH (member:Person {pbotID: mID}) CREATE (member)-[:MEMBER_OF]->(group) RETURN group",
-                            {mID:mID, group:group}
-                        ) YIELD value
-                WITH distinct group
-                UNWIND (CASE coalesce($data.items,0) WHEN 0 THEN [null] ELSE $data.items END) AS iID
-                    CALL
-                        apoc.do.when(
-                            iID IS NULL,
-                            "RETURN group",
-                            "MATCH (n) WHERE n.pbotID = iID CREATE (n)-[:ITEM_OF]->(group) RETURN group",
-                            {iID:iID, group:group}
-                        ) YIELD value
-                WITH distinct group
-                RETURN group
-            """
-        )
+    CustomUpdateGroup(data: GroupInput!): Group!  @neo4j_ignore
         
     DeleteGroup(data: GroupInput!): Group! @neo4j_ignore
 
@@ -464,59 +394,7 @@ type Mutation {
             """
         )
 
-    CustomUpdatePerson(data: PersonInput!): Person!
-        @cypher(
-            statement: """
-                MATCH 
-                    (person:Person {pbotID: $data.pbotID}),
-                    (ePerson:Person {pbotID: $data.enteredByPersonID})
-                CREATE
-                    (person)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
-                WITH person, eb
-                    CALL apoc.do.case([
-                        person.given IS NULL AND $data.given IS NOT NULL,
-                        "SET eb.given = 'not present' RETURN eb",
-                        person.given IS NOT NULL AND ($data.given IS NULL OR person.given <> $data.given), 
-                        "SET eb.given = person.given RETURN eb"],
-                        "RETURN eb",
-                        {person: person, eb:eb}
-                    ) YIELD value
-                WITH person, value.eb AS eb
-                    CALL apoc.do.case([
-                        person.surname IS NULL AND $data.surname IS NOT NULL,
-                        "SET eb.surname = 'not present' RETURN eb",
-                        person.surname IS NOT NULL AND ($data.surname IS NULL OR person.surname <> $data.surname), 
-                        "SET eb.surname = person.surname RETURN eb"],
-                        "RETURN eb",
-                        {person: person, eb:eb}
-                    ) YIELD value
-                WITH person, value.eb AS eb
-                    CALL apoc.do.case([
-                        person.email IS NULL AND $data.email IS NOT NULL,
-                        "SET eb.email = 'not present' RETURN eb",
-                        person.email IS NOT NULL AND ($data.email IS NULL OR person.email <> $data.email), 
-                        "SET eb.email = person.email RETURN eb"],
-                        "RETURN eb",
-                        {person: person, eb:eb}
-                    ) YIELD value
-                WITH person, value.eb AS eb
-                    CALL apoc.do.case([
-                        person.orcid IS NULL AND $data.orcid IS NOT NULL,
-                        "SET eb.orcid = 'not present' RETURN eb",
-                        person.orcid IS NOT NULL AND ($data.orcid IS NULL OR person.orcid <> $data.orcid), 
-                        "SET eb.orcid = person.orcid RETURN eb"],
-                        "RETURN eb",
-                        {person: person, eb:eb}
-                    ) YIELD value
-                WITH person
-                SET 
-                    person.given = $data.given,
-                    person.surname = $data.surname,
-                    person.email = $data.email,
-                    person.orcid = $data.orcid
-                RETURN person
-            """
-        )
+    CustomUpdatePerson(data: PersonInput!): Person! @neo4j_ignore
 
     DeletePerson(data: PersonInput!): Person! @neo4j_ignore
 
@@ -541,81 +419,7 @@ type Mutation {
         """
     )
 
-    CustomUpdateReference(data: ReferenceInput!): Reference!
-        @cypher(
-            statement: """
-                MATCH 
-					(reference:Reference {pbotID: $data.pbotID}),
-                    (ePerson:Person {pbotID: $data.enteredByPersonID})
-                WITH reference, ePerson					
-				CREATE
-					(reference)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
-                WITH reference, eb
-                    CALL apoc.do.case([
-                        reference.title IS NULL AND $data.title IS NOT NULL,
-                        "SET eb.title = 'not present' RETURN eb",
-                        reference.title IS NOT NULL AND ($data.title IS NULL OR reference.title <> $data.title), 
-                        "SET eb.title = reference.title RETURN eb"],
-                        "RETURN eb",
-                        {reference: reference, eb:eb}
-                    ) YIELD value
-                WITH reference, value.eb AS eb
-                    CALL apoc.do.case([
-                        reference.year IS NULL AND $data.year IS NOT NULL,
-                        "SET eb.year = 'not present' RETURN eb",
-                        reference.year IS NOT NULL AND ($data.year IS NULL OR reference.year <> $data.year), 
-                        "SET eb.year = reference.year RETURN eb"],
-                        "RETURN eb",
-                        {reference: reference, eb:eb}
-                    ) YIELD value
-                WITH reference, value.eb AS eb
-                    CALL apoc.do.case([
-                        reference.publisher IS NULL AND $data.publisher IS NOT NULL,
-                        "SET eb.publisher = 'not present' RETURN eb",
-                        reference.publisher IS NOT NULL AND ($data.publisher IS NULL OR reference.publisher <> $data.publisher), 
-                        "SET eb.publisher = reference.publisher RETURN eb"],
-                        "RETURN eb",
-                        {reference: reference, eb:eb}
-                    ) YIELD value
-                WITH reference, value.eb AS eb
-                    CALL apoc.do.case([
-                        reference.doi IS NULL AND $data.doi IS NOT NULL,
-                        "SET eb.doi = 'not present' RETURN eb",
-                        reference.doi IS NOT NULL AND ($data.doi IS NULL OR reference.doi <> $data.doi), 
-                        "SET eb.doi = reference.doi RETURN eb"],
-                        "RETURN eb",
-                        {reference: reference, eb:eb}
-                    ) YIELD value
-                WITH reference, value.eb AS eb
-                OPTIONAL MATCH
-					(person:Person)<-[oldAuthorRelationship:AUTHORED_BY]-(reference)
-                WITH 
-                    collect(person.pbotID) as oldAuthors, collect(oldAuthorRelationship) AS oars, reference, eb
-                UNWIND oars AS ar
-                    DELETE ar
-                WITH collect(ar) as dummy, oldAuthors, reference, apoc.coll.disjunction(oldAuthors, $data.authors ) AS diffList, eb
-                CALL
-                    apoc.do.when(
-                        SIZE(diffList)<>0,
-                        "SET eb.authors = oldAuthors RETURN eb",
-                        "RETURN eb",
-                        {diffList: diffList, oldAuthors: oldAuthors, eb: eb}
-                    )
-                YIELD value
-                WITH reference
-                SET 
-                    reference.title = $data.title,
-                    reference.year = $data.year,
-                    reference.publisher = $data.publisher,
-                    reference.doi = $data.doi
-                WITH reference
-                UNWIND $data.authors AS aID
-                    MATCH (author:Person {pbotID: aID}) 
-                    CREATE (reference)-[:AUTHORED_BY]->(author)
-                WITH collect(aID) as dummy, reference
-                RETURN reference
-            """
-        )
+    CustomUpdateReference(data: ReferenceInput!): Reference! @neo4j_ignore
         
     DeleteReference(data: ReferenceInput!): Reference! @neo4j_ignore
 

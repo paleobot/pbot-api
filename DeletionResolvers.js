@@ -146,6 +146,40 @@ const relationshipMap = {
     }, 
 }
 
+const updateMap = {
+    Group: {
+        properties: ["name"],
+        relationships: [{
+            type: "MEMBER_OF",
+            direction: "in",
+            graphqlName: "members"
+        }]
+    },
+    Person: {
+        properties: [
+            "given",
+            "surname",
+            "email",
+            "orcid"
+        ],
+        relationships:[]
+    },
+    Reference: {
+        properties: [
+           "title",
+           "year",
+           "publisher",
+           "doi"
+        ],
+        relationships: [{
+            type: "AUTHORED_BY",
+            direction: "out",
+            graphqlName: "authors"
+        }]
+    }
+        
+}
+
 const getRelationships = async (session, pbotID, relationships) => {
     let queryStr = relationships.reduce((str, relationship) => `
         ${str}
@@ -274,6 +308,146 @@ const deleteNode = async (context, nodeType, pbotID, enteredByPersonID, cascade 
 }
 
 
+
+
+const handleUpdate = async (session, nodeType, data) => {
+    console.log("handleUpdate");
+    
+    const pbotID = data.pbotID;
+    const enteredByPersonID = data.enteredByPersonID
+    
+    const properties = updateMap[nodeType].properties;
+    const relationships = updateMap[nodeType].relationships;
+    
+    let queryStr = `
+        MATCH 
+            (baseNode:${nodeType} {pbotID: "${pbotID}"}),
+            (ePerson:Person {pbotID: "${enteredByPersonID}"})
+        WITH baseNode, ePerson					
+            CREATE
+                (baseNode)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+        WITH baseNode, eb	
+    `;
+    
+    queryStr = properties.reduce((str, property) => {
+        if (data[property]) {
+            return `
+                ${str}
+                    CALL apoc.do.case([
+                        baseNode.${property} IS NULL,
+                        "SET eb.${property} = 'not present' RETURN eb",
+                        baseNode.${property} <> "${data[property]}",
+                        "SET eb.${property} = baseNode.${property} RETURN eb"],
+                        "RETURN eb",
+                        {baseNode: baseNode, eb:eb}
+                    ) YIELD value
+                    WITH baseNode, eb
+            `
+        } else {
+            return `
+                ${str}
+                    CALL apoc.do.when ([
+                        baseNode.${property} IS NOT NULL
+                        "SET eb.${property} = baseNode.${property} RETURN eb"],
+                        "RETURN eb",
+                        {baseNode: baseNode, eb:eb}
+                    ) YIELD value
+                WITH baseNode, eb
+            `            
+        }
+    }, queryStr);
+    
+    queryStr = relationships.reduce((str, relationship) => `
+        ${str}
+            OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+            WITH baseNode, eb, collect(remoteNode.pbotID) AS remoteNodeIDs, collect(rel) AS oldRels
+            FOREACH (r IN oldRels | DELETE r)
+            WITH distinct baseNode, remoteNodeIDs, apoc.coll.disjunction(remoteNodeIDs, ${JSON.stringify(data[relationship.graphqlName])} ) AS diffList, eb
+            CALL
+                apoc.do.when(
+                    SIZE(diffList)<>0,
+                    "SET eb.${relationship.graphqlName} = remoteNodeIDs RETURN eb",
+                    "RETURN eb",
+                    {diffList: diffList, remoteNodeIDs: remoteNodeIDs, eb: eb}
+                )
+            YIELD value
+            WITH baseNode, eb
+    `, queryStr);
+    
+    queryStr += `
+        SET
+    `;
+    queryStr = properties.reduce((str, property) => `
+        ${str}
+            baseNode.${property} = ${JSON.stringify(data[property])},
+    `, queryStr);
+    queryStr = `
+        ${queryStr.slice(0, queryStr.lastIndexOf(','))}
+        WITH baseNode
+    `;
+    
+    queryStr = relationships.reduce((str, relationship) => {
+        if (data[relationship.graphqlName] && data[relationship.graphqlName].length > 0) {
+            return `
+                ${str}
+                    UNWIND ${JSON.stringify(data[relationship.graphqlName])} AS iD
+                        CALL
+                            apoc.do.when(
+                                iD IS NULL,
+                                "RETURN baseNode",
+                                "MATCH (remoteNode) WHERE remoteNode.pbotID = iD CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode) RETURN baseNode",
+                                {iD:iD, baseNode:baseNode}
+                            ) YIELD value
+                    WITH distinct baseNode
+            `
+        } else {
+            return str;
+        }
+    }, queryStr);
+    
+    queryStr = `
+        ${queryStr}
+        RETURN {
+            pbotID: baseNode.pbotID
+        }
+    `;
+        
+    console.log(queryStr);
+    
+    const result = await session.run(queryStr);
+    return result;
+}
+
+const updateNode = async (context, nodeType, data) => {
+    const driver = context.driver;
+    const session = driver.session()
+    
+    try {
+        const result = await session.writeTransaction(async tx => {
+                //I'm leaving this is for a while as record for how to get at the properties if we don't use an explicit map:
+                //This is a little weird. We want a list of the properties of this node type. But we don't want the pbotID and entererByPersonID. That parts easy. But we also don't want properties that are arrays (those are relationships). The best way I've found is the weird ofType thing below. I don't like it, but it works.
+                //const properties = Object.keys(context.schema._typeMap.GroupInput._fields).filter(property => !["pbotID", "enteredByPersonID"].includes(property) && !context.schema._typeMap.GroupInput._fields[property].type.ofType)
+                //console.log(properties);
+
+            const result = await handleUpdate(
+                    tx, 
+                    nodeType, 
+                    data       
+                );
+                console.log("result");
+                console.log(result);
+                return result.records[0]._fields[0];
+        });
+        return result;            
+    } finally {
+        await session.close();
+    }
+}
+
+
+
+
+
 export const DeletionResolvers = {
     Mutation: {
         DeleteReference: async (obj, args, context, info) => {
@@ -313,6 +487,7 @@ export const DeletionResolvers = {
 
         DeleteGroup: async (obj, args, context, info) => {
             console.log("DeleteGroup");
+            console.log(Object.keys(context.schema._typeMap.GroupInput._fields));
             return await deleteNode(context, "Group", args.data.pbotID, args.data.enteredByPersonID);
         },
 
@@ -325,6 +500,21 @@ export const DeletionResolvers = {
             console.log("DeleteOrgan");
             throw new ValidationError(`Cannot delete Organ nodes`);
         },        
+     
+        CustomUpdateGroup: async (obj, args, context, info) => {
+            console.log("CustomUpdateGroup");
+            return await updateNode(context, "Group", args.data);
+        },
+
+        CustomUpdatePerson: async (obj, args, context, info) => {
+            console.log("CustomUpdatePerson");
+            return await updateNode(context, "Person", args.data);
+        },
+
+        CustomUpdateReference: async (obj, args, context, info) => {
+            console.log("CustomUpdateReference");
+            return await updateNode(context, "Reference", args.data);
+        },
         
     }
 };

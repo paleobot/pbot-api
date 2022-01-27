@@ -18,6 +18,7 @@ import  permissions  from './permissions.js';
 import {getUser, handleLogin, handleRegistration, handleReset} from './UserManagement.js';
 
 import {DeletionResolvers} from './DeletionResolvers.js';
+import {UpdateResolvers} from './UpdateResolvers.js';
 
 dotenv.config();
 
@@ -32,7 +33,7 @@ const typeDefs = fs
   )
   .toString('utf-8')
 
-  console.log(typeDefs);
+  //console.log(typeDefs);
 
 /*
  * Create a Neo4j driver instance to connect to the database
@@ -55,7 +56,16 @@ const schema = makeAugmentedSchema({
 });
 
 console.log(schema);
-console.log(schema._typeMap.Query);
+console.log(Object.keys(schema._typeMap.GroupInput._fields));
+console.log(schema._typeMap.GroupInput._fields.pbotID);
+console.log(schema._typeMap.GroupInput._fields.pbotID.type);
+console.log(Object.keys(schema._typeMap.GroupInput._fields.pbotID.type));
+console.log(schema._typeMap.GroupInput._fields.pbotID.type.ofType);
+console.log(schema._typeMap.GroupInput._fields.items);
+console.log(schema._typeMap.GroupInput._fields.items.type);
+console.log(Object.keys(schema._typeMap.GroupInput._fields.items.type));
+console.log(schema._typeMap.GroupInput._fields.items.type.ofType);
+//console.log(schema._typeMap.Query);
 
 const debugPlugin = {
     // Fires whenever a GraphQL request is received from a client.
@@ -151,6 +161,7 @@ const server = new ApolloServer({
                 user,
                 driver,
                 driverConfig: { database: process.env.NEO4J_DATABASE || 'neo4j' },
+                schema,
             };
         },   
     schema: applyMiddleware(schema, permissions, middleware),
