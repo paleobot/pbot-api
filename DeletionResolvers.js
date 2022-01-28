@@ -158,7 +158,7 @@ const relationshipMap = {
 //And we also need to be able to get a list of relationships that includes both their Cypher name and their graphql name.
 //There is probably a way to get this from schema.graphql, but it's probably terrible.
 //So, I'm ok with the extra maintenance required by this map.
-const updateMap = {
+const schemaUpdateMap = {
     Group: {
         properties: ["name"],
         relationships: [{
@@ -213,7 +213,17 @@ const updateMap = {
         ],
         relationships: []
     },
-    //TODO: State doesn't work here due to Character or State parents. Can it be made to work?
+    State: {
+        properties: [
+            "name",
+            "definition"
+        ],
+        relationships: [{
+            type: "STATE_OF",
+            direction: "out",
+            graphqlName: "parentID"
+        }]
+    },
     Description: {
         properties: [
             "type",
@@ -266,6 +276,12 @@ const updateMap = {
             direction: "out",
             graphqlName: "organID"
         }]
+    },
+    Organ: {
+        properties: [
+           "type"
+        ],
+        relationships: []
     },
     
 }
@@ -406,8 +422,8 @@ const handleUpdate = async (session, nodeType, data) => {
     const pbotID = data.pbotID;
     const enteredByPersonID = data.enteredByPersonID
     
-    const properties = updateMap[nodeType].properties;
-    const relationships = updateMap[nodeType].relationships;
+    const properties = schemaUpdateMap[nodeType].properties || [];
+    const relationships = schemaUpdateMap[nodeType].relationships || [];
     
     //Get base node and create new ENTERED_BY relationship
     let queryStr = `
@@ -650,7 +666,10 @@ export const DeletionResolvers = {
             return await updateNode(context, "Character", args.data);
         },
 
-        //TODO: Figure out State
+        CustomUpdateState: async (obj, args, context, info) => {
+            console.log("CustomUpdateState");
+            return await updateNode(context, "State", args.data);
+        },
         
         CustomUpdateDescription: async (obj, args, context, info) => {
             console.log("CustomUpdateDescription");
@@ -665,6 +684,11 @@ export const DeletionResolvers = {
         CustomUpdateSpecimen: async (obj, args, context, info) => {
             console.log("CustomUpdateSpecimen");
             return await updateNode(context, "Specimen", args.data);
+        },
+
+        CustomUpdateOrgan: async (obj, args, context, info) => {
+            console.log("CustomUpdateOrgan");
+            return await updateNode(context, "Organ", args.data);
         },
         
     }
