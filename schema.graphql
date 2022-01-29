@@ -340,7 +340,7 @@ input OrganInput {
 }
 
 type Mutation {
-    CustomCreateGroup(data: GroupInput!): Group!
+    CreateGroup(data: GroupInput!): Group!
         @cypher(
             statement: """
                 MATCH 
@@ -372,13 +372,11 @@ type Mutation {
                 RETURN group
             """
         )
-
-    CustomUpdateGroup(data: GroupInput!): Group!  @neo4j_ignore
-        
+    UpdateGroup(data: GroupInput!): Group!  @neo4j_ignore
     DeleteGroup(data: GroupInput!): Group! @neo4j_ignore
 
         
-    CustomCreatePerson(data: PersonInput!): Person!
+    CreatePerson(data: PersonInput!): Person!
         @cypher(
             statement: """
                 MATCH 
@@ -394,12 +392,10 @@ type Mutation {
                 RETURN person
             """
         )
-
-    CustomUpdatePerson(data: PersonInput!): Person! @neo4j_ignore
-
+    UpdatePerson(data: PersonInput!): Person! @neo4j_ignore
     DeletePerson(data: PersonInput!): Person! @neo4j_ignore
 
-    CustomCreateReference(data: ReferenceInput!): Reference!
+    CreateReference(data: ReferenceInput!): Reference!
     @cypher(
         statement: """
             MATCH 
@@ -419,12 +415,10 @@ type Mutation {
             RETURN reference
         """
     )
-
-    CustomUpdateReference(data: ReferenceInput!): Reference! @neo4j_ignore
-        
+    UpdateReference(data: ReferenceInput!): Reference! @neo4j_ignore
     DeleteReference(data: ReferenceInput!): Reference! @neo4j_ignore
 
-    CustomCreateSchema(data: SchemaInput!): Schema!
+    CreateSchema(data: SchemaInput!): Schema!
         @cypher(
             statement: """
                 MATCH 
@@ -447,12 +441,10 @@ type Mutation {
                 RETURN schema
             """
         )
-
-    CustomUpdateSchema(data: SchemaInput!): Schema! @neo4j_ignore
-        
+    UpdateSchema(data: SchemaInput!): Schema! @neo4j_ignore
     DeleteSchema(data: SchemaInput!): Schema! @neo4j_ignore
     
-    CustomCreateCharacter(data: CharacterInput!): Character!
+    CreateCharacter(data: CharacterInput!): Character!
         @cypher(
             statement: """
                 MATCH 
@@ -467,12 +459,10 @@ type Mutation {
                 RETURN character
             """
         )
-
-    CustomUpdateCharacter(data: CharacterInput!): Character! @neo4j_ignore
-        
+    UpdateCharacter(data: CharacterInput!): Character! @neo4j_ignore
     DeleteCharacter(data: CharacterInput!): Character! @neo4j_ignore
 
-    CustomCreateState(data: StateInput!): State!
+    CreateState(data: StateInput!): State!
         @cypher(
             statement: """
                 MATCH 
@@ -488,12 +478,10 @@ type Mutation {
                     RETURN state           
             """
         )
-
-    CustomUpdateState(data: StateInput!): State! @neo4j_ignore
-        
+    UpdateState(data: StateInput!): State! @neo4j_ignore
     DeleteState(data: StateInput!): State! @neo4j_ignore
 
-    CustomCreateDescription(data: DescriptionInput!): Description!
+    CreateDescription(data: DescriptionInput!): Description!
         @cypher(
             statement: """
                 MATCH 
@@ -520,14 +508,12 @@ type Mutation {
                 RETURN value.description AS description                
             """
         )
-
-    CustomUpdateDescription(data: DescriptionInput!): Description! @neo4j_ignore
-        
+    UpdateDescription(data: DescriptionInput!): Description! @neo4j_ignore
     DeleteDescription(data: DescriptionInput!): Description!  @neo4j_ignore
 
     """NOTE: No when is needed for the HAS_STATE value property below since setting properties to null 
     means they don't exist."""
-    CustomCreateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance!
+    CreateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance!
         @cypher(
             statement: """
                 MATCH 
@@ -543,12 +529,10 @@ type Mutation {
                 RETURN characterInstance
             """
         )
-
-    CustomUpdateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
-
+    UpdateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
     DeleteCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
 
-    CustomCreateSpecimen(data: SpecimenInput!): Specimen!
+    CreateSpecimen(data: SpecimenInput!): Specimen!
         @cypher(
             statement: """
                 MATCH 
@@ -583,12 +567,10 @@ type Mutation {
                 RETURN value.specimen as specimen           
             """
         )
-
-    CustomUpdateSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
-        
+    UpdateSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
     DeleteSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
 
-    CustomCreateOrgan(data: OrganInput!): Organ!
+    CreateOrgan(data: OrganInput!): Organ!
         @cypher(
             statement: """
                 MATCH 
@@ -601,9 +583,7 @@ type Mutation {
                 RETURN organ
             """
         )
-        
-    CustomUpdateOrgan(data: OrganInput!): Organ! @neo4j_ignore
-        
+    UpdateOrgan(data: OrganInput!): Organ! @neo4j_ignore
     DeleteOrgan(data: OrganInput!): Organ! @neo4j_ignore
 
 }

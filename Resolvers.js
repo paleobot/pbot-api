@@ -1,7 +1,7 @@
 //import * as neo4j from 'neo4j-driver';
 import {ValidationError} from 'apollo-server';
 
-const relationshipMap = {
+const schemaDeleteMap = {
     Group: {
         blockingRelationships: [{
             type: "MEMBER_OF",
@@ -365,14 +365,14 @@ const deleteNode = async (context, nodeType, pbotID, enteredByPersonID, cascade 
     try {
         const result = await session.writeTransaction(async tx => {
             console.log(cascade ? 
-                    relationshipMap[nodeType].blockingRelationships : 
-                    [...relationshipMap[nodeType].blockingRelationships, ...relationshipMap[nodeType].cascadeRelationships]);
+                    schemaDeleteMap[nodeType].blockingRelationships : 
+                    [...schemaDeleteMap[nodeType].blockingRelationships, ...schemaDeleteMap[nodeType].cascadeRelationships]);
             const blockingRelationships = await getRelationships(
                 tx, 
                 pbotID, 
                 cascade ? 
-                    relationshipMap[nodeType].blockingRelationships : 
-                    [...relationshipMap[nodeType].blockingRelationships, ...relationshipMap[nodeType].cascadeRelationships]
+                    schemaDeleteMap[nodeType].blockingRelationships : 
+                    [...schemaDeleteMap[nodeType].blockingRelationships, ...schemaDeleteMap[nodeType].cascadeRelationships]
             );
             if (blockingRelationships.length > 0) {
                 console.log("cannot delete");
@@ -382,7 +382,7 @@ const deleteNode = async (context, nodeType, pbotID, enteredByPersonID, cascade 
                     const remoteNodes = await getRelationships(
                         tx, 
                         pbotID, 
-                        relationshipMap[nodeType].cascadeRelationships
+                        schemaDeleteMap[nodeType].cascadeRelationships
                     );
                     console.log("remoteNodes");
                     console.log(remoteNodes);
@@ -400,7 +400,7 @@ const deleteNode = async (context, nodeType, pbotID, enteredByPersonID, cascade 
                     nodeType, 
                     pbotID, 
                     enteredByPersonID, 
-                    relationshipMap[nodeType].nonblockingRelationships        
+                    schemaDeleteMap[nodeType].nonblockingRelationships        
                 );
                 console.log("result");
                 console.log(result);
@@ -586,9 +586,7 @@ const updateNode = async (context, nodeType, data) => {
 
 
 
-
-
-export const DeletionResolvers = {
+export const Resolvers = {
     Mutation: {
         DeleteReference: async (obj, args, context, info) => {
             console.log("DeleteReference");
@@ -641,52 +639,52 @@ export const DeletionResolvers = {
             throw new ValidationError(`Cannot delete Organ nodes`);
         },        
      
-        CustomUpdateGroup: async (obj, args, context, info) => {
+        UpdateGroup: async (obj, args, context, info) => {
             console.log("CustomUpdateGroup");
             return await updateNode(context, "Group", args.data);
         },
 
-        CustomUpdatePerson: async (obj, args, context, info) => {
+        UpdatePerson: async (obj, args, context, info) => {
             console.log("CustomUpdatePerson");
             return await updateNode(context, "Person", args.data);
         },
 
-        CustomUpdateReference: async (obj, args, context, info) => {
+        UpdateReference: async (obj, args, context, info) => {
             console.log("CustomUpdateReference");
             return await updateNode(context, "Reference", args.data);
         },
 
-        CustomUpdateSchema: async (obj, args, context, info) => {
+        UpdateSchema: async (obj, args, context, info) => {
             console.log("CustomUpdateSchema");
             return await updateNode(context, "Schema", args.data);
         },
         
-        CustomUpdateCharacter: async (obj, args, context, info) => {
+        UpdateCharacter: async (obj, args, context, info) => {
             console.log("CustomUpdateCharacter");
             return await updateNode(context, "Character", args.data);
         },
 
-        CustomUpdateState: async (obj, args, context, info) => {
+        UpdateState: async (obj, args, context, info) => {
             console.log("CustomUpdateState");
             return await updateNode(context, "State", args.data);
         },
         
-        CustomUpdateDescription: async (obj, args, context, info) => {
+        UpdateDescription: async (obj, args, context, info) => {
             console.log("CustomUpdateDescription");
             return await updateNode(context, "Description", args.data);
         },
 
-        CustomUpdateCharacterInstance: async (obj, args, context, info) => {
+        UpdateCharacterInstance: async (obj, args, context, info) => {
             console.log("CustomUpdateCharacterInstance");
             return await updateNode(context, "CharacterInstance", args.data);
         },
 
-        CustomUpdateSpecimen: async (obj, args, context, info) => {
+        UpdateSpecimen: async (obj, args, context, info) => {
             console.log("CustomUpdateSpecimen");
             return await updateNode(context, "Specimen", args.data);
         },
 
-        CustomUpdateOrgan: async (obj, args, context, info) => {
+        UpdateOrgan: async (obj, args, context, info) => {
             console.log("CustomUpdateOrgan");
             return await updateNode(context, "Organ", args.data);
         },

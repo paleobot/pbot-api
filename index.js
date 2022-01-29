@@ -17,7 +17,7 @@ import { applyMiddleware } from "graphql-middleware";
 import  permissions  from './permissions.js';
 import {getUser, handleLogin, handleRegistration, handleReset} from './UserManagement.js';
 
-import {DeletionResolvers} from './DeletionResolvers.js';
+import {Resolvers} from './Resolvers.js';
 import {UpdateResolvers} from './UpdateResolvers.js';
 
 dotenv.config();
@@ -52,7 +52,7 @@ const driver = neo4j.driver(
 // generate CRUD GraphQL API using makeAugmentedSchema
 const schema = makeAugmentedSchema({
       typeDefs: typeDefs,
-      resolvers: DeletionResolvers
+      resolvers: Resolvers
 });
 
 console.log(schema);
