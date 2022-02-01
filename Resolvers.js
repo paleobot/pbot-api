@@ -286,6 +286,139 @@ const schemaUpdateMap = {
     
 }
 
+
+const schemaCreateMap = {
+    Group: {
+        properties: ["name"],
+        relationships: [{
+            type: "MEMBER_OF",
+            direction: "in",
+            graphqlName: "members",
+            required: false
+        }]
+    },
+    Person: {
+        properties: [
+            "given",
+            "surname",
+            "email",
+            "orcid"
+        ],
+        relationships:[]
+    },
+    Reference: {
+        properties: [
+           "title",
+           "year",
+           "publisher",
+           "doi"
+        ],
+        relationships: [{
+                type: "AUTHORED_BY",
+                direction: "out",
+                graphqlName: "authors",
+                required: false
+            }
+        ]
+    },
+    Schema: {
+        properties: [
+           "title",
+           "year"
+        ],
+        relationships: [{
+                type: "CITED_BY",
+                direction: "in",
+                graphqlName: "references",
+                required: false
+            }, {
+                type: "AUTHORED_BY",
+                direction: "out",
+                graphqlName: "authors",
+                required: false
+            }
+        ]
+    },
+    Character: {
+        properties: [
+           "name",
+           "definition"
+        ],
+        relationships: [{
+            type: "CHARACTER_OF",
+            direction: "out",
+            graphqlName: "schemaID",
+            required: true
+        }]
+    },
+    State: {
+        properties: [
+            "name",
+            "definition"
+        ],
+        relationships: [{
+            type: "STATE_OF",
+            direction: "out",
+            graphqlName: "parentID",
+            required: true
+        }]
+    },
+    Description: {
+        properties: [
+            "type",
+			"name",
+			"family",
+			"genus",
+			"species"
+        ],
+        relationships: [{
+            type: "APPLICATION_OF",
+            direction: "out",
+            graphqlName: "schemaID",
+            required: true
+        }, {
+            type: "DESCRIBED_BY",
+            direction: "in",
+            graphqlName: "specimenID",
+            required: false
+        }]
+    },
+    //TODO: CharacterInstance
+    Specimen: {
+        properties: [
+           "name",
+           "locality",
+           "preservationMode",
+           "idigbiouuid",
+           "pbdbcid",
+           "pbdboccid"
+        ],
+        relationships: [{
+            type: "DESCRIBED_BY",
+            direction: "out",
+            graphqlName: "descriptionID",
+            required: false
+        }, {
+            type: "EXAMPLE_OF",
+            direction: "out",
+            graphqlName: "otuID",
+            required: false
+        }, {
+            type: "IS_TYPE",
+            direction: "out",
+            graphqlName: "organID",
+            required: true
+        }]
+    },
+    Organ: {
+        properties: [
+           "type"
+        ],
+        relationships: []
+    },
+    
+}
+
 const getRelationships = async (session, pbotID, relationships) => {
     let queryStr = relationships.reduce((str, relationship) => `
         ${str}
@@ -585,6 +718,88 @@ const updateNode = async (context, nodeType, data) => {
 }
 
 
+const handleCreate = async (session, nodeType, data) => {
+    console.log("handleCreate");
+    
+    const pbotID = data.pbotID;
+    const enteredByPersonID = data.enteredByPersonID
+    
+    const properties = schemaCreateMap[nodeType].properties || [];
+    const relationships = schemaCreateMap[nodeType].relationships || [];
+    
+    //Get person node and create new ENTERED_BY relationship
+    let queryStr = `
+        MATCH 
+            (ePerson:Person {pbotID: "${enteredByPersonID}"})
+        WITH ePerson					
+            CREATE
+                (baseNode:${nodeType} {
+                    pbotID: apoc.create.uuid()})-[eb:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(ePerson)
+        WITH baseNode	
+        SET
+    `;
+    queryStr = properties.reduce((str, property) => `
+        ${str}
+            baseNode.${property} = ${JSON.stringify(data[property])},
+    `, queryStr);
+    queryStr = `
+        ${queryStr.slice(0, queryStr.lastIndexOf(','))}
+        WITH baseNode
+    `;
+    
+    //Create new relationships
+    queryStr = relationships.reduce((str, relationship) => {
+        if (data[relationship.graphqlName] && data[relationship.graphqlName].length > 0) {
+            return `
+                ${str}
+                    UNWIND ${JSON.stringify(data[relationship.graphqlName])} AS iD
+                        MATCH (remoteNode) WHERE remoteNode.pbotID = iD 
+                        CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+                    WITH distinct baseNode
+            `
+        } else {
+            if (relationship.required) {
+                throw new ValidationError(`Missing required relationship ${relationship.graphqlName}`);
+            } else {
+                return str;
+            }
+        }
+    }, queryStr);
+    
+    queryStr = `
+        ${queryStr}
+        RETURN {
+            pbotID: baseNode.pbotID
+        }
+    `;
+        
+    console.log(queryStr);
+    
+    const result = await session.run(queryStr);
+    return result;
+}
+
+//TODO: combine with updateNode
+const createNode = async (context, nodeType, data) => {
+    const driver = context.driver;
+    const session = driver.session()
+    
+    try {
+        const result = await session.writeTransaction(async tx => {
+            const result = await handleCreate(
+                    tx, 
+                    nodeType, 
+                    data       
+                );
+                console.log("result");
+                console.log(result);
+                return result.records[0]._fields[0];
+        });
+        return result;            
+    } finally {
+        await session.close();
+    }
+}
 
 export const Resolvers = {
     Mutation: {
@@ -689,6 +904,57 @@ export const Resolvers = {
             return await updateNode(context, "Organ", args.data);
         },
         
+        CreateGroup: async (obj, args, context, info) => {
+            console.log("CreateGroup");
+            return await createNode(context, "Group", args.data);
+        },
+
+        CreatePerson: async (obj, args, context, info) => {
+            console.log("CreatePerson");
+            return await createNode(context, "Person", args.data);
+        },
+
+        CreateReference: async (obj, args, context, info) => {
+            console.log("CreateReference");
+            return await createNode(context, "Reference", args.data);
+        },
+        
+        CreateSchema: async (obj, args, context, info) => {
+            console.log("CreateSchema");
+            return await createNode(context, "Schema", args.data);
+            
+        },
+        
+        CreateCharacter: async (obj, args, context, info) => {
+            console.log("CreateCharacter");
+            return await createNode(context, "Character", args.data);
+            
+        },
+        
+        CreateState: async (obj, args, context, info) => {
+            console.log("CreateState");
+            return await createNode(context, "State", args.data);
+            
+        },
+        
+        CreateDescription: async (obj, args, context, info) => {
+            console.log("CreateDescription");
+            return await createNode(context, "Description", args.data);
+            
+        },
+
+        CreateSpecimen: async (obj, args, context, info) => {
+            console.log("CreateSpecimen");
+            return await createNode(context, "Specimen", args.data);
+            
+        },
+
+        CreateOrgan: async (obj, args, context, info) => {
+            console.log("CreateOrgan");
+            return await createNode(context, "Organ", args.data);
+            
+        },
+
     }
 };
 

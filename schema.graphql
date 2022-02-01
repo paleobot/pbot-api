@@ -340,7 +340,7 @@ input OrganInput {
 }
 
 type Mutation {
-    CreateGroup(data: GroupInput!): Group!
+    CreateGroup(data: GroupInput!): Group! @neo4j_ignore
         @cypher(
             statement: """
                 MATCH 
@@ -376,7 +376,7 @@ type Mutation {
     DeleteGroup(data: GroupInput!): Group! @neo4j_ignore
 
         
-    CreatePerson(data: PersonInput!): Person!
+    CreatePerson(data: PersonInput!): Person! @neo4j_ignore
         @cypher(
             statement: """
                 MATCH 
@@ -395,7 +395,7 @@ type Mutation {
     UpdatePerson(data: PersonInput!): Person! @neo4j_ignore
     DeletePerson(data: PersonInput!): Person! @neo4j_ignore
 
-    CreateReference(data: ReferenceInput!): Reference!
+    CreateReference(data: ReferenceInput!): Reference! @neo4j_ignore
     @cypher(
         statement: """
             MATCH 
@@ -418,7 +418,7 @@ type Mutation {
     UpdateReference(data: ReferenceInput!): Reference! @neo4j_ignore
     DeleteReference(data: ReferenceInput!): Reference! @neo4j_ignore
 
-    CreateSchema(data: SchemaInput!): Schema!
+    CreateSchema(data: SchemaInput!): Schema! @neo4j_ignore
         @cypher(
             statement: """
                 MATCH 
@@ -444,7 +444,7 @@ type Mutation {
     UpdateSchema(data: SchemaInput!): Schema! @neo4j_ignore
     DeleteSchema(data: SchemaInput!): Schema! @neo4j_ignore
     
-    CreateCharacter(data: CharacterInput!): Character!
+    CreateCharacter(data: CharacterInput!): Character! @neo4j_ignore
         @cypher(
             statement: """
                 MATCH 
@@ -462,7 +462,7 @@ type Mutation {
     UpdateCharacter(data: CharacterInput!): Character! @neo4j_ignore
     DeleteCharacter(data: CharacterInput!): Character! @neo4j_ignore
 
-    CreateState(data: StateInput!): State!
+    CreateState(data: StateInput!): State! @neo4j_ignore
         @cypher(
             statement: """
                 MATCH 
@@ -481,7 +481,7 @@ type Mutation {
     UpdateState(data: StateInput!): State! @neo4j_ignore
     DeleteState(data: StateInput!): State! @neo4j_ignore
 
-    CreateDescription(data: DescriptionInput!): Description!
+    CreateDescription(data: DescriptionInput!): Description! @neo4j_ignore
         @cypher(
             statement: """
                 MATCH 
@@ -523,16 +523,16 @@ type Mutation {
                 CREATE 
                     (description)-[:DEFINED_BY]->(characterInstance:CharacterInstance {
                         pbotID: apoc.create.uuid()
-                    })-[:ENTERED_BY {timestamp: datetime()}]->(person),
+                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person),
                     (character)<-[:INSTANCE_OF]-(characterInstance),
-                    (state)<-[:HAS_STATE {value: $data.quantity, type:"CREATE"}]-(characterInstance) 
+                    (state)<-[:HAS_STATE {value: $data.quantity}]-(characterInstance) 
                 RETURN characterInstance
             """
         )
     UpdateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
     DeleteCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
 
-    CreateSpecimen(data: SpecimenInput!): Specimen!
+    CreateSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
         @cypher(
             statement: """
                 MATCH 
@@ -570,7 +570,7 @@ type Mutation {
     UpdateSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
     DeleteSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
 
-    CreateOrgan(data: OrganInput!): Organ!
+    CreateOrgan(data: OrganInput!): Organ! @neo4j_ignore
         @cypher(
             statement: """
                 MATCH 
