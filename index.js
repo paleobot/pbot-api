@@ -18,7 +18,6 @@ import  permissions  from './permissions.js';
 import {getUser, handleLogin, handleRegistration, handleReset} from './UserManagement.js';
 
 import {Resolvers} from './Resolvers.js';
-import {UpdateResolvers} from './UpdateResolvers.js';
 
 dotenv.config();
 
