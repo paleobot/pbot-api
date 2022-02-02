@@ -158,144 +158,18 @@ const schemaDeleteMap = {
 //And we also need to be able to get a list of relationships that includes both their Cypher name and their graphql name.
 //There is probably a way to get this from schema.graphql, but it's probably terrible.
 //So, I'm ok with the extra maintenance required by this map.
-const schemaUpdateMap = {
+const schemaMap = {
     Group: {
         properties: ["name"],
-        relationships: [{
-            type: "MEMBER_OF",
-            direction: "in",
-            graphqlName: "members"
-        }]
-    },
-    Person: {
-        properties: [
-            "given",
-            "surname",
-            "email",
-            "orcid"
-        ],
-        relationships:[]
-    },
-    Reference: {
-        properties: [
-           "title",
-           "year",
-           "publisher",
-           "doi"
-        ],
-        relationships: [{
-                type: "AUTHORED_BY",
-                direction: "out",
-                graphqlName: "authors"
-            }
-        ]
-    },
-    Schema: {
-        properties: [
-           "title",
-           "year"
-        ],
-        relationships: [{
-                type: "CITED_BY",
+        relationships: [
+            {
+                type: "MEMBER_OF",
                 direction: "in",
-                graphqlName: "references"
-            }, {
-                type: "AUTHORED_BY",
-                direction: "out",
-                graphqlName: "authors"
+                graphqlName: "members",
+                required: false,
+                updatable: true
             }
         ]
-    },
-    Character: {
-        properties: [
-           "name",
-           "definition"
-        ],
-        relationships: []
-    },
-    State: {
-        properties: [
-            "name",
-            "definition"
-        ],
-        relationships: [{
-            type: "STATE_OF",
-            direction: "out",
-            graphqlName: "parentID"
-        }]
-    },
-    Description: {
-        properties: [
-            "type",
-			"name",
-			"family",
-			"genus",
-			"species"
-        ],
-        relationships: [{
-            type: "APPLICATION_OF",
-            direction: "out",
-            graphqlName: "schemaID"
-        }, {
-            type: "DESCRIBED_BY",
-            direction: "in",
-            graphqlName: "specimenID"
-        }]
-    },
-    CharacterInstance: {
-        properties: [],
-        relationships: [{
-            type: "INSTANCE_OF",
-            direction: "out",
-            graphqlName: "characterID"
-        }, {
-            type: "HAS_STATE",
-            direction: "out",
-            graphqlName: "stateID"
-        }]
-    },
-    Specimen: {
-        properties: [
-           "name",
-           "locality",
-           "preservationMode",
-           "idigbiouuid",
-           "pbdbcid",
-           "pbdboccid"
-        ],
-        relationships: [{
-            type: "DESCRIBED_BY",
-            direction: "out",
-            graphqlName: "descriptionID"
-        }, {
-            type: "EXAMPLE_OF",
-            direction: "out",
-            graphqlName: "otuID"
-        }, {
-            type: "IS_TYPE",
-            direction: "out",
-            graphqlName: "organID"
-        }]
-    },
-    Organ: {
-        properties: [
-           "type"
-        ],
-        relationships: []
-    },
-    
-}
-
-
-const schemaCreateMap = {
-    Group: {
-        properties: ["name"],
-        relationships: [{
-            type: "MEMBER_OF",
-            direction: "in",
-            graphqlName: "members",
-            required: false
-        }]
     },
     Person: {
         properties: [
@@ -313,11 +187,13 @@ const schemaCreateMap = {
            "publisher",
            "doi"
         ],
-        relationships: [{
+        relationships: [
+            {
                 type: "AUTHORED_BY",
                 direction: "out",
                 graphqlName: "authors",
-                required: false
+                required: false,
+                updatable: true
             }
         ]
     },
@@ -326,16 +202,19 @@ const schemaCreateMap = {
            "title",
            "year"
         ],
-        relationships: [{
+        relationships: [
+            {
                 type: "CITED_BY",
                 direction: "in",
                 graphqlName: "references",
-                required: false
+                required: false,
+                updatable: true
             }, {
                 type: "AUTHORED_BY",
                 direction: "out",
                 graphqlName: "authors",
-                required: false
+                required: false,
+                updatable: true
             }
         ]
     },
@@ -344,24 +223,30 @@ const schemaCreateMap = {
            "name",
            "definition"
         ],
-        relationships: [{
-            type: "CHARACTER_OF",
-            direction: "out",
-            graphqlName: "schemaID",
-            required: true
-        }]
+        relationships: [
+            {
+                type: "CHARACTER_OF",
+                direction: "out",
+                graphqlName: "schemaID",
+                required: true,
+                updatable: false
+            }
+        ]
     },
     State: {
         properties: [
             "name",
             "definition"
         ],
-        relationships: [{
-            type: "STATE_OF",
-            direction: "out",
-            graphqlName: "parentID",
-            required: true
-        }]
+        relationships: [
+            {
+                type: "STATE_OF",
+                direction: "out",
+                graphqlName: "parentID",
+                required: true,
+                updatable: true
+            }
+        ]
     },
     Description: {
         properties: [
@@ -371,17 +256,21 @@ const schemaCreateMap = {
 			"genus",
 			"species"
         ],
-        relationships: [{
-            type: "APPLICATION_OF",
-            direction: "out",
-            graphqlName: "schemaID",
-            required: true
-        }, {
-            type: "DESCRIBED_BY",
-            direction: "in",
-            graphqlName: "specimenID",
-            required: false
-        }]
+        relationships: [
+            {
+                type: "APPLICATION_OF",
+                direction: "out",
+                graphqlName: "schemaID",
+                required: true,
+                updatable: true
+            }, {
+                type: "DESCRIBED_BY",
+                direction: "in",
+                graphqlName: "specimenID",
+                required: false,
+                updatable: true
+            }
+        ]
     },
     //TODO: CharacterInstance
     Specimen: {
@@ -393,22 +282,27 @@ const schemaCreateMap = {
            "pbdbcid",
            "pbdboccid"
         ],
-        relationships: [{
-            type: "DESCRIBED_BY",
-            direction: "out",
-            graphqlName: "descriptionID",
-            required: false
-        }, {
-            type: "EXAMPLE_OF",
-            direction: "out",
-            graphqlName: "otuID",
-            required: false
-        }, {
-            type: "IS_TYPE",
-            direction: "out",
-            graphqlName: "organID",
-            required: true
-        }]
+        relationships: [
+            {
+                type: "DESCRIBED_BY",
+                direction: "out",
+                graphqlName: "descriptionID",
+                required: false,
+                updatable: true
+            }, {
+                type: "EXAMPLE_OF",
+                direction: "out",
+                graphqlName: "otuID",
+                required: false,
+                updatable: true
+            }, {
+                type: "IS_TYPE",
+                direction: "out",
+                graphqlName: "organID",
+                required: true,
+                updatable: true
+            }
+        ]
     },
     Organ: {
         properties: [
@@ -555,8 +449,11 @@ const handleUpdate = async (session, nodeType, data) => {
     const pbotID = data.pbotID;
     const enteredByPersonID = data.enteredByPersonID
     
-    const properties = schemaUpdateMap[nodeType].properties || [];
-    const relationships = schemaUpdateMap[nodeType].relationships || [];
+    const properties = schemaMap[nodeType].properties || [];
+    let relationships = schemaMap[nodeType].relationships || [];
+    relationships = relationships.filter(r => r.updatable);
+    console.log("relationships");
+    console.log(relationships);
     
     //Get base node and create new ENTERED_BY relationship
     let queryStr = `
@@ -637,9 +534,12 @@ const handleUpdate = async (session, nodeType, data) => {
             } else {
                 return `
                     ${str}
-                        CALL apoc.do.when([
+                        OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+                        DELETE rel
+                        WITH baseNode, eb, remoteNode 	
+                        CALL apoc.do.when(
                                 remoteNode IS NOT NULL,
-                                "SET eb.${relationship.graphqlName} = remoteNode.pbotID RETURN eb"],
+                                "SET eb.${relationship.graphqlName} = remoteNode.pbotID RETURN eb",
                                 "RETURN eb",
                                 {remoteNode: remoteNode, eb: eb}
                             ) YIELD value
@@ -724,8 +624,8 @@ const handleCreate = async (session, nodeType, data) => {
     const pbotID = data.pbotID;
     const enteredByPersonID = data.enteredByPersonID
     
-    const properties = schemaCreateMap[nodeType].properties || [];
-    const relationships = schemaCreateMap[nodeType].relationships || [];
+    const properties = schemaMap[nodeType].properties || [];
+    const relationships = schemaMap[nodeType].relationships || [];
     
     //Get person node and create new ENTERED_BY relationship
     let queryStr = `
