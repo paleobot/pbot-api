@@ -600,7 +600,7 @@ const handleUpdate = async (session, nodeType, data) => {
     
     //Copy old relationships (as pbotID arrays) into ENTERED_BY. Also, go ahead and delete the relationships here for convenience.
     queryStr = relationships.reduce((str, relationship) => {
-        if (Array.isArray(JSON.stringify(data[relationship.graphqlName]))) {
+        if (Array.isArray(data[relationship.graphqlName])) {
             return `
                 ${str}
                     OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
@@ -618,7 +618,7 @@ const handleUpdate = async (session, nodeType, data) => {
                     WITH baseNode, eb
             `
         } else {
-            if (JSON.stringify(data[relationship.graphqlName])) {
+            if (data[relationship.graphqlName]) {
                 return `
                     ${str}
                         OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
