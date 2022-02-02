@@ -529,7 +529,50 @@ type Mutation {
                 RETURN characterInstance
             """
         )
-    UpdateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
+    UpdateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! 
+        @cypher(
+            statement: """
+                MATCH 
+                    (characterInstance:CharacterInstance {pbotID: $data.pbotID}),
+                    (ePerson:Person {pbotID: $data.enteredByPersonID})
+                WITH characterInstance, ePerson					
+				CREATE
+					(characterInstance)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+				WITH characterInstance, eb
+                OPTIONAL MATCH
+					(oldCharacter:Character)<-[oldCharacterRelationship:INSTANCE_OF]-(characterInstance)
+				DELETE oldCharacterRelationship
+                WITH characterInstance, eb, oldCharacter					
+                    CALL apoc.do.case([
+                            oldCharacter IS NULL AND $data.characterID IS NOT NULL,
+                            "SET eb.character = 'not present' RETURN eb",
+                            oldCharacter IS NOT NULL AND ($data.characterID IS NULL OR oldCharacter.pbotID  <> $data.characterID),
+                            "SET eb.character = oldCharacter.pbotID RETURN eb"],
+                            "RETURN eb",
+                            {oldCharacter: oldCharacter, eb: eb}
+                        ) YIELD value
+                WITH characterInstance, eb					
+                OPTIONAL MATCH
+					(oldState:State)<-[oldStateRelationship:HAS_STATE]-(characterInstance)
+                WITH characterInstance, eb, oldState, oldStateRelationship				
+                    CALL apoc.do.case([
+                            oldState IS NULL AND $data.stateID IS NOT NULL,
+                            "SET eb.state = 'not present' RETURN eb",
+                            oldState IS NOT NULL AND ($data.stateID IS NULL OR oldState.pbotID  <> $data.stateID OR oldStateRelationship.value <> $data.quantity),
+                            "SET eb.state = oldState.pbotID, eb.value = oldStateRelationship.value RETURN eb"],
+                            "RETURN eb",
+                            {oldState: oldState, oldStateRelationship: oldStateRelationship, eb: eb}
+                        ) YIELD value
+                        DELETE oldStateRelationship
+				WITH characterInstance
+				MATCH
+                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {pbotID: $data.stateID})
+                CREATE 
+                    (character)<-[:INSTANCE_OF]-(characterInstance),
+                    (state)<-[:HAS_STATE {value: $data.quantity}]-(characterInstance) 
+                RETURN characterInstance
+            """
+        )
     DeleteCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
 
     CreateSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore

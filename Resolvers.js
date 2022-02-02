@@ -888,12 +888,12 @@ export const Resolvers = {
             console.log("CustomUpdateDescription");
             return await updateNode(context, "Description", args.data);
         },
-
+/*
         UpdateCharacterInstance: async (obj, args, context, info) => {
             console.log("CustomUpdateCharacterInstance");
             return await updateNode(context, "CharacterInstance", args.data);
         },
-
+*/
         UpdateSpecimen: async (obj, args, context, info) => {
             console.log("CustomUpdateSpecimen");
             return await updateNode(context, "Specimen", args.data);
