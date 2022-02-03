@@ -341,173 +341,31 @@ input OrganInput {
 
 type Mutation {
     CreateGroup(data: GroupInput!): Group! @neo4j_ignore
-        @cypher(
-            statement: """
-                MATCH 
-                    (ePerson:Person {pbotID: $data.enteredByPersonID})
-                CREATE 
-                    (group: Group {
-                        pbotID: apoc.create.uuid(),
-                        name: $data.name
-                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(ePerson)
-                WITH group
-                UNWIND (CASE coalesce($data.members,0) WHEN 0 THEN [null] ELSE $data.members END) AS mID
-                    CALL
-                        apoc.do.when(
-                            mID IS NULL,
-                            "RETURN group",
-                            "MATCH (n) WHERE n.pbotID = mID CREATE (n)-[:MEMBER_OF]->(group) RETURN group",
-                            {mID:mID, group:group}
-                        ) YIELD value
-                WITH distinct group
-                UNWIND (CASE coalesce($data.items,0) WHEN 0 THEN [null] ELSE $data.items END) AS iID
-                    CALL
-                        apoc.do.when(
-                            iID IS NULL,
-                            "RETURN group",
-                            "MATCH (n) WHERE n.pbotID = iID CREATE (n)-[:ITEM_OF]->(group) RETURN group",
-                            {iID:iID, group:group}
-                        ) YIELD value
-                WITH distinct group
-                RETURN group
-            """
-        )
     UpdateGroup(data: GroupInput!): Group!  @neo4j_ignore
     DeleteGroup(data: GroupInput!): Group! @neo4j_ignore
 
         
     CreatePerson(data: PersonInput!): Person! @neo4j_ignore
-        @cypher(
-            statement: """
-                MATCH 
-                    (ePerson:Person {pbotID: $data.enteredByPersonID})
-                CREATE 
-                    (person: Person {
-                        pbotID: apoc.create.uuid(),
-                        given: $data.given,
-                        surname: $data.surname,
-                        email: $data.email,
-                        orcid: $data.orcid
-                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(ePerson)
-                RETURN person
-            """
-        )
     UpdatePerson(data: PersonInput!): Person! @neo4j_ignore
     DeletePerson(data: PersonInput!): Person! @neo4j_ignore
 
     CreateReference(data: ReferenceInput!): Reference! @neo4j_ignore
-    @cypher(
-        statement: """
-            MATCH 
-                (person:Person {pbotID: $data.enteredByPersonID})
-            CREATE 
-                (reference: Reference {
-                    pbotID: apoc.create.uuid(),
-                    title: $data.title,
-                    year: $data.year,
-                    publisher: $data.publisher,
-                    doi: $data.doi
-                })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
-            WITH reference
-            UNWIND $data.authors AS aID
-                MATCH (author:Person {pbotID: aID}) 
-                CREATE (reference)-[:AUTHORED_BY]->(author)
-            RETURN reference
-        """
-    )
     UpdateReference(data: ReferenceInput!): Reference! @neo4j_ignore
     DeleteReference(data: ReferenceInput!): Reference! @neo4j_ignore
 
     CreateSchema(data: SchemaInput!): Schema! @neo4j_ignore
-        @cypher(
-            statement: """
-                MATCH 
-                    (person:Person {pbotID: $data.enteredByPersonID})
-                CREATE 
-                    (schema:Schema {
-                        pbotID: apoc.create.uuid(),
-                        title: $data.title,
-                        year: $data.year
-                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
-                WITH schema
-                UNWIND $data.authors AS aID
-                    MATCH (author:Person {pbotID: aID}) 
-                    CREATE (schema)-[:AUTHORED_BY]->(author)
-                WITH collect(aID) as dummy, schema
-                UNWIND $data.references as rID
-                    MATCH (reference:Reference {pbotID: rID})
-                    CREATE (reference)-[:CITED_BY]->(schema)
-                WITH collect(rID)as dummy, schema
-                RETURN schema
-            """
-        )
     UpdateSchema(data: SchemaInput!): Schema! @neo4j_ignore
     DeleteSchema(data: SchemaInput!): Schema! @neo4j_ignore
     
     CreateCharacter(data: CharacterInput!): Character! @neo4j_ignore
-        @cypher(
-            statement: """
-                MATCH 
-                    (schema:Schema {pbotID: $data.schemaID}),
-                    (person:Person {pbotID: $data.enteredByPersonID})
-                CREATE 
-                    (schema)<-[:CHARACTER_OF]-(character:Character {
-                        pbotID: apoc.create.uuid(),
-                        name: $data.name,
-                        definition: $data.definition
-                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
-                RETURN character
-            """
-        )
     UpdateCharacter(data: CharacterInput!): Character! @neo4j_ignore
     DeleteCharacter(data: CharacterInput!): Character! @neo4j_ignore
 
     CreateState(data: StateInput!): State! @neo4j_ignore
-        @cypher(
-            statement: """
-                MATCH 
-                    (person:Person {pbotID: $data.enteredByPersonID}),
-                    (parent) WHERE parent.pbotID = $data.parentID
-                WITH parent, person
-                    CREATE 
-                        (parent)<-[:STATE_OF]-(state:State {
-                            pbotID: apoc.create.uuid(),
-                            name: $data.name,
-                            definition:$data.definition
-                        })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
-                    RETURN state           
-            """
-        )
     UpdateState(data: StateInput!): State! @neo4j_ignore
     DeleteState(data: StateInput!): State! @neo4j_ignore
 
     CreateDescription(data: DescriptionInput!): Description! @neo4j_ignore
-        @cypher(
-            statement: """
-                MATCH 
-                    (schema:Schema {pbotID: $data.schemaID}),
-                    (person:Person {pbotID: $data.enteredByPersonID})
-                OPTIONAL MATCH
-                    (specimen:Specimen {pbotID: $data.specimenID})
-                CREATE 
-                    (schema)<-[:APPLICATION_OF]-(description: Description {
-                        pbotID: apoc.create.uuid(),
-                        type: $data.type,
-                        name: $data.name,
-                        family: $data.family,
-                        genus: $data.genus,
-                        species: $data.species
-                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
-                WITH description, specimen
-                CALL apoc.do.when(
-                    specimen is not null, 
-                    "CREATE (specimen)-[:DESCRIBED_BY]->(description) RETURN description", 
-                    'RETURN description',
-                    {specimen: specimen, description: description}
-                ) YIELD value
-                RETURN value.description AS description                
-            """
-        )
     UpdateDescription(data: DescriptionInput!): Description! @neo4j_ignore
     DeleteDescription(data: DescriptionInput!): Description!  @neo4j_ignore
 
@@ -576,56 +434,10 @@ type Mutation {
     DeleteCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
 
     CreateSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
-        @cypher(
-            statement: """
-                MATCH 
-                    (person:Person {pbotID: $data.enteredByPersonID}),
-                    (organ:Organ {pbotID: $data.organID})
-                OPTIONAL MATCH
-                    (description:Description {pbotID: $data.descriptionID})
-                OPTIONAL MATCH
-                    (otu:Description {pbotID: $data.otuID})
-                CREATE
-                    (organ)<-[:IS_TYPE]-(specimen:Specimen {
-                        pbotID: apoc.create.uuid(),
-                        name: $data.name,
-                        locality: $data.locality,
-                        preservationMode: $data.preservationMode,
-                        idigbiouuid: $data.idigbiouuid,
-                        pbdbcid: $data.pbdbcid,
-                        pbdboccid: $data.pbdboccid
-                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
-                WITH specimen, description, otu
-                    CALL apoc.do.when(
-                        description IS NOT NULL,
-                        "CREATE (description)<-[:DESCRIBED_BY]-(specimen) RETURN specimen",
-                        "RETURN specimen",
-                        {description: description, specimen: specimen}) YIELD value
-                    WITH value.specimen AS specimen, otu
-                    CALL apoc.do.when(
-                        otu IS NOT NULL,
-                        "CREATE (otu)<-[:EXAMPLE_OF]-(specimen) RETURN specimen",
-                        "RETURN specimen",
-                        {otu: otu, specimen: specimen}) YIELD value
-                RETURN value.specimen as specimen           
-            """
-        )
     UpdateSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
     DeleteSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
 
     CreateOrgan(data: OrganInput!): Organ! @neo4j_ignore
-        @cypher(
-            statement: """
-                MATCH 
-                    (person:Person {pbotID: $data.enteredByPersonID})
-                CREATE 
-                    (organ:Organ {
-                        pbotID: apoc.create.uuid(),
-                        type: $data.type
-                    })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person)
-                RETURN organ
-            """
-        )
     UpdateOrgan(data: OrganInput!): Organ! @neo4j_ignore
     DeleteOrgan(data: OrganInput!): Organ! @neo4j_ignore
 
