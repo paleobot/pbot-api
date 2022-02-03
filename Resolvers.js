@@ -272,7 +272,6 @@ const schemaMap = {
             }
         ]
     },
-    //TODO: CharacterInstance
     Specimen: {
         properties: [
            "name",
@@ -382,66 +381,6 @@ const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relati
     const result = await session.run(queryStr);
     return result;
 }
-
-const deleteNode = async (context, nodeType, pbotID, enteredByPersonID, cascade = false) => {
-    console.log("cascade=" + cascade);
-    
-    const driver = context.driver;
-    const session = driver.session()
-    
-    try {
-        const result = await session.writeTransaction(async tx => {
-            console.log(cascade ? 
-                    schemaDeleteMap[nodeType].blockingRelationships : 
-                    [...schemaDeleteMap[nodeType].blockingRelationships, ...schemaDeleteMap[nodeType].cascadeRelationships]);
-            const blockingRelationships = await getRelationships(
-                tx, 
-                pbotID, 
-                cascade ? 
-                    schemaDeleteMap[nodeType].blockingRelationships : 
-                    [...schemaDeleteMap[nodeType].blockingRelationships, ...schemaDeleteMap[nodeType].cascadeRelationships]
-            );
-            if (blockingRelationships.length > 0) {
-                console.log("cannot delete");
-                throw new ValidationError(`${nodeType} has blocking relationships`);
-            } else {
-                if (cascade) {
-                    const remoteNodes = await getRelationships(
-                        tx, 
-                        pbotID, 
-                        schemaDeleteMap[nodeType].cascadeRelationships
-                    );
-                    console.log("remoteNodes");
-                    console.log(remoteNodes);
-                    await Promise.all(remoteNodes.map(node => {
-                        console.log(node);
-                        return deleteNode(context, node.nodeType, node.pbotID, enteredByPersonID, cascade)
-                    })).catch(error => {
-                        console.log(error);
-                        throw new ValidationError(`Unable to cascade delete ${nodeType}`);
-                    });
-                }
-                    
-                const result = await handleDelete(
-                    tx, 
-                    nodeType, 
-                    pbotID, 
-                    enteredByPersonID, 
-                    schemaDeleteMap[nodeType].nonblockingRelationships        
-                );
-                console.log("result");
-                console.log(result);
-                return result.records[0]._fields[0];
-            }
-        });
-        return result;            
-    } finally {
-        await session.close();
-    }
-}
-
-
-
 
 const handleUpdate = async (session, nodeType, data) => {
     console.log("handleUpdate");
@@ -596,28 +535,6 @@ const handleUpdate = async (session, nodeType, data) => {
     return result;
 }
 
-const updateNode = async (context, nodeType, data) => {
-    const driver = context.driver;
-    const session = driver.session()
-    
-    try {
-        const result = await session.writeTransaction(async tx => {
-            const result = await handleUpdate(
-                    tx, 
-                    nodeType, 
-                    data       
-                );
-                console.log("result");
-                console.log(result);
-                return result.records[0]._fields[0];
-        });
-        return result;            
-    } finally {
-        await session.close();
-    }
-}
-
-
 const handleCreate = async (session, nodeType, data) => {
     console.log("handleCreate");
     
@@ -679,21 +596,80 @@ const handleCreate = async (session, nodeType, data) => {
     return result;
 }
 
-//TODO: combine with updateNode
-const createNode = async (context, nodeType, data) => {
+const mutateNode = async (context, nodeType, data, type) => {
     const driver = context.driver;
     const session = driver.session()
     
     try {
         const result = await session.writeTransaction(async tx => {
-            const result = await handleCreate(
-                    tx, 
-                    nodeType, 
-                    data       
-                );
-                console.log("result");
-                console.log(result);
-                return result.records[0]._fields[0];
+            let result;
+            switch (type) {
+                case "create": 
+                    result = await handleCreate(
+                        tx, 
+                        nodeType, 
+                        data       
+                    );
+                    break;
+                case "update":
+                    result = await handleUpdate(
+                        tx, 
+                        nodeType, 
+                        data       
+                    );
+                    break;
+                case "delete":
+                    const pbotID = data.pbotID;
+                    const enteredByPersonID = data.enteredByPersonID;
+                    const cascade = data.cascade || false;
+                   
+                    console.log(cascade ? 
+                            schemaDeleteMap[nodeType].blockingRelationships : 
+                            [...schemaDeleteMap[nodeType].blockingRelationships, ...schemaDeleteMap[nodeType].cascadeRelationships]);
+                    const blockingRelationships = await getRelationships(
+                        tx, 
+                        pbotID, 
+                        cascade ? 
+                            schemaDeleteMap[nodeType].blockingRelationships : 
+                            [...schemaDeleteMap[nodeType].blockingRelationships, ...schemaDeleteMap[nodeType].cascadeRelationships]
+                    );
+                    if (blockingRelationships.length > 0) {
+                        console.log("cannot delete");
+                        throw new ValidationError(`${nodeType} has blocking relationships`);
+                    } else {
+                        if (cascade) {
+                            const remoteNodes = await getRelationships(
+                                tx, 
+                                pbotID, 
+                                schemaDeleteMap[nodeType].cascadeRelationships
+                            );
+                            console.log("remoteNodes");
+                            console.log(remoteNodes);
+                            await Promise.all(remoteNodes.map(node => {
+                                console.log(node);
+                                return mutateNode(context, node.nodeType, {pbotID: node.pbotID, enteredByPersonID: enteredByPersonID, cascade: cascade}, "delete")
+                            })).catch(error => {
+                                console.log(error);
+                                throw new ValidationError(`Unable to cascade delete ${nodeType}`);
+                            });
+                        }
+                            
+                        result = await handleDelete(
+                            tx, 
+                            nodeType, 
+                            pbotID, 
+                            enteredByPersonID, 
+                            schemaDeleteMap[nodeType].nonblockingRelationships        
+                        );
+                    }
+                    break;
+                default: 
+                    throw new Exception("Invalid mutation type");
+            }
+                    
+            console.log("result");
+            console.log(result);
+            return result.records[0]._fields[0];
         });
         return result;            
     } finally {
@@ -705,43 +681,42 @@ export const Resolvers = {
     Mutation: {
         DeleteReference: async (obj, args, context, info) => {
             console.log("DeleteReference");
-            return await deleteNode(context, "Reference", args.data.pbotID, args.data.enteredByPersonID);
+            return await mutateNode(context, "Reference", args.data, "delete");
         },
 
         DeleteSchema: async (obj, args, context, info) => {
             console.log("DeleteSchema");
-            return await deleteNode(context, "Schema", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
+            return await mutateNode(context, "Schema", args.data, "delete");
         },
         
         DeleteCharacter: async (obj, args, context, info) => {
             console.log("DeleteCharacter");
-            return await deleteNode(context, "Character", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
+            return await mutateNode(context, "Character", args.data, "delete");
         },
 
         DeleteState: async (obj, args, context, info) => {
             console.log("DeleteCharacter");
-            return await deleteNode(context, "State", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
+            return await mutateNode(context, "State", args.data, "delete");
         },
 
         DeleteDescription: async (obj, args, context, info) => {
             console.log("DeleteDescription");
-            return await deleteNode(context, "Description", args.data.pbotID, args.data.enteredByPersonID, args.data.cascade);
+            return await mutateNode(context, "Description", args.data, "delete");
         },
 
         DeleteCharacterInstance: async (obj, args, context, info) => {
             console.log("DeleteCharacterInstance");
-            return await deleteNode(context, "CharacterInstance", args.data.pbotID, args.data.enteredByPersonID);
+            return await mutateNode(context, "CharacterInstance", args.data, "delete");
         },
 
         DeleteSpecimen: async (obj, args, context, info) => {
             console.log("DeleteSpecimen");
-            return await deleteNode(context, "Specimen", args.data.pbotID, args.data.enteredByPersonID);
+            return await mutateNode(context, "Specimen", args.data, "delete");
         },        
 
         DeleteGroup: async (obj, args, context, info) => {
             console.log("DeleteGroup");
-            console.log(Object.keys(context.schema._typeMap.GroupInput._fields));
-            return await deleteNode(context, "Group", args.data.pbotID, args.data.enteredByPersonID);
+            return await mutateNode(context, "Group", args.data, "delete");
         },
 
         DeletePerson: async (obj, args, context, info) => {
@@ -755,103 +730,98 @@ export const Resolvers = {
         },        
      
         UpdateGroup: async (obj, args, context, info) => {
-            console.log("CustomUpdateGroup");
-            return await updateNode(context, "Group", args.data);
+            console.log("UpdateGroup");
+            return await mutateNode(context, "Group", args.data, "update");
         },
 
         UpdatePerson: async (obj, args, context, info) => {
-            console.log("CustomUpdatePerson");
-            return await updateNode(context, "Person", args.data);
+            console.log("UpdatePerson");
+            return await mutateNode(context, "Person", args.data, "update");
         },
 
         UpdateReference: async (obj, args, context, info) => {
-            console.log("CustomUpdateReference");
-            return await updateNode(context, "Reference", args.data);
+            console.log("UpdateReference");
+            return await mutateNode(context, "Reference", args.data, "update");
         },
 
         UpdateSchema: async (obj, args, context, info) => {
-            console.log("CustomUpdateSchema");
-            return await updateNode(context, "Schema", args.data);
+            console.log("UpdateSchema");
+            return await mutateNode(context, "Schema", args.data, "update");
         },
         
         UpdateCharacter: async (obj, args, context, info) => {
-            console.log("CustomUpdateCharacter");
-            return await updateNode(context, "Character", args.data);
+            console.log("UpdateCharacter");
+            return await mutateNode(context, "Character", args.data, "update");
         },
 
         UpdateState: async (obj, args, context, info) => {
-            console.log("CustomUpdateState");
-            return await updateNode(context, "State", args.data);
+            console.log("UpdateState");
+            return await mutateNode(context, "State", args.data, "update");
         },
         
         UpdateDescription: async (obj, args, context, info) => {
-            console.log("CustomUpdateDescription");
-            return await updateNode(context, "Description", args.data);
+            console.log("UpdateDescription");
+            return await mutateNode(context, "Description", args.data, "update");
         },
-/*
-        UpdateCharacterInstance: async (obj, args, context, info) => {
-            console.log("CustomUpdateCharacterInstance");
-            return await updateNode(context, "CharacterInstance", args.data);
-        },
-*/
+
         UpdateSpecimen: async (obj, args, context, info) => {
-            console.log("CustomUpdateSpecimen");
-            return await updateNode(context, "Specimen", args.data);
+            console.log("UpdateSpecimen");
+            return await mutateNode(context, "Specimen", args.data, "update");
         },
 
         UpdateOrgan: async (obj, args, context, info) => {
-            console.log("CustomUpdateOrgan");
-            return await updateNode(context, "Organ", args.data);
+            console.log("UpdateOrgan");
+            return await mutateNode(context, "Organ", args.data, "update");
         },
         
         CreateGroup: async (obj, args, context, info) => {
             console.log("CreateGroup");
-            return await createNode(context, "Group", args.data);
+            return await mutateNode(context, "Group", args.data, "create");
         },
 
         CreatePerson: async (obj, args, context, info) => {
             console.log("CreatePerson");
-            return await createNode(context, "Person", args.data);
+            return await mutateNode(context, "Person", args.data, "create");
         },
 
         CreateReference: async (obj, args, context, info) => {
             console.log("CreateReference");
-            return await createNode(context, "Reference", args.data);
+            return await mutateNode(context, "Reference", args.data, "create");
         },
         
         CreateSchema: async (obj, args, context, info) => {
             console.log("CreateSchema");
-            return await createNode(context, "Schema", args.data);
+            return await mutateNode(context, "Schema", args.data, "create");
             
         },
         
         CreateCharacter: async (obj, args, context, info) => {
             console.log("CreateCharacter");
-            return await createNode(context, "Character", args.data);
+            return await mutateNode(context, "Character", args.data, "create");
             
         },
         
         CreateState: async (obj, args, context, info) => {
             console.log("CreateState");
-            return await createNode(context, "State", args.data);
+            return await mutateNode(context, "State", args.data, "create");
             
         },
         
         CreateDescription: async (obj, args, context, info) => {
             console.log("CreateDescription");
-            return await createNode(context, "Description", args.data);
+            return await mutateNode(context, "Description", args.data, "create");
             
         },
 
         CreateSpecimen: async (obj, args, context, info) => {
             console.log("CreateSpecimen");
-            return await createNode(context, "Specimen", args.data);
+            return await mutateNode(context, "Specimen", args.data, "create");
             
         },
 
         CreateOrgan: async (obj, args, context, info) => {
             console.log("CreateOrgan");
-            return await createNode(context, "Organ", args.data);
+            return await mutateNode(context, "Organ", args.data, "create");
             
         },
 
