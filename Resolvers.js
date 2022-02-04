@@ -444,9 +444,11 @@ const handleUpdate = async (session, nodeType, data) => {
                     FOREACH (r IN oldRels | DELETE r)
                     WITH distinct baseNode, remoteNodeIDs, apoc.coll.disjunction(remoteNodeIDs, ${JSON.stringify(data[relationship.graphqlName])} ) AS diffList, eb
                     CALL
-                        apoc.do.when(
-                            SIZE(diffList)<>0,
-                            "SET eb.${relationship.graphqlName} = remoteNodeIDs RETURN eb",
+                        apoc.do.case([
+                            size(remoteNodeIDs) = 0 AND size(diffList) <> 0,
+                            "SET eb.${relationship.graphqlName} = 'not present' RETURN eb",
+                            size(diffList)<>0,
+                            "SET eb.${relationship.graphqlName} = remoteNodeIDs RETURN eb"],
                             "RETURN eb",
                             {diffList: diffList, remoteNodeIDs: remoteNodeIDs, eb: eb}
                         )
