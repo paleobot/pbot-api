@@ -369,8 +369,10 @@ type Mutation {
     UpdateDescription(data: DescriptionInput!): Description! @neo4j_ignore
     DeleteDescription(data: DescriptionInput!): Description!  @neo4j_ignore
 
-    """NOTE: No when is needed for the HAS_STATE value property below since setting properties to null 
-    means they don't exist."""
+    """NOTE: Keeping CharacterInstance create and update here rather than in Resolvers.js because of the need 
+    to check that the State is associated with the Character. It's too specific to fit with the generic approach 
+    of the cypher-building code in Resolvers.js. Similarly, recording the old value of HAS_STATE for a quantity
+    State is also too specific."""
     CreateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance!
         @cypher(
             statement: """
