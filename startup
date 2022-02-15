@@ -1,10 +1,23 @@
+local dev:
+----------
 DEBUG=pbot-api node index.js
 
 npm start
 
----
+
+
+dev server:
+-----------
 
 pm2 start ./index.js --watch --name=pbot-api --interpreter=/home/doug/.nvm/versions/node/v14.19.0/bin/node
 
-
 pm2 start ./node_modules/react-scripts/scripts/start.js --name=pbot-client --watch --interpreter=/home/doug/.nvm/versions/node/v14.19.0/bin/node
+
+pm2 install pm2-logrotate
+
+pm2 set pm2-logrotate:max_size 10M
+
+pm2 save
+
+To add startup service:
+sudo env PATH=$PATH:/home/doug/.nvm/versions/node/v17.4.0/bin /home/doug/.nvm/versions/node/v17.4.0/lib/node_modules/pm2/bin/pm2 startup systemd -u doug --hp /home/doug --service-name=pbot-pm2
