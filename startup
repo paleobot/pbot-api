@@ -1,3 +1,10 @@
 DEBUG=pbot-api node index.js
 
 npm start
+
+---
+
+pm2 start ./index.js --watch --name=pbot-api --interpreter=/home/doug/.nvm/versions/node/v14.19.0/bin/node
+
+
+pm2 start ./node_modules/react-scripts/scripts/start.js --name=pbot-client --watch --interpreter=/home/doug/.nvm/versions/node/v14.19.0/bin/node
