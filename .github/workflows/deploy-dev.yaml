@@ -1,6 +1,7 @@
 name: Dev Deploy
 on: [push]
 jobs:
+  #Someday, we might have tests to verify the load first
   # test:
   #   ...
   deploy:
@@ -26,12 +27,16 @@ jobs:
           SSH_KEY: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
           SSH_HOST: ${{ secrets.DEV_SSH_HOST }}
 
+      #We don't need to stop/start the server for now, because we can rely on PM2, running in watch mode, 
+      #to handle that for us.
       #- name: Stop the server
       #  run: ssh dev 'sudo systemctl stop my-application'
 
       - name: Check out the source
         run: ssh dev 'cd repos/pbot-api && git fetch && git reset --hard origin/master'
 
+      #Here would be a good place to run a data migration script on the server if necessary
+      
       #- name: Start the server
       #  if: ${{ always() }}
       #  run: ssh dev 'sudo systemctl start my-application'
