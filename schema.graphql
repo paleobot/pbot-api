@@ -228,6 +228,22 @@ type Query {
                 RETURN r            
             """
         )
+    GetReferences2(userID: String): [Reference]
+        @cypher(
+            statement: """
+                MATCH 
+                    (p:Person {pbotID:$userID})-[:MEMBER_OF]->(g:Group)<-[:ELEMENT_OF]-(r:Reference)
+                RETURN r            
+            """
+        )
+    Reference(pbotID: ID, title: String, year: String, publisher: String, doi: String, _id: String, first: Int, offset: Int, orderBy: [_ReferenceOrdering], filter: _ReferenceFilter): [Reference]
+        @cypher(
+            statement: """
+                MATCH 
+                    (p:Person {pbotID:$cypherParams.user.pbotID})-[:MEMBER_OF]->(g:Group)<-[:ELEMENT_OF]-(r:Reference)
+                RETURN r            
+            """
+        )
         
     GetLeafStates(characterID: String!): [State]
         @cypher(
