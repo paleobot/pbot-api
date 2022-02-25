@@ -214,6 +214,21 @@ type DescribedBy @relation(name: "DESCRIBED_BY") {
 """
 Not sure this will be useful, but it's a way to get at the leaf states in state hierarchies."""
 type Query {
+    GetUserFromContext: String
+        @cypher(
+            statement: """
+                RETURN $cypherParams.user.pbotID
+            """
+        )
+    GetReferences: [Reference]
+        @cypher(
+            statement: """
+                MATCH 
+                    (p:Person {pbotID:$cypherParams.user.pbotID})-[:MEMBER_OF]->(g:Group)<-[:ELEMENT_OF]-(r:Reference)
+                RETURN r            
+            """
+        )
+        
     GetLeafStates(characterID: String!): [State]
         @cypher(
             statement: """

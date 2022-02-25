@@ -161,6 +161,9 @@ const server = new ApolloServer({
                 driver,
                 driverConfig: { database: process.env.NEO4J_DATABASE || 'neo4j' },
                 schema,
+                cypherParams: {
+                    user: user
+                },
             };
         },   
     schema: applyMiddleware(schema, permissions, middleware),
