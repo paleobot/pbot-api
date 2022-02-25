@@ -11,7 +11,8 @@ const getUser = async (driver, email) => {
     console.log("getUser");
     //console.log(driver);
     console.log(email);
-    if (!email) return {surname: 'dummy'};
+    //if (!email) return {surname: 'dummy'};
+    email = email || "guest";
     
     const session = driver.session();
     //The replace razzle-dazzle below is just to get a list of role strings rather than objects.
