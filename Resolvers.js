@@ -312,6 +312,22 @@ const schemaMap = {
     
 }
 
+const getPerson = async (session, email) => {
+    const queryStr = `
+        MATCH
+            (p:Person {email: "${email}"})
+        RETURN 
+            p
+    `;
+    console.log(queryStr);
+        
+    const result = await session.run(
+        queryStr,
+        {email: email}
+    )
+    return result.records.length > 0 ? result.records[0].get(0) : null;
+}
+
 const getRelationships = async (session, pbotID, relationships) => {
     let queryStr = relationships.reduce((str, relationship) => `
         ${str}
@@ -607,6 +623,15 @@ const mutateNode = async (context, nodeType, data, type) => {
             let result;
             switch (type) {
                 case "create": 
+                    if ("Person" === nodeType) {
+                        const person = await getPerson(tx, data.email);  
+                        console.log("Person:");
+                        console.log(person);
+                        if (person) {
+                            console.log("person already exists");
+                            throw new ValidationError(`${nodeType} with that email already exists`);
+                        }
+                    }
                     result = await handleCreate(
                         tx, 
                         nodeType, 
@@ -614,6 +639,13 @@ const mutateNode = async (context, nodeType, data, type) => {
                     );
                     break;
                 case "update":
+                    if ("Person" === nodeType) {
+                        const person = await getPerson(tx, data.email);                    
+                        if (person && person.properties.pbotID !== data.pbotID) {
+                            console.log("person already exists");
+                            throw new ValidationError(`${nodeType} with that email already exists`);
+                        }
+                    }
                     result = await handleUpdate(
                         tx, 
                         nodeType, 
