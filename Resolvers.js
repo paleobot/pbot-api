@@ -193,7 +193,6 @@ const schemaMap = {
                 type: "AUTHORED_BY",
                 direction: "out",
                 graphqlName: "authors",
-                realGraphqlName: "authoredBy",
                 required: false,
                 updatable: true
             }
@@ -616,68 +615,6 @@ const handleCreate = async (session, nodeType, data) => {
     return result;
 }
 
-const handleQuery = async (session, nodeType, data, user) => {
-    console.log("handleQuery");
-    console.log(data);
-    console.log(user);
-    
-    const pbotID = data.pbotID;
-    
-    const properties = schemaMap[nodeType].properties || [];
-    const relationships = schemaMap[nodeType].relationships || [];
-    
-    let queryStr = `
-        MATCH 
-            (p:Person {pbotID: "${user.pbotID}"})-[:MEMBER_OF]->(g:Group)<-[:ELEMENT_OF]-(n:${nodeType} {
-    `;
-
-    /*
-    queryStr = properties.reduce((str, property) => data[property] ? `
-        ${str}
-            ${property}: ${JSON.stringify(data[property])},
-    ` : `
-        ${str}
-    `, queryStr);
-
-    queryStr = `
-        ${queryStr.slice(0, queryStr.lastIndexOf(','))}
-            })
-        RETURN n            
-    `;
-    */
-    queryStr = properties.reduce((str, property) => data[property] ? `
-        ${str}
-            ${property}: ${JSON.stringify(data[property])},
-    ` : `
-        ${str}
-    `, queryStr);
-
-    queryStr = `
-        ${queryStr.slice(0, queryStr.lastIndexOf(','))}
-            }),
-    `
-    
-     //relationships
-    let returnSpec = "RETURN n";
-    queryStr = relationships.reduce((str, relationship, idx) => {
-            returnSpec = `${returnSpec}, collect(remoteNode${idx}) AS ${relationship.realGraphqlName}`;
-            return `
-                ${str}
-                    (n)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode${idx}),
-            `
-    }, queryStr);
-    
-    queryStr = `
-        ${queryStr.slice(0, queryStr.lastIndexOf(','))}
-        ${returnSpec}            
-    `;   
-            
-    console.log(queryStr);
-    
-    const result = await session.run(queryStr);
-    return result;
-}
-
 const mutateNode = async (context, nodeType, data, type) => {
     const driver = context.driver;
     const session = driver.session()
@@ -686,16 +623,6 @@ const mutateNode = async (context, nodeType, data, type) => {
         const result = await session.writeTransaction(async tx => {
             let result;
             switch (type) {
-                case "query":
-                    console.log(context);
-                    console.log(context.user);
-                    result = await handleQuery(
-                        tx, 
-                        nodeType, 
-                        data,
-                        context.user
-                    );
-                    break;
                 case "create": 
                     if ("Person" === nodeType) {
                         const person = await getPerson(tx, data.email);  
@@ -784,49 +711,6 @@ const mutateNode = async (context, nodeType, data, type) => {
         await session.close();
     }
 }
-
-const queryNode = async (context, nodeType, data, type) => {
-    const driver = context.driver;
-    const session = driver.session()
-    
-    try {
-        const result = await session.writeTransaction(async tx => {
-            let result;
-            console.log(context);
-            console.log(context.user);
-            result = await handleQuery(
-                tx, 
-                nodeType, 
-                data,
-                context.user
-            );
-            return result;
-        });
-
-        //Each record is an array of nodes. When would there ever be more than one? I dunno, 
-        //but get(0) returns the first. We only want to return the properties object inside, 
-        //because that is what graphql is expecting. Everything else is Neo4j stuff.      
-        //return result.records.map(record => record.get(0).properties);      
-        return result.records.map(record => {
-            console.log("returning:");
-            console.log(record);
-            console.log(record.get(0));
-            console.log(record.get(0).properties);
-            console.log(record.get('authoredBy'));
-            console.log({
-                ...record.get(0).properties,
-                authoredBy: record.get('authoredBy').map(author => author.properties)
-            });
-            return {
-                ...record.get(0).properties,
-                authoredBy: record.get('authoredBy').map(author => author.properties)
-            }
-        });
-    } finally {
-        await session.close();
-    }
-}
-
 
 export const Resolvers = {
     Mutation: {
@@ -975,17 +859,6 @@ export const Resolvers = {
             return await mutateNode(context, "Organ", args.data, "create");
             
         },
-    },
-
-    Query: {
-        Reference: async (obj, args, context, info) => {
-            console.log("--Reference");
-            //console.log(args);
-            console.log(info.schema.getTypeMap());
-            console.log(cypherQuery(args, context, info));
-            return await queryNode(context, "Reference", args, "query");
-        },
     }
-    
 };
 
