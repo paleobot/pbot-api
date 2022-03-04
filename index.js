@@ -60,10 +60,10 @@ console.log(schema._typeMap.GroupInput._fields.pbotID);
 console.log(schema._typeMap.GroupInput._fields.pbotID.type);
 console.log(Object.keys(schema._typeMap.GroupInput._fields.pbotID.type));
 console.log(schema._typeMap.GroupInput._fields.pbotID.type.ofType);
-console.log(schema._typeMap.GroupInput._fields.items);
-console.log(schema._typeMap.GroupInput._fields.items.type);
-console.log(Object.keys(schema._typeMap.GroupInput._fields.items.type));
-console.log(schema._typeMap.GroupInput._fields.items.type.ofType);
+console.log(schema._typeMap.GroupInput._fields.elements);
+console.log(schema._typeMap.GroupInput._fields.elements.type);
+console.log(Object.keys(schema._typeMap.GroupInput._fields.elements.type));
+console.log(schema._typeMap.GroupInput._fields.elements.type.ofType);
 //console.log(schema._typeMap.Query);
 
 const debugPlugin = {
@@ -163,7 +163,8 @@ const server = new ApolloServer({
                 schema,
                 cypherParams: {
                     user: user,
-                    cypherMatchPrefix: `(:Person {pbotID:"${user.pbotID}"})-[:MEMBER_OF]->(g:Group)<-[:ELEMENT_OF|:MEMBER_OF]-`
+                    cypherMatchPrefix: `(:Person {pbotID:"${user.pbotID}"})-[:MEMBER_OF]->(g:Group)<-[:ELEMENT_OF|:MEMBER_OF]-`,
+                    skipPrefixNodeTypes: ["Person", "Group"]
                 },
             };
         },   
