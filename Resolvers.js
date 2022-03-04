@@ -27,6 +27,9 @@ const schemaDeleteMap = {
             type: "AUTHORED_BY",
             direction: "out"
         }, {
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
             type: "ENTERED_BY",
             direction: "out"
         }]
@@ -194,6 +197,13 @@ const schemaMap = {
                 direction: "out",
                 graphqlName: "authors",
                 required: false,
+                updatable: true
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "group",
+                required: true,
                 updatable: true
             }
         ]
