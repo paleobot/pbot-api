@@ -13,7 +13,7 @@ type Group {
     pbotID: ID!
     name: String
     members: [Person!]! @relation(name: "MEMBER_OF", direction: IN)
-    items: [Groupable!]! @relation(name: "ITEM_OF", direction: IN)
+    elements: [Groupable!]! @relation(name: "ELEMENT_OF", direction: IN)
     enteredBy: [GroupEnteredBy]
 }
 
@@ -41,6 +41,7 @@ type Reference {
     doi: String
     citedBy: [Schema!]! @relation(name: "CITED_BY", direction: OUT)
     authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
+    elementOf: Group! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [ReferenceEnteredBy]
 }
 
@@ -244,7 +245,7 @@ input GroupInput {
     pbotID: String
     name: String
     members: [String]
-    items: [String]
+    elements: [String]
     enteredByPersonID: String
 }
 
@@ -264,6 +265,7 @@ input ReferenceInput {
 	publisher: String
 	doi: String
 	authors: [String]
+	group: String
 	enteredByPersonID: String
 } 
 
