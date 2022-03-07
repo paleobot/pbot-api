@@ -47,6 +47,9 @@ const schemaDeleteMap = {
             type: "AUTHORED_BY",
             direction: "out"
         }, {
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
             type: "ENTERED_BY",
             direction: "out"
         }, {
@@ -107,6 +110,9 @@ const schemaDeleteMap = {
             type: "EXAMPLE_OF",
             direction: "in"
         }, {
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
             type: "ENTERED_BY",
             direction: "out"
         }]
@@ -142,6 +148,9 @@ const schemaDeleteMap = {
             direction: "out"
         }, {
             type: "EXAMPLE_OF",
+            direction: "out"
+        }, {
+            type: "ELEMENT_OF",
             direction: "out"
         }, {
             type: "ENTERED_BY",
@@ -182,7 +191,16 @@ const schemaMap = {
             "email",
             "orcid"
         ],
-        relationships:[]
+        relationships:[
+            {
+                type: "MEMBER_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
+                updatable: true
+            }
+            
+        ]
     },
     Reference: {
         properties: [
@@ -202,7 +220,7 @@ const schemaMap = {
             {
                 type: "ELEMENT_OF",
                 direction: "out",
-                graphqlName: "group",
+                graphqlName: "groups",
                 required: true,
                 updatable: true
             }
@@ -225,6 +243,13 @@ const schemaMap = {
                 direction: "out",
                 graphqlName: "authors",
                 required: false,
+                updatable: true
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
                 updatable: true
             }
         ]
@@ -280,6 +305,13 @@ const schemaMap = {
                 graphqlName: "specimenID",
                 required: false,
                 updatable: true
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
+                updatable: true
             }
         ]
     },
@@ -309,6 +341,13 @@ const schemaMap = {
                 type: "IS_TYPE",
                 direction: "out",
                 graphqlName: "organID",
+                required: true,
+                updatable: true
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
                 required: true,
                 updatable: true
             }

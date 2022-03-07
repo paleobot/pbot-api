@@ -30,6 +30,7 @@ type Person {
       statement: "match (n)-[:ENTERED_BY]->(this) return n"
     )
     authored: [Authorable!]! @relation(name: "AUTHORED_BY", direction: IN)
+    memberOf: [Group!]! @relation(name: "MEMBER_OF", direction: OUT)
     enteredBy: [PersonEnteredBy]
 }
 
@@ -41,7 +42,7 @@ type Reference {
     doi: String
     citedBy: [Schema!]! @relation(name: "CITED_BY", direction: OUT)
     authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
-    elementOf: Group! @relation(name: "ELEMENT_OF", direction: OUT)
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [ReferenceEnteredBy]
 }
 
@@ -53,6 +54,7 @@ type Schema {
     characters: [Character] @relation(name: "CHARACTER_OF", direction: IN)
     authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
     appliedBy: [Description]! @relation(name: "APPLICATION_OF", direction: IN)
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [SchemaEnteredBy]
 }
 
@@ -99,6 +101,7 @@ type Description {
     exampleSpecimens: [ExampleOf!]!
     specimen: DescribedBy
     schema: Schema @relation(name: "APPLICATION_OF", direction: OUT)
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [DescriptionEnteredBy]
 }
 
@@ -118,6 +121,7 @@ type Specimen {
     organ: Organ @relation(name: "IS_TYPE", direction: OUT)
     description: DescribedBy
     archtypeDescription: ExampleOf
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [SpecimenEnteredBy]
 }
 
@@ -255,6 +259,7 @@ input PersonInput {
 	surname: String
 	email: String
 	orcid: String
+	groups: [String]
 	enteredByPersonID: String
 } 
 
@@ -265,7 +270,7 @@ input ReferenceInput {
 	publisher: String
 	doi: String
 	authors: [String]
-	group: String
+	groups: [String]
 	enteredByPersonID: String
 } 
 
@@ -275,6 +280,7 @@ input SchemaInput {
 	year: String
 	references: [String]
 	authors: [String]
+	groups: [String]
 	enteredByPersonID: String
 	cascade: Boolean
 }
@@ -308,6 +314,7 @@ input DescriptionInput {
 	genus: String
 	species: String
 	schemaID: String!
+	groups: [String]
 	enteredByPersonID: String
 	cascade: Boolean
 }
@@ -332,6 +339,7 @@ input SpecimenInput {
     descriptionID: String
     otuID: String
     organID: String
+	groups: [String]
 	enteredByPersonID: String
 }
 
