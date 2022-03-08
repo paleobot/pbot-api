@@ -301,6 +301,7 @@ input StateInput {
     characterID: String
     parentStateID: String
     parentID: String
+    schemaID: String
 	enteredByPersonID: String
 	cascade: Boolean
 }

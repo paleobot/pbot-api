@@ -266,6 +266,13 @@ const schemaMap = {
                 graphqlName: "schemaID",
                 required: true,
                 updatable: false
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
+                updatable: true
             }
         ]
     },
@@ -279,6 +286,13 @@ const schemaMap = {
                 type: "STATE_OF",
                 direction: "out",
                 graphqlName: "parentID",
+                required: true,
+                updatable: true
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
                 required: true,
                 updatable: true
             }
@@ -376,6 +390,37 @@ const getPerson = async (session, email) => {
         {email: email}
     )
     return result.records.length > 0 ? result.records[0].get(0) : null;
+}
+
+const getGroups = async (session, data) => {
+    const rootID = data.schemaID || data.descriptionID || null;
+    
+    if (rootID !== null) {
+        const queryStr = `
+            MATCH
+                (n)-[:ELEMENT_OF]-(g:Group)
+            WHERE 
+                n.pbotID = "${rootID}"
+            RETURN
+                g
+        `;
+        console.log(queryStr);
+        
+        const result = await session.run(
+            queryStr,
+            {rootID: rootID}
+        )
+        
+        console.log("------result----------");
+        console.log(result);
+        console.log("records returned: " + result.records.length)
+        const res = result.records.map((rec) => (rec.get(0).properties.pbotID));
+        console.log("res");
+        console.log(res);
+        return res;
+    } else {
+        throw new ValidationError(`Cannot find groups`); //TODO: good enough?
+    }
 }
 
 const getRelationships = async (session, pbotID, relationships) => {
@@ -605,6 +650,8 @@ const handleUpdate = async (session, nodeType, data) => {
 
 const handleCreate = async (session, nodeType, data) => {
     console.log("handleCreate");
+    console.log(data);
+    console.log(data.groups);
     
     const pbotID = data.pbotID;
     const enteredByPersonID = data.enteredByPersonID
@@ -681,6 +728,13 @@ const mutateNode = async (context, nodeType, data, type) => {
                             console.log("person already exists");
                             throw new ValidationError(`${nodeType} with that email already exists`);
                         }
+                    } else if ("Character" === nodeType || "State" === nodeType || "CharacterInstance" === nodeType) {
+                        console.log("++++++++++++++++++++++fetching groups++++++++++++++++++");
+                        //fetch groups from Schema and put in data
+                        const groups = await getGroups(tx, data);
+                        console.log("Groups:");
+                        console.log(groups);
+                        data["groups"] = groups;
                     }
                     result = await handleCreate(
                         tx, 
