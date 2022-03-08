@@ -493,6 +493,76 @@ const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relati
     return result;
 }
 
+//Much of handleGroupUpdate is redundant with handleUpdate. But, handleUpdate assumes a fully populated input object in data.
+//I don't have that for nodes to which I am cascading group membership. I could change getRelationships to provide this, 
+//but that would be heavy for every other use of that routine. So I created handleGroupUpdate to handle this special case.
+const handleGroupUpdate = async (session, nodeType, data) => {
+    console.log("updateGroups");
+    
+    const pbotID = data.pbotID;
+    const enteredByPersonID = data.enteredByPersonID
+
+    //Get base node and create new ENTERED_BY relationship
+    let queryStr = `
+        MATCH 
+            (baseNode:${nodeType} {pbotID: "${pbotID}"}),
+            (ePerson:Person {pbotID: "${enteredByPersonID}"})
+        WITH baseNode, ePerson					
+            CREATE
+                (baseNode)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+        WITH baseNode, eb	
+    `;
+
+    //Copy old group relationships (as pbotID array) into ENTERED_BY. Also, go ahead and delete the relationships here for convenience.
+    queryStr =  `
+        ${queryStr}
+            OPTIONAL MATCH (baseNode)-[rel:ELEMENT_OF]->(remoteNode)
+            WITH baseNode, eb, collect(remoteNode.pbotID) AS remoteNodeIDs, collect(rel) AS oldRels
+            FOREACH (r IN oldRels | DELETE r)
+            WITH distinct baseNode, remoteNodeIDs, apoc.coll.disjunction(remoteNodeIDs, ${JSON.stringify(data.groups)} ) AS diffList, eb
+            CALL
+                apoc.do.case([
+                    size(remoteNodeIDs) = 0 AND size(diffList) <> 0,
+                    "SET eb.groups = 'not present' RETURN eb",
+                    size(diffList)<>0,
+                    "SET eb.groups = remoteNodeIDs RETURN eb"],
+                    "RETURN eb",
+                    {diffList: diffList, remoteNodeIDs: remoteNodeIDs, eb: eb}
+                )
+            YIELD value
+            WITH baseNode, eb
+    `;
+    
+    //Create new group relationships
+    if (data.groups && data.groups.length > 0) {
+        queryStr = `
+            ${queryStr}
+                UNWIND ${JSON.stringify(data.groups)} AS iD
+                    CALL
+                        apoc.do.when(
+                            iD IS NULL,
+                            "RETURN baseNode",
+                            "MATCH (remoteNode) WHERE remoteNode.pbotID = iD CREATE (baseNode)-[:ELEMENT_OF]->(remoteNode) RETURN baseNode",
+                            {iD:iD, baseNode:baseNode}
+                        ) YIELD value
+                    WITH distinct baseNode
+        `
+    }
+
+    queryStr = `
+        ${queryStr}
+        RETURN {
+            pbotID: baseNode.pbotID
+        }
+    `;
+    
+    console.log(queryStr);
+    
+    const result = await session.run(queryStr);
+    return result;
+}
+
+    
 const handleUpdate = async (session, nodeType, data) => {
     console.log("handleUpdate");
     
@@ -715,6 +785,9 @@ const mutateNode = async (context, nodeType, data, type) => {
     const driver = context.driver;
     const session = driver.session()
     
+    console.log("mutateNode");
+    console.log(data);
+    
     try {
         const result = await session.writeTransaction(async tx => {
             let result;
@@ -743,6 +816,7 @@ const mutateNode = async (context, nodeType, data, type) => {
                     );
                     break;
                 case "update":
+                    console.log("Updating");
                     if ("Person" === nodeType) {
                         const person = await getPerson(tx, data.email);                    
                         if (person && person.properties.pbotID !== data.pbotID) {
@@ -750,11 +824,41 @@ const mutateNode = async (context, nodeType, data, type) => {
                             throw new ValidationError(`${nodeType} with that email already exists`);
                         }
                     }
-                    result = await handleUpdate(
+    
+                    const groupCascadeRelationships = schemaDeleteMap[nodeType].cascadeRelationships || [];
+                    const remoteNodes = await getRelationships(
                         tx, 
-                        nodeType, 
-                        data       
+                        data.pbotID, 
+                        groupCascadeRelationships
                     );
+                    //console.log("remoteNodes");
+                    //console.log(remoteNodes);
+                    console.log("cascading groups");
+                    await Promise.all(remoteNodes.map(node => {
+                        node.groups = data.groups;
+                        node.groupCascade = true;
+                        node.enteredByPersonID = data.enteredByPersonID;
+                        console.log("node after");
+                        console.log(node);
+                        return mutateNode(context, node.nodeType, node, "update")
+                    })).catch(error => {
+                        console.log(error);
+                        throw new ValidationError(`Unable to cascade groups for ${nodeType}`);
+                    });
+                    
+                    if (data.groupCascade) {
+                        result = await handleGroupUpdate(
+                            tx, 
+                            nodeType, 
+                            data       
+                        );
+                    } else {
+                        result = await handleUpdate(
+                            tx, 
+                            nodeType, 
+                            data       
+                        );
+                    }
                     break;
                 case "delete":
                     const pbotID = data.pbotID;
