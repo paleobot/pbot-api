@@ -389,14 +389,22 @@ type Mutation {
             statement: """
                 MATCH 
                     (description:Description {pbotID: $data.descriptionID}),
+					(description)-[:ELEMENT_OF]->(group:Group),
                     (character:Character {pbotID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {pbotID: $data.stateID}),
                     (person:Person {pbotID: $data.enteredByPersonID})
+				WITH
+					collect(group) AS groups, description, character, state, person
                 CREATE 
                     (description)-[:DEFINED_BY]->(characterInstance:CharacterInstance {
                         pbotID: apoc.create.uuid()
                     })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person),
                     (character)<-[:INSTANCE_OF]-(characterInstance),
                     (state)<-[:HAS_STATE {value: $data.quantity}]-(characterInstance) 
+				WITH groups, characterInstance
+				FOREACH (group IN groups |
+					CREATE	
+						(characterInstance)-[:ELEMENT_OF]->(group)
+                )
                 RETURN characterInstance
             """
         )
