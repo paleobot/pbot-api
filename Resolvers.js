@@ -70,6 +70,9 @@ const schemaDeleteMap = {
             type: "CHARACTER_OF",
             direction: "out"
         }, {
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
             type: "ENTERED_BY",
             direction: "out"
         }]
@@ -85,6 +88,9 @@ const schemaDeleteMap = {
         }],
         nonblockingRelationships: [{
             type: "STATE_OF",
+            direction: "out"
+        }, {
+            type: "ELEMENT_OF",
             direction: "out"
         }, {
             type: "ENTERED_BY",
@@ -131,6 +137,9 @@ const schemaDeleteMap = {
             direction: "out"
         }, {
             type: "HAS_STATE",
+            direction: "out"
+        }, {
+            type: "ELEMENT_OF",
             direction: "out"
         }, {
             type: "ENTERED_BY",
