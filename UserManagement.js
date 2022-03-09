@@ -71,7 +71,7 @@ const createUser = async (driver, user) => {
     //The replace razzle-dazzle below is just to get a list of role strings rather than objects.
     return session.run(`
         MATCH
-            (role:Role {name: "user"})
+            (role:Role {name: "admin"})
         MERGE 
             (person:Person {email : $email})
             ON CREATE SET
