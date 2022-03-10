@@ -11,7 +11,8 @@ const getUser = async (driver, email) => {
     console.log("getUser");
     //console.log(driver);
     console.log(email);
-    if (!email) return {surname: 'dummy'};
+    //if (!email) return {surname: 'dummy'};
+    email = email || "guest";
     
     const session = driver.session();
     //The replace razzle-dazzle below is just to get a list of role strings rather than objects.
@@ -70,7 +71,9 @@ const createUser = async (driver, user) => {
     //The replace razzle-dazzle below is just to get a list of role strings rather than objects.
     return session.run(`
         MATCH
-            (role:Role {name: "user"})
+            (user:Role {name: "user"}),
+            (admin:Role {name: "admin"}),
+            (public:Group {name: "public"})
         MERGE 
             (person:Person {email : $email})
             ON CREATE SET
@@ -81,24 +84,19 @@ const createUser = async (driver, user) => {
             ON MATCH SET
                 person.password = $password
         MERGE
-            (person)-[:HAS_ROLE]->(role) 	
+            (person)-[:HAS_ROLE]->(user) 	
+        MERGE
+            (person)-[:HAS_ROLE]->(admin) 	
+        MERGE
+            (person)-[:MEMBER_OF]->(public) 	
         RETURN 
             person{
                 .given, 
                 .surname, 
                 .email,
                 .password,
-                roles:collect(
-                    replace(
-                        replace(
-                            apoc.convert.toString(role{.name}), 
-                            "{name=", 
-                            ""
-                        ),
-                        "}",
-                        ""
-                    )
-                )
+                roles: [user.name, admin.name],
+                groups:[public.name]
             }           
         `, {
             email: user.email,

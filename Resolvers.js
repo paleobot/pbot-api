@@ -1,5 +1,6 @@
 //import * as neo4j from 'neo4j-driver';
 import {ValidationError} from 'apollo-server';
+import {cypherQuery} from 'neo4j-graphql-js';
 
 const schemaDeleteMap = {
     Group: {
@@ -26,6 +27,9 @@ const schemaDeleteMap = {
             type: "AUTHORED_BY",
             direction: "out"
         }, {
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
             type: "ENTERED_BY",
             direction: "out"
         }]
@@ -41,6 +45,9 @@ const schemaDeleteMap = {
         }],
         nonblockingRelationships: [{
             type: "AUTHORED_BY",
+            direction: "out"
+        }, {
+            type: "ELEMENT_OF",
             direction: "out"
         }, {
             type: "ENTERED_BY",
@@ -63,6 +70,9 @@ const schemaDeleteMap = {
             type: "CHARACTER_OF",
             direction: "out"
         }, {
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
             type: "ENTERED_BY",
             direction: "out"
         }]
@@ -78,6 +88,9 @@ const schemaDeleteMap = {
         }],
         nonblockingRelationships: [{
             type: "STATE_OF",
+            direction: "out"
+        }, {
+            type: "ELEMENT_OF",
             direction: "out"
         }, {
             type: "ENTERED_BY",
@@ -103,6 +116,9 @@ const schemaDeleteMap = {
             type: "EXAMPLE_OF",
             direction: "in"
         }, {
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
             type: "ENTERED_BY",
             direction: "out"
         }]
@@ -123,6 +139,9 @@ const schemaDeleteMap = {
             type: "HAS_STATE",
             direction: "out"
         }, {
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
             type: "ENTERED_BY",
             direction: "out"
         }]
@@ -138,6 +157,9 @@ const schemaDeleteMap = {
             direction: "out"
         }, {
             type: "EXAMPLE_OF",
+            direction: "out"
+        }, {
+            type: "ELEMENT_OF",
             direction: "out"
         }, {
             type: "ENTERED_BY",
@@ -178,7 +200,16 @@ const schemaMap = {
             "email",
             "orcid"
         ],
-        relationships:[]
+        relationships:[
+            {
+                type: "MEMBER_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
+                updatable: true
+            }
+            
+        ]
     },
     Reference: {
         properties: [
@@ -193,6 +224,13 @@ const schemaMap = {
                 direction: "out",
                 graphqlName: "authors",
                 required: false,
+                updatable: true
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
                 updatable: true
             }
         ]
@@ -215,6 +253,13 @@ const schemaMap = {
                 graphqlName: "authors",
                 required: false,
                 updatable: true
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
+                updatable: true
             }
         ]
     },
@@ -230,6 +275,13 @@ const schemaMap = {
                 graphqlName: "schemaID",
                 required: true,
                 updatable: false
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
+                updatable: true
             }
         ]
     },
@@ -243,6 +295,13 @@ const schemaMap = {
                 type: "STATE_OF",
                 direction: "out",
                 graphqlName: "parentID",
+                required: true,
+                updatable: true
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
                 required: true,
                 updatable: true
             }
@@ -268,6 +327,13 @@ const schemaMap = {
                 direction: "in",
                 graphqlName: "specimenID",
                 required: false,
+                updatable: true
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
                 updatable: true
             }
         ]
@@ -300,6 +366,13 @@ const schemaMap = {
                 graphqlName: "organID",
                 required: true,
                 updatable: true
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
+                updatable: true
             }
         ]
     },
@@ -310,6 +383,53 @@ const schemaMap = {
         relationships: []
     },
     
+}
+
+const getPerson = async (session, email) => {
+    const queryStr = `
+        MATCH
+            (p:Person {email: "${email}"})
+        RETURN 
+            p
+    `;
+    console.log(queryStr);
+        
+    const result = await session.run(
+        queryStr,
+        {email: email}
+    )
+    return result.records.length > 0 ? result.records[0].get(0) : null;
+}
+
+const getGroups = async (session, data) => {
+    const rootID = data.schemaID || data.descriptionID || null;
+    
+    if (rootID !== null) {
+        const queryStr = `
+            MATCH
+                (n)-[:ELEMENT_OF]-(g:Group)
+            WHERE 
+                n.pbotID = "${rootID}"
+            RETURN
+                g
+        `;
+        console.log(queryStr);
+        
+        const result = await session.run(
+            queryStr,
+            {rootID: rootID}
+        )
+        
+        console.log("------result----------");
+        console.log(result);
+        console.log("records returned: " + result.records.length)
+        const res = result.records.map((rec) => (rec.get(0).properties.pbotID));
+        console.log("res");
+        console.log(res);
+        return res;
+    } else {
+        throw new ValidationError(`Cannot find groups`); //TODO: good enough?
+    }
 }
 
 const getRelationships = async (session, pbotID, relationships) => {
@@ -381,16 +501,31 @@ const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relati
     const result = await session.run(queryStr);
     return result;
 }
-
+    
 const handleUpdate = async (session, nodeType, data) => {
     console.log("handleUpdate");
     
     const pbotID = data.pbotID;
     const enteredByPersonID = data.enteredByPersonID
     
-    const properties = schemaMap[nodeType].properties || [];
-    let relationships = schemaMap[nodeType].relationships || [];
-    relationships = relationships.filter(r => r.updatable);
+    let properties;
+    let relationships;
+    if (data.groupCascade) {
+        //all we want to do in this case is update the groups
+        properties = [];
+        relationships = [{
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
+                updatable: true
+        }];
+    } else {
+        properties = schemaMap[nodeType].properties || []; 
+        relationships = schemaMap[nodeType].relationships || [];
+        relationships = relationships.filter(r => r.updatable);
+    }
+    
     console.log("relationships");
     console.log(relationships);
     
@@ -539,6 +674,8 @@ const handleUpdate = async (session, nodeType, data) => {
 
 const handleCreate = async (session, nodeType, data) => {
     console.log("handleCreate");
+    console.log(data);
+    console.log(data.groups);
     
     const pbotID = data.pbotID;
     const enteredByPersonID = data.enteredByPersonID
@@ -602,11 +739,30 @@ const mutateNode = async (context, nodeType, data, type) => {
     const driver = context.driver;
     const session = driver.session()
     
+    console.log("mutateNode");
+    console.log(data);
+    
     try {
         const result = await session.writeTransaction(async tx => {
             let result;
             switch (type) {
                 case "create": 
+                    if ("Person" === nodeType) {
+                        const person = await getPerson(tx, data.email);  
+                        console.log("Person:");
+                        console.log(person);
+                        if (person) {
+                            console.log("person already exists");
+                            throw new ValidationError(`${nodeType} with that email already exists`);
+                        }
+                    } else if ("Character" === nodeType || "State" === nodeType || "CharacterInstance" === nodeType) {
+                        console.log("++++++++++++++++++++++fetching groups++++++++++++++++++");
+                        //fetch groups from Schema and put in data
+                        const groups = await getGroups(tx, data);
+                        console.log("Groups:");
+                        console.log(groups);
+                        data["groups"] = groups;
+                    }
                     result = await handleCreate(
                         tx, 
                         nodeType, 
@@ -614,6 +770,36 @@ const mutateNode = async (context, nodeType, data, type) => {
                     );
                     break;
                 case "update":
+                    console.log("Updating");
+                    if ("Person" === nodeType) {
+                        const person = await getPerson(tx, data.email);                    
+                        if (person && person.properties.pbotID !== data.pbotID) {
+                            console.log("person already exists");
+                            throw new ValidationError(`${nodeType} with that email already exists`);
+                        }
+                    }
+    
+                    const groupCascadeRelationships = schemaDeleteMap[nodeType].cascadeRelationships || [];
+                    const remoteNodes = await getRelationships(
+                        tx, 
+                        data.pbotID, 
+                        groupCascadeRelationships
+                    );
+                    //console.log("remoteNodes");
+                    //console.log(remoteNodes);
+                    console.log("cascading groups");
+                    await Promise.all(remoteNodes.map(node => {
+                        node.groups = data.groups;
+                        node.groupCascade = true;
+                        node.enteredByPersonID = data.enteredByPersonID;
+                        console.log("node after");
+                        console.log(node);
+                        return mutateNode(context, node.nodeType, node, "update")
+                    })).catch(error => {
+                        console.log(error);
+                        throw new ValidationError(`Unable to cascade groups for ${nodeType}`);
+                    });
+                    
                     result = await handleUpdate(
                         tx, 
                         nodeType, 
@@ -826,7 +1012,6 @@ export const Resolvers = {
             return await mutateNode(context, "Organ", args.data, "create");
             
         },
-
     }
 };
 

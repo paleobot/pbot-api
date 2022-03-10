@@ -13,7 +13,7 @@ type Group {
     pbotID: ID!
     name: String
     members: [Person!]! @relation(name: "MEMBER_OF", direction: IN)
-    items: [Groupable!]! @relation(name: "ITEM_OF", direction: IN)
+    elements: [Groupable!]! @relation(name: "ELEMENT_OF", direction: IN)
     enteredBy: [GroupEnteredBy]
 }
 
@@ -30,6 +30,7 @@ type Person {
       statement: "match (n)-[:ENTERED_BY]->(this) return n"
     )
     authored: [Authorable!]! @relation(name: "AUTHORED_BY", direction: IN)
+    memberOf: [Group!]! @relation(name: "MEMBER_OF", direction: OUT)
     enteredBy: [PersonEnteredBy]
 }
 
@@ -41,6 +42,7 @@ type Reference {
     doi: String
     citedBy: [Schema!]! @relation(name: "CITED_BY", direction: OUT)
     authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [ReferenceEnteredBy]
 }
 
@@ -52,6 +54,7 @@ type Schema {
     characters: [Character] @relation(name: "CHARACTER_OF", direction: IN)
     authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
     appliedBy: [Description]! @relation(name: "APPLICATION_OF", direction: IN)
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [SchemaEnteredBy]
 }
 
@@ -98,6 +101,7 @@ type Description {
     exampleSpecimens: [ExampleOf!]!
     specimen: DescribedBy
     schema: Schema @relation(name: "APPLICATION_OF", direction: OUT)
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [DescriptionEnteredBy]
 }
 
@@ -117,6 +121,7 @@ type Specimen {
     organ: Organ @relation(name: "IS_TYPE", direction: OUT)
     description: DescribedBy
     archtypeDescription: ExampleOf
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [SpecimenEnteredBy]
 }
 
@@ -211,9 +216,9 @@ type DescribedBy @relation(name: "DESCRIBED_BY") {
 
 
 
-"""
-Not sure this will be useful, but it's a way to get at the leaf states in state hierarchies."""
-type Query {
+type Query {        
+    """
+    Not sure this will be useful, but it's a way to get at the leaf states in state hierarchies."""
     GetLeafStates(characterID: String!): [State]
         @cypher(
             statement: """
@@ -244,7 +249,7 @@ input GroupInput {
     pbotID: String
     name: String
     members: [String]
-    items: [String]
+    elements: [String]
     enteredByPersonID: String
 }
 
@@ -254,6 +259,7 @@ input PersonInput {
 	surname: String
 	email: String
 	orcid: String
+	groups: [String]
 	enteredByPersonID: String
 } 
 
@@ -264,6 +270,7 @@ input ReferenceInput {
 	publisher: String
 	doi: String
 	authors: [String]
+	groups: [String]
 	enteredByPersonID: String
 } 
 
@@ -273,6 +280,7 @@ input SchemaInput {
 	year: String
 	references: [String]
 	authors: [String]
+	groups: [String]
 	enteredByPersonID: String
 	cascade: Boolean
 }
@@ -293,6 +301,7 @@ input StateInput {
     characterID: String
     parentStateID: String
     parentID: String
+    schemaID: String
 	enteredByPersonID: String
 	cascade: Boolean
 }
@@ -306,6 +315,7 @@ input DescriptionInput {
 	genus: String
 	species: String
 	schemaID: String!
+	groups: [String]
 	enteredByPersonID: String
 	cascade: Boolean
 }
@@ -330,6 +340,7 @@ input SpecimenInput {
     descriptionID: String
     otuID: String
     organID: String
+	groups: [String]
 	enteredByPersonID: String
 }
 
@@ -378,14 +389,22 @@ type Mutation {
             statement: """
                 MATCH 
                     (description:Description {pbotID: $data.descriptionID}),
+					(description)-[:ELEMENT_OF]->(group:Group),
                     (character:Character {pbotID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {pbotID: $data.stateID}),
                     (person:Person {pbotID: $data.enteredByPersonID})
+				WITH
+					collect(group) AS groups, description, character, state, person
                 CREATE 
                     (description)-[:DEFINED_BY]->(characterInstance:CharacterInstance {
                         pbotID: apoc.create.uuid()
                     })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person),
                     (character)<-[:INSTANCE_OF]-(characterInstance),
                     (state)<-[:HAS_STATE {value: $data.quantity}]-(characterInstance) 
+				WITH groups, characterInstance
+				FOREACH (group IN groups |
+					CREATE	
+						(characterInstance)-[:ELEMENT_OF]->(group)
+                )
                 RETURN characterInstance
             """
         )

@@ -18,7 +18,7 @@
     "graphql-shield": "^7.5.0",
     "jsonwebtoken": "^8.5.1",
     "neo4j-driver": "^4.4.1",
-    "neo4j-graphql-js": "^2.19.4",
+    "neo4j-graphql-js": "https://github.com/paleobot/neo4j-graphql-js.git",
     "nodemailer": "^6.6.5"
   },
   "type": "module"
