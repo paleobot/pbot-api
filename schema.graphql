@@ -14,6 +14,7 @@ type Group {
     name: String
     members: [Person!]! @relation(name: "MEMBER_OF", direction: IN)
     elements: [Groupable!]! @relation(name: "ELEMENT_OF", direction: IN)
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [GroupEnteredBy]
 }
 
@@ -250,6 +251,7 @@ input GroupInput {
     name: String
     members: [String]
     elements: [String]
+	groups: [String]
     enteredByPersonID: String
 }
 

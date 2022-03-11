@@ -722,6 +722,15 @@ const handleCreate = async (session, nodeType, data) => {
         }
     }, queryStr);
     
+    //Groups must be elements of themselves
+    queryStr = "Group" === nodeType ? ` 
+        ${queryStr}
+        CREATE
+            (baseNode)-[:ELEMENT_OF]->(baseNode)
+    ` :
+    queryStr;
+    
+    
     queryStr = `
         ${queryStr}
         RETURN {
