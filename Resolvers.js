@@ -691,7 +691,7 @@ const handleCreate = async (session, nodeType, data) => {
             CREATE
                 (baseNode:${nodeType} {
                     pbotID: apoc.create.uuid()})-[eb:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(ePerson)
-        WITH baseNode	
+        WITH baseNode, ePerson	
         SET
     `;
     queryStr = properties.reduce((str, property) => `
@@ -700,7 +700,7 @@ const handleCreate = async (session, nodeType, data) => {
     `, queryStr);
     queryStr = `
         ${queryStr.slice(0, queryStr.lastIndexOf(','))}
-        WITH baseNode
+        WITH baseNode, ePerson
     `;
     
     //Create new relationships
@@ -711,7 +711,7 @@ const handleCreate = async (session, nodeType, data) => {
                     UNWIND ${JSON.stringify(data[relationship.graphqlName])} AS iD
                         MATCH (remoteNode) WHERE remoteNode.pbotID = iD 
                         CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
-                    WITH distinct baseNode
+                    WITH distinct baseNode, ePerson
             `
         } else {
             if (relationship.required) {
@@ -722,11 +722,12 @@ const handleCreate = async (session, nodeType, data) => {
         }
     }, queryStr);
     
-    //Groups must be elements of themselves
+    //Groups must be elements of themselves; the creator must be a member
     queryStr = "Group" === nodeType ? ` 
         ${queryStr}
         CREATE
-            (baseNode)-[:ELEMENT_OF]->(baseNode)
+            (baseNode)-[:ELEMENT_OF]->(baseNode),
+            (ePerson)-[:MEMBER_OF]->(baseNode)
     ` :
     queryStr;
     
