@@ -743,6 +743,25 @@ const mutateNode = async (context, nodeType, data, type) => {
     console.log(data);
     
     try {
+        //First, check that public group setting is exclusive
+        if (data.groups) {
+            const queryStr = `
+                MATCH
+                    (g:Group {name:"public"})
+                RETURN
+                    g
+            `;
+            
+            const result = await session.run(
+                queryStr
+            );
+            const publicGroupID = result.records.length > 0 ? result.records[0].get(0).properties.pbotID : null;            
+            
+            if (data.groups.includes(publicGroupID) && data.groups.length > 1) {
+                throw new ValidationError(`A public group cannot be in other groups.`);
+            }
+        }
+    
         const result = await session.writeTransaction(async tx => {
             let result;
             switch (type) {
