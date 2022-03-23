@@ -118,6 +118,10 @@ type Specimen {
     pbotID: ID!
     name: String
     locality: String
+    preservationMode: String
+    idigbiouuid: String
+    pbdbcid: String
+    pbdboccid: String
     organ: Organ @relation(name: "IS_TYPE", direction: OUT)
     description: DescribedBy
     archtypeDescription: ExampleOf
