@@ -339,6 +339,7 @@ const schemaMap = {
         ]
     },
     Specimen: {
+        //TODO: look into https://www.graphql-scalars.dev/docs/scalars/uuid for managing idigbiouuid
         properties: [
            "name",
            "locality",
@@ -383,6 +384,24 @@ const schemaMap = {
         relationships: []
     },
     
+}
+
+const isPublic = async (session, pbotID) => {
+    const queryStr = `
+        MATCH
+            (n)-[:ELEMENT_OF]->(:Group {name: "public"})
+        WHERE
+            n.pbotID = $pbotID
+        RETURN 
+            n
+    `;
+    console.log(queryStr);
+        
+    const result = await session.run(
+        queryStr,
+        {pbotID: pbotID}
+    );
+    return result.records.length > 0;
 }
 
 const getPerson = async (session, email) => {
@@ -753,6 +772,23 @@ const mutateNode = async (context, nodeType, data, type) => {
     console.log(data);
     
     try {
+        //First, check that public group setting is exclusive
+        const queryStr = `
+            MATCH
+                (g:Group {name:"public"})
+            RETURN
+                g
+        `;
+        
+        const pgResult = await session.run(
+            queryStr
+        );
+        const publicGroupID = pgResult.records.length > 0 ? pgResult.records[0].get(0).properties.pbotID : null;            
+        
+        if (data.groups && data.groups.includes(publicGroupID) && data.groups.length > 1) {
+            throw new ValidationError(`A public ${nodeType} cannot be in other groups.`);
+        }
+    
         const result = await session.writeTransaction(async tx => {
             let result;
             switch (type) {
@@ -788,6 +824,14 @@ const mutateNode = async (context, nodeType, data, type) => {
                             throw new ValidationError(`${nodeType} with that email already exists`);
                         }
                     }
+                    
+                    //Prevent privatization of public nodes
+                    if (await isPublic(tx, data.pbotID) && !data.groups.includes(publicGroupID)) {
+                        throw new ValidationError(`This ${nodeType} is public. Cannot change groups`);
+                    }
+                    
+                    //TODO: If setting to newly public, clean out old DELETE data
+                        
     
                     const groupCascadeRelationships = schemaDeleteMap[nodeType].cascadeRelationships || [];
                     const remoteNodes = await getRelationships(
