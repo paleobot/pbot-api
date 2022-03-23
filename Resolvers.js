@@ -339,6 +339,7 @@ const schemaMap = {
         ]
     },
     Specimen: {
+        //TODO: look into https://www.graphql-scalars.dev/docs/scalars/uuid for managing idigbiouuid
         properties: [
            "name",
            "locality",
