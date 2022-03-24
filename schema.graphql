@@ -23,6 +23,7 @@ type Group {
     work with unions. """
 type Person {
     pbotID: ID!
+    password: String
     given: String
     surname: String
     email: String
