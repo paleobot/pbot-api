@@ -166,6 +166,23 @@ const schemaDeleteMap = {
             direction: "out"
         }]
     }, 
+    Collection: {
+        blockingRelationships: [{
+            type: "COLLECTED_BY",
+            direction: "in"
+        }, ],
+        cascadeRelationships: [],
+        nonblockingRelationships: [{
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
+            type: "ENTERED_BY",
+            direction: "out"
+        }, {
+            type: "CITED_BY",
+            direction: "in"
+        }]
+    }, 
 }
 
 //In theory, the information contained in this map is already in the schema definion in schema.graphql.
@@ -328,8 +345,13 @@ const schemaMap = {
                 graphqlName: "specimenID",
                 required: false,
                 updatable: true
-            },
-            {
+            }, {
+                type: "CITED_BY",
+                direction: "in",
+                graphqlName: "references",
+                required: false,
+                updatable: true
+            }, {
                 type: "ELEMENT_OF",
                 direction: "out",
                 graphqlName: "groups",
@@ -367,8 +389,19 @@ const schemaMap = {
                 graphqlName: "organID",
                 required: true,
                 updatable: true
-            },
-            {
+            }, {
+                type: "COLLECTED_BY",
+                direction: "out",
+                graphqlName: "collection",
+                required: false,
+                updatable: true
+            }, {
+                type: "CITED_BY",
+                direction: "in",
+                graphqlName: "references",
+                required: false,
+                updatable: true
+            }, {
                 type: "ELEMENT_OF",
                 direction: "out",
                 graphqlName: "groups",
@@ -382,6 +415,30 @@ const schemaMap = {
            "type"
         ],
         relationships: []
+    },
+    Collection: {
+        properties: ["name"],
+        relationships: [
+            {
+                type: "CITED_BY",
+                direction: "in",
+                graphqlName: "references",
+                required: false,
+                updatable: true
+            }, {
+                type: "COLLECTED_BY",
+                direction: "in",
+                graphqlName: "specimens",
+                required: false,
+                updatable: true
+            }, {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: false,
+                updatable: true
+            }
+        ]
     },
     
 }
@@ -956,6 +1013,11 @@ export const Resolvers = {
             return await mutateNode(context, "Specimen", args.data, "delete");
         },        
 
+        DeleteCollection: async (obj, args, context, info) => {
+            console.log("DeleteCollection");
+            return await mutateNode(context, "Collection", args.data, "delete");
+        },        
+
         DeleteGroup: async (obj, args, context, info) => {
             console.log("DeleteGroup");
             return await mutateNode(context, "Group", args.data, "delete");
@@ -1011,6 +1073,11 @@ export const Resolvers = {
             return await mutateNode(context, "Specimen", args.data, "update");
         },
 
+        UpdateCollection: async (obj, args, context, info) => {
+            console.log("UpdateCollection");
+            return await mutateNode(context, "Collection", args.data, "update");
+        },
+
         UpdateOrgan: async (obj, args, context, info) => {
             console.log("UpdateOrgan");
             return await mutateNode(context, "Organ", args.data, "update");
@@ -1058,6 +1125,12 @@ export const Resolvers = {
         CreateSpecimen: async (obj, args, context, info) => {
             console.log("CreateSpecimen");
             return await mutateNode(context, "Specimen", args.data, "create");
+            
+        },
+
+        CreateCollection: async (obj, args, context, info) => {
+            console.log("CreateCollection");
+            return await mutateNode(context, "Collection", args.data, "create");
             
         },
 

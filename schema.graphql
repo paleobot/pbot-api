@@ -1,13 +1,15 @@
 scalar DateTime
 
 """ These unions are a way for a property to hold references to different types """
-union Enterable = Group | Person | Reference | Schema | Character | State | Description | CharacterInstance | Specimen
+union Enterable = Group | Person | Reference | Schema | Character | State | Description | CharacterInstance | Specimen | Collection
 
-union Groupable = Reference | Schema | Character | State | Description | CharacterInstance | Specimen
+union Groupable = Reference | Schema | Character | State | Description | CharacterInstance | Specimen | Collection
 
 union Authorable = Reference | Schema
 
 union Statable = Character | State
+
+union Citer = Schema | Description | Specimen
 
 type Group {
     pbotID: ID!
@@ -42,7 +44,7 @@ type Reference {
     year: String
     publisher: String
     doi: String
-    citedBy: [Schema!]! @relation(name: "CITED_BY", direction: OUT)
+    citedBy: [Citer!]! @relation(name: "CITED_BY", direction: OUT)
     authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [ReferenceEnteredBy]
@@ -104,6 +106,7 @@ type Description {
     specimen: DescribedBy
     schema: Schema @relation(name: "APPLICATION_OF", direction: OUT)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
+    cites: [Reference]! @relation(name: "CITED_BY", direction: IN)
     enteredBy: [DescriptionEnteredBy]
 }
 
@@ -127,9 +130,21 @@ type Specimen {
     organ: Organ @relation(name: "IS_TYPE", direction: OUT)
     description: DescribedBy
     archtypeDescription: ExampleOf
+    cites: [Reference]! @relation(name: "CITED_BY", direction: IN)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
+    collection: Collection @relation(name: "COLLECTED_BY", direction: OUT)
     enteredBy: [SpecimenEnteredBy]
 }
+
+type Collection {
+    pbotID: ID!
+    name: String
+    specimens: [Specimen]! @relation(name: "COLLECTED_BY", direction: IN)
+    references: [Reference]! @relation(name: "CITED_BY", direction: IN)
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
+    enteredBy: [CollectionEnteredBy]
+}
+
 
 """ In order to access relationship properties, the relationship must be specified with a standalone type.
     Ideally, there would be one of these for the ENTERED_BY relationship, with the Enterable union in the
@@ -191,6 +206,12 @@ type CharacterInstanceEnteredBy @relation(name: "ENTERED_BY") {
 
 type SpecimenEnteredBy @relation(name: "ENTERED_BY") {
   from: Specimen
+  to: Person
+  timestamp: DateTime
+}
+
+type CollectionEnteredBy @relation(name: "ENTERED_BY") {
+  from: Collection
   to: Person
   timestamp: DateTime
 }
@@ -322,6 +343,7 @@ input DescriptionInput {
 	genus: String
 	species: String
 	schemaID: String!
+    references: [String]
 	groups: [String]
 	enteredByPersonID: String
 	cascade: Boolean
@@ -347,6 +369,8 @@ input SpecimenInput {
     descriptionID: String
     otuID: String
     organID: String
+    references: [String]
+    collection: String
 	groups: [String]
 	enteredByPersonID: String
 }
@@ -356,6 +380,16 @@ input OrganInput {
     type: String!
 	enteredByPersonID: String
 }
+
+input CollectionInput {
+    pbotID: String
+    name: String
+    specimens: [String]
+    references: [String]
+	groups: [String]
+    enteredByPersonID: String
+}
+
 
 type Mutation {
     CreateGroup(data: GroupInput!): Group! @neo4j_ignore
@@ -464,6 +498,10 @@ type Mutation {
     CreateSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
     UpdateSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
     DeleteSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
+
+    CreateCollection(data: CollectionInput!): Collection! @neo4j_ignore
+    UpdateCollection(data: CollectionInput!): Collection!  @neo4j_ignore
+    DeleteCollection(data: CollectionInput!): Collection! @neo4j_ignore
 
     CreateOrgan(data: OrganInput!): Organ! @neo4j_ignore
     UpdateOrgan(data: OrganInput!): Organ! @neo4j_ignore
