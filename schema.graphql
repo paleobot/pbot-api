@@ -132,14 +132,14 @@ type Specimen {
     archtypeDescription: ExampleOf
     cites: [Reference]! @relation(name: "CITED_BY", direction: IN)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
-    collection: Collection @relation(name: "COLLECTED_BY", direction: OUT)
+    collection: Collection @relation(name: "COLLECTED_IN", direction: OUT)
     enteredBy: [SpecimenEnteredBy]
 }
 
 type Collection {
     pbotID: ID!
     name: String
-    specimens: [Specimen]! @relation(name: "COLLECTED_BY", direction: IN)
+    specimens: [Specimen]! @relation(name: "COLLECTED_IN", direction: IN)
     references: [Reference]! @relation(name: "CITED_BY", direction: IN)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [CollectionEnteredBy]

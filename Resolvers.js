@@ -159,6 +159,9 @@ const schemaDeleteMap = {
             type: "EXAMPLE_OF",
             direction: "out"
         }, {
+            type: "COLLECTED_IN",
+            direction: "out"
+        }, {
             type: "ELEMENT_OF",
             direction: "out"
         }, {
@@ -168,7 +171,7 @@ const schemaDeleteMap = {
     }, 
     Collection: {
         blockingRelationships: [{
-            type: "COLLECTED_BY",
+            type: "COLLECTED_IN",
             direction: "in"
         }, ],
         cascadeRelationships: [],
@@ -390,7 +393,7 @@ const schemaMap = {
                 required: true,
                 updatable: true
             }, {
-                type: "COLLECTED_BY",
+                type: "COLLECTED_IN",
                 direction: "out",
                 graphqlName: "collection",
                 required: false,
@@ -426,7 +429,7 @@ const schemaMap = {
                 required: false,
                 updatable: true
             }, {
-                type: "COLLECTED_BY",
+                type: "COLLECTED_IN",
                 direction: "in",
                 graphqlName: "specimens",
                 required: false,
