@@ -426,7 +426,7 @@ const schemaMap = {
                 type: "CITED_BY",
                 direction: "in",
                 graphqlName: "references",
-                required: false,
+                required: true,
                 updatable: true
             }, {
                 type: "COLLECTED_IN",
@@ -845,6 +845,10 @@ const mutateNode = async (context, nodeType, data, type) => {
         );
         const publicGroupID = pgResult.records.length > 0 ? pgResult.records[0].get(0).properties.pbotID : null;            
         
+        if ("Collection" === nodeType  && data.specimens.length === 0 && (data.groups && data.groups.includes(publicGroupID)) ) {
+            throw new ValidationError(`A public Collection cannot be empty.`);
+        }
+    
         if (data.groups && data.groups.includes(publicGroupID) && data.groups.length > 1) {
             throw new ValidationError(`A public ${nodeType} cannot be in other groups.`);
         }
