@@ -140,7 +140,7 @@ type Collection {
     pbotID: ID!
     name: String
     specimens: [Specimen]! @relation(name: "COLLECTED_IN", direction: IN)
-    references: [Reference]! @relation(name: "CITED_BY", direction: IN)
+    references: [Reference!]! @relation(name: "CITED_BY", direction: IN)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [CollectionEnteredBy]
 }
