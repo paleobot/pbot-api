@@ -54,6 +54,7 @@ type Schema {
     pbotID: ID!
     title: String
     year: String
+    acknowledgments: String
     references: [Reference!]! @relation(name: "CITED_BY", direction: IN)
     characters: [Character] @relation(name: "CHARACTER_OF", direction: IN)
     authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
@@ -306,6 +307,7 @@ input SchemaInput {
     pbotID: String
     title: String
 	year: String
+    acknowledgments: String
 	references: [String]
 	authors: [String]
 	groups: [String]

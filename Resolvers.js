@@ -258,7 +258,8 @@ const schemaMap = {
     Schema: {
         properties: [
            "title",
-           "year"
+           "year",
+           "acknowledgments"
         ],
         relationships: [
             {
