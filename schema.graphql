@@ -57,7 +57,7 @@ type Schema {
     acknowledgments: String
     references: [Reference!]! @relation(name: "CITED_BY", direction: IN)
     characters: [Character] @relation(name: "CHARACTER_OF", direction: IN)
-    authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
+    authoredBy: [SchemaAuthoredBy!]!
     appliedBy: [Description]! @relation(name: "APPLICATION_OF", direction: IN)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [SchemaEnteredBy]
@@ -217,6 +217,19 @@ type CollectionEnteredBy @relation(name: "ENTERED_BY") {
   timestamp: DateTime
 }
 
+"""AUTHORED_BY for access to order"""
+type ReferenceAuthoredBy @relation(name: "AUTHORED_BY") {
+  from: Reference
+  to: Person
+  order: String
+}
+
+type SchemaAuthoredBy @relation(name: "AUTHORED_BY") {
+  from: Schema
+  to: Person
+  order: String
+}
+
 
 """ HAS_STATE for access to value """
 type HasState @relation(name: "HAS_STATE") {
@@ -303,13 +316,17 @@ input ReferenceInput {
 	enteredByPersonID: String
 } 
 
+input AuthoredBy {
+    pbotID: String
+    order: String
+}
 input SchemaInput {
     pbotID: String
     title: String
 	year: String
     acknowledgments: String
 	references: [String]
-	authors: [String]
+	authors: [AuthoredBy]
 	groups: [String]
 	enteredByPersonID: String
 	cascade: Boolean

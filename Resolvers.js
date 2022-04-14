@@ -244,7 +244,10 @@ const schemaMap = {
                 direction: "out",
                 graphqlName: "authors",
                 required: false,
-                updatable: true
+                updatable: true,
+                properties: [
+                    "order"
+                ]
             },
             {
                 type: "ELEMENT_OF",
@@ -273,7 +276,12 @@ const schemaMap = {
                 direction: "out",
                 graphqlName: "authors",
                 required: false,
-                updatable: true
+                updatable: true,
+                properties: [
+                    "pbotID",
+                    "order",
+                    "gubba"
+                ]
             },
             {
                 type: "ELEMENT_OF",
@@ -786,11 +794,65 @@ const handleCreate = async (session, nodeType, data) => {
     //Create new relationships
     queryStr = relationships.reduce((str, relationship) => {
         if (data[relationship.graphqlName] && data[relationship.graphqlName].length > 0) {
+            return (relationship.properties) ?
+                    data[relationship.graphqlName].reduce((str, relInstance) => {
+                    const relProps = (relationship.properties && relationship.properties.length > 0) ? "{" +
+                        relationship.properties.reduce((str, prop) => {
+                            console.log(prop);
+                            console.log(relInstance[prop]);
+                            console.log((prop !== "pbotID" && relInstance[prop]) ?
+                                `${str}${prop}: "${relInstance[prop]}",` :
+                                `${str}`);
+                            return (prop !== "pbotID" && relInstance[prop]) ?
+                                `${str}${prop}: "${relInstance[prop]}",` :
+                                `${str}`;
+                        }, '').replace(/,$/,'') + "}" :
+                        '';
+                    return `
+                        ${str}
+                        MATCH (remoteNode) WHERE remoteNode.pbotID = "${relInstance.pbotID}" 
+                        CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type} ${relProps}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+                        WITH baseNode, ePerson
+                    `;
+                }, str) :
+                `
+                    ${str}
+                    MATCH (remoteNode) WHERE remoteNode.pbotID = "${data[relationship.graphqlName]}" 
+                    CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+                    WITH baseNode, ePerson
+                `;
+                
+        } else {
+            if (relationship.required) {
+                throw new ValidationError(`Missing required relationship ${relationship.graphqlName}`);
+            } else {
+                return str;
+            }
+        }
+    }, queryStr);
+                
+                                                  
+                
+            
+            
+            /*
+            const relProps = (relationship.properties && relationship.properties.length > 0) ? "{" +
+                relationship.properties.reduce((str, prop) => {
+                    console.log(prop);
+                    console.log(data[relationship.graphqlName][0][prop]);
+                    console.log((prop !== "pbotID" && data[relationship.graphqlName][0][prop]) ?
+                        `${str}${prop}: "${data[relationship.graphqlName][0][prop]}",` :
+                        `${str}`);
+                    return (prop !== "pbotID" && data[relationship.graphqlName][0][prop]) ?
+                        `${str}${prop}: "${data[relationship.graphqlName][0][prop]}",` :
+                        `${str}`;
+                }, '').replace(/,$/,'') + "}" :
+                '';
             return `
                 ${str}
-                    UNWIND ${JSON.stringify(data[relationship.graphqlName])} AS iD
-                        MATCH (remoteNode) WHERE remoteNode.pbotID = iD 
-                        CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+                    UNWIND ${JSON.stringify(data[relationship.graphqlName]).replace(/"(\w+)"\s*:/g, '$1:')} AS rel
+                        MATCH (remoteNode) WHERE remoteNode.pbotID = rel.pbotID 
+                        CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type} ${relProps}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
                     WITH distinct baseNode, ePerson
             `
         } else {
@@ -801,7 +863,8 @@ const handleCreate = async (session, nodeType, data) => {
             }
         }
     }, queryStr);
-    
+    */
+            
     //Groups must be elements of themselves; the creator must be a member
     queryStr = "Group" === nodeType ? ` 
         ${queryStr}
