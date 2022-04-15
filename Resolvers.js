@@ -149,7 +149,7 @@ const schemaDeleteMap = {
     Specimen: {
         blockingRelationships: [{
             type: "DESCRIBED_BY",
-            direction: "out"
+            direction: "out",
         }],
         cascadeRelationships: [],
         nonblockingRelationships: [{
@@ -388,7 +388,11 @@ const schemaMap = {
                 direction: "out",
                 graphqlName: "descriptionID",
                 required: false,
-                updatable: true
+                updatable: true,
+                internalProperties: [
+                    "entered_by",
+                    "timestamp"
+                ]
             }, {
                 type: "EXAMPLE_OF",
                 direction: "out",
@@ -792,18 +796,94 @@ const handleCreate = async (session, nodeType, data) => {
     `;
     
     //Create new relationships
-    queryStr = relationships.reduce((str, relationship) => {
-        if (data[relationship.graphqlName] && data[relationship.graphqlName].length > 0) {
-            return (relationship.properties) ?
-                    data[relationship.graphqlName].reduce((str, relInstance) => {
-                    const relProps = (relationship.properties && relationship.properties.length > 0) ? "{" +
-                        relationship.properties.reduce((str, prop) => {
-                            console.log(prop);
-                            console.log(relInstance[prop]);
-                            console.log((prop !== "pbotID" && relInstance[prop]) ?
-                                `${str}${prop}: "${relInstance[prop]}",` :
-                                `${str}`);
+    queryStr = relationships.reduce((str, relationship) => { //iterate the relationship types for the node type
+        if (data[relationship.graphqlName] && data[relationship.graphqlName].length > 0) { //if there is data for the relationship type
+            console.log("relationship");
+            console.log(relationship);
+            if (!Array.isArray(data[relationship.graphqlName])) data[relationship.graphqlName] = [data[relationship.graphqlName]];
+            return data[relationship.graphqlName].reduce((str, relInstance) => { //iterate the instances of this relationship type
+                let remoteID;
+                let relProps = '';
+                
+                if (relationship.properties) {
+                    console.log("relationship.properties");
+                    remoteID = relInstance.pbotID;
+                    relProps = (relationship.properties.length > 1) ? //TODO: not sure this ternary is necessary 
+                        relationship.properties.reduce((str, prop) => { //iterate each property to build string for create
                             return (prop !== "pbotID" && relInstance[prop]) ?
+                                `${str}${prop}: "${relInstance[prop]}",` :
+                                `${str}`;
+                        }, '') :
+                        '';
+                } else {
+                    remoteID = relInstance;
+                }
+                console.log("relProps 1");
+                console.log(relProps);
+            
+                if (relationship.internalProperties) {
+                    console.log("relationship.internalProperties");
+                    relProps = (relationship.internalProperties.length > 0) ?
+                        relationship.internalProperties.reduce((str, prop) => { //iterate each internal property to build string for create
+                            console.log(str);
+                            console.log(prop);
+                            const res = ("entered_by" === prop) ?
+                                    `${str}${prop}: "${enteredByPersonID}",` :
+                                ("timestamp" === prop) ?
+                                    `${str}${prop}: datetime(),` :
+                                `${str}`;
+                            console.log(res)
+                            return res;
+                            /*
+                                ("entered_by" === prop) ?
+                                    `${str}${prop}: "${enteredByPersonID}",` :
+                                ("timestamp" === prop) ?
+                                    `${str}${prop}: datetime(),` :
+                                `${str}`;
+                                */
+                        }, relProps) :
+                        relProps;
+                    console.log("relProps 2");
+                    console.log(relProps);
+                }
+                
+                relProps = "{" + relProps.replace(/,$/,'') + "}";
+                
+                console.log("relProps 3");
+                console.log(relProps);
+                
+                return `
+                    ${str}
+                    MATCH (remoteNode) WHERE remoteNode.pbotID = "${remoteID}" 
+                    CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type} ${relProps}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+                    WITH baseNode, ePerson
+                `;
+            }, str);
+        } else {
+            if (relationship.required) {
+                throw new ValidationError(`Missing required relationship ${relationship.graphqlName}`);
+            } else {
+                return str;
+            }
+        }
+    }, queryStr);
+
+            
+            
+            
+/*            
+            
+            
+            
+            return (relationship.properties) ? //if the relationship type has properties (some are just pbotID of remote node
+                data[relationship.graphqlName].reduce((str, relInstance) => { //iterate the instances of this relationship type
+                    const relProps = (relationship.properties.length > 1) ? "{" + //TODO: not sure this ternary is necessary 
+                        relationship.properties.reduce((str, prop) => { //iterate each property to build string for create
+                            return (prop !== "pbotID" && relInstance[prop]) ?
+                                ("entered_by" === prop) ?
+                                    `${str}${prop}: "${enteredByPersonID}",` :
+                                ("timestamp" === prop) ?
+                                    `${str}${prop}: datetime(),` :
                                 `${str}${prop}: "${relInstance[prop]}",` :
                                 `${str}`;
                         }, '').replace(/,$/,'') + "}" :
@@ -814,7 +894,7 @@ const handleCreate = async (session, nodeType, data) => {
                         CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type} ${relProps}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
                         WITH baseNode, ePerson
                     `;
-                }, str) :
+                }, str) : //relationship has no properties, just pbotID strings
                 `
                     ${str}
                     MATCH (remoteNode) WHERE remoteNode.pbotID = "${data[relationship.graphqlName]}" 
@@ -830,41 +910,8 @@ const handleCreate = async (session, nodeType, data) => {
             }
         }
     }, queryStr);
-                
-                                                  
-                
-            
-            
-            /*
-            const relProps = (relationship.properties && relationship.properties.length > 0) ? "{" +
-                relationship.properties.reduce((str, prop) => {
-                    console.log(prop);
-                    console.log(data[relationship.graphqlName][0][prop]);
-                    console.log((prop !== "pbotID" && data[relationship.graphqlName][0][prop]) ?
-                        `${str}${prop}: "${data[relationship.graphqlName][0][prop]}",` :
-                        `${str}`);
-                    return (prop !== "pbotID" && data[relationship.graphqlName][0][prop]) ?
-                        `${str}${prop}: "${data[relationship.graphqlName][0][prop]}",` :
-                        `${str}`;
-                }, '').replace(/,$/,'') + "}" :
-                '';
-            return `
-                ${str}
-                    UNWIND ${JSON.stringify(data[relationship.graphqlName]).replace(/"(\w+)"\s*:/g, '$1:')} AS rel
-                        MATCH (remoteNode) WHERE remoteNode.pbotID = rel.pbotID 
-                        CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type} ${relProps}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
-                    WITH distinct baseNode, ePerson
-            `
-        } else {
-            if (relationship.required) {
-                throw new ValidationError(`Missing required relationship ${relationship.graphqlName}`);
-            } else {
-                return str;
-            }
-        }
-    }, queryStr);
-    */
-            
+*/
+                            
     //Groups must be elements of themselves; the creator must be a member
     queryStr = "Group" === nodeType ? ` 
         ${queryStr}
