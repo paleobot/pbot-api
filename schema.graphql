@@ -326,7 +326,7 @@ input SchemaInput {
 	year: String
     acknowledgments: String
 	references: [String]
-	authors: [AuthoredBy]
+	authors: [AuthoredBy!]!
 	groups: [String]
 	enteredByPersonID: String
 	cascade: Boolean
