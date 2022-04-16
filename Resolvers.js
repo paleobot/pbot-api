@@ -389,10 +389,6 @@ const schemaMap = {
                 graphqlName: "descriptionID",
                 required: false,
                 updatable: true,
-                internalProperties: [
-                    "entered_by",
-                    "timestamp"
-                ]
             }, {
                 type: "EXAMPLE_OF",
                 direction: "out",
@@ -664,38 +660,54 @@ const handleUpdate = async (session, nodeType, data) => {
     //Copy old relationships (as pbotID arrays) into ENTERED_BY. Also, go ahead and delete the relationships here for convenience.
     queryStr = relationships.reduce((str, relationship) => {
         if (Array.isArray(data[relationship.graphqlName])) {
+            let newRemoteIDs = [];
+            if (data[relationship.graphqlName].length > 0) {
+                newRemoteIDs = typeof data[relationship.graphqlName][0] === "string" ?
+                    data[relationship.graphqlName] :
+                    data[relationship.graphqlName].map(r => r.pbotID);
+            }
+            console.log("newRemoteIDs");
+            console.log(newRemoteIDs);
+            
             return `
                 ${str}
                     OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
-                    WITH baseNode, eb, collect(remoteNode.pbotID) AS remoteNodeIDs, collect(rel) AS oldRels
+                    WITH baseNode, eb, collect(remoteNode.pbotID) AS remoteNodeIDs, collect(apoc.convert.toJson(rel)) AS oldRelsJSON, collect(rel) AS oldRels
                     FOREACH (r IN oldRels | DELETE r)
-                    WITH distinct baseNode, remoteNodeIDs, apoc.coll.disjunction(remoteNodeIDs, ${JSON.stringify(data[relationship.graphqlName])} ) AS diffList, eb
+                    WITH distinct baseNode, remoteNodeIDs, oldRelsJSON, apoc.coll.disjunction(remoteNodeIDs, ${JSON.stringify(newRemoteIDs)} ) AS diffList, eb
                     CALL
                         apoc.do.case([
                             size(remoteNodeIDs) = 0 AND size(diffList) <> 0,
                             "SET eb.${relationship.graphqlName} = 'not present' RETURN eb",
                             size(diffList)<>0,
-                            "SET eb.${relationship.graphqlName} = remoteNodeIDs RETURN eb"],
+                            "SET eb.${relationship.graphqlName} = oldRelsJSON RETURN eb"],
                             "RETURN eb",
-                            {diffList: diffList, remoteNodeIDs: remoteNodeIDs, eb: eb}
+                            {diffList: diffList, oldRelsJSON: oldRelsJSON, eb: eb}
                         )
                     YIELD value
                     WITH baseNode, eb
             `
         } else {
             if (data[relationship.graphqlName]) {
+                const newRemoteID = typeof data[relationship.graphqlName][0] === "string" ?
+                    data[relationship.graphqlName] :
+                    data[relationship.graphqlName].pbotID;
+                console.log("newRemoteID");
+                console.log(newRemoteID);
+                
                 return `
                     ${str}
                         OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+                        WITH baseNode, eb, remoteNode, apoc.convert.toJson(rel) AS relJSON
                         DELETE rel
-                        WITH baseNode, eb, remoteNode 	
+                        WITH baseNode, eb, remoteNode, relJSON 	
                             CALL apoc.do.case([
                                     remoteNode IS NULL,
                                     "SET eb.${relationship.graphqlName} = 'not present' RETURN eb",
-                                    remoteNode.pbotID  <> ${JSON.stringify(data[relationship.graphqlName])},
-                                    "SET eb.${relationship.graphqlName} = remoteNode.pbotID RETURN eb"],
+                                    remoteNode.pbotID  <> ${JSON.stringify(newRemoteID)},
+                                    "SET eb.${relationship.graphqlName} = relJSON RETURN eb"],
                                     "RETURN eb",
-                                    {remoteNode: remoteNode, eb: eb}
+                                    {remoteNode: remoteNode, relJSON: relJSON, eb: eb}
                                 ) YIELD value
                         WITH baseNode, eb
                 `
@@ -703,13 +715,14 @@ const handleUpdate = async (session, nodeType, data) => {
                 return `
                     ${str}
                         OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+                        WITH baseNode, eb, remoteNode, apoc.convert.toJson(rel) AS relJSON
                         DELETE rel
-                        WITH baseNode, eb, remoteNode 	
+                        WITH baseNode, eb, remoteNode, relJSON 	
                         CALL apoc.do.when(
                                 remoteNode IS NOT NULL,
-                                "SET eb.${relationship.graphqlName} = remoteNode.pbotID RETURN eb",
+                                "SET eb.${relationship.graphqlName} = relJSON RETURN eb",
                                 "RETURN eb",
-                                {remoteNode: remoteNode, eb: eb}
+                                {remoteNode: remoteNode, relJSON: relJSON, eb: eb}
                             ) YIELD value
                         WITH baseNode, eb
                 `
@@ -731,6 +744,7 @@ const handleUpdate = async (session, nodeType, data) => {
         WITH baseNode
     `;
     
+    /*
     //Create new relationships
     queryStr = relationships.reduce((str, relationship) => {
         if (data[relationship.graphqlName] && data[relationship.graphqlName].length > 0) {
@@ -750,6 +764,52 @@ const handleUpdate = async (session, nodeType, data) => {
             return str;
         }
     }, queryStr);
+    */
+    
+    //Create new relationships
+    queryStr = relationships.reduce((str, relationship) => { //iterate the relationship types for the node type
+        if (data[relationship.graphqlName] && data[relationship.graphqlName].length > 0) { //if there is data for the relationship type
+            //For singular relationships, only the pbotID string is passed. We need to encapsulte that in an array for the following logic
+            if (!Array.isArray(data[relationship.graphqlName])) data[relationship.graphqlName] = [data[relationship.graphqlName]];
+
+            return data[relationship.graphqlName].reduce((str, relInstance) => { //iterate the instances of this relationship type
+                let remoteID;
+                let relProps = '';
+                
+                if (relationship.properties) {
+                    console.log("relationship.properties");
+                    remoteID = relInstance.pbotID;
+                    relProps = relationship.properties.reduce((str, prop) => { //iterate each property to build string for create
+                            return (prop !== "pbotID" && relInstance[prop]) ?
+                                `${str}${prop}: "${relInstance[prop]}",` :
+                                `${str}`;
+                        }, '');
+                } else {
+                    remoteID = relInstance; //For relationships without properties, only the pbotID string is passed
+                }
+                relProps = "{" + relProps.replace(/,$/,'') + "}"; //trim final comma and wrap in brackets
+                
+                console.log("relProps");
+                console.log(relProps);
+                
+                return `
+                    ${str}
+                    MATCH (remoteNode) WHERE remoteNode.pbotID = "${remoteID}" 
+                    CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type} ${relProps}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
+                    WITH baseNode
+                `;
+            }, str);
+        } else {
+            if (relationship.required) {
+                throw new ValidationError(`Missing required relationship ${relationship.graphqlName}`);
+            } else {
+                return str;
+            }
+        }
+    }, queryStr);
+    
+    
+    
     
     queryStr = `
         ${queryStr}
@@ -798,9 +858,9 @@ const handleCreate = async (session, nodeType, data) => {
     //Create new relationships
     queryStr = relationships.reduce((str, relationship) => { //iterate the relationship types for the node type
         if (data[relationship.graphqlName] && data[relationship.graphqlName].length > 0) { //if there is data for the relationship type
-            console.log("relationship");
-            console.log(relationship);
+            //For singular relationships, only the pbotID string is passed. We need to encapsulte that in an array for the following logic
             if (!Array.isArray(data[relationship.graphqlName])) data[relationship.graphqlName] = [data[relationship.graphqlName]];
+
             return data[relationship.graphqlName].reduce((str, relInstance) => { //iterate the instances of this relationship type
                 let remoteID;
                 let relProps = '';
@@ -808,48 +868,17 @@ const handleCreate = async (session, nodeType, data) => {
                 if (relationship.properties) {
                     console.log("relationship.properties");
                     remoteID = relInstance.pbotID;
-                    relProps = (relationship.properties.length > 1) ? //TODO: not sure this ternary is necessary 
-                        relationship.properties.reduce((str, prop) => { //iterate each property to build string for create
+                    relProps = relationship.properties.reduce((str, prop) => { //iterate each property to build string for create
                             return (prop !== "pbotID" && relInstance[prop]) ?
                                 `${str}${prop}: "${relInstance[prop]}",` :
                                 `${str}`;
-                        }, '') :
-                        '';
+                        }, '');
                 } else {
-                    remoteID = relInstance;
+                    remoteID = relInstance; //For relationships without properties, only the pbotID string is passed
                 }
-                console.log("relProps 1");
-                console.log(relProps);
-            
-                if (relationship.internalProperties) {
-                    console.log("relationship.internalProperties");
-                    relProps = (relationship.internalProperties.length > 0) ?
-                        relationship.internalProperties.reduce((str, prop) => { //iterate each internal property to build string for create
-                            console.log(str);
-                            console.log(prop);
-                            const res = ("entered_by" === prop) ?
-                                    `${str}${prop}: "${enteredByPersonID}",` :
-                                ("timestamp" === prop) ?
-                                    `${str}${prop}: datetime(),` :
-                                `${str}`;
-                            console.log(res)
-                            return res;
-                            /*
-                                ("entered_by" === prop) ?
-                                    `${str}${prop}: "${enteredByPersonID}",` :
-                                ("timestamp" === prop) ?
-                                    `${str}${prop}: datetime(),` :
-                                `${str}`;
-                                */
-                        }, relProps) :
-                        relProps;
-                    console.log("relProps 2");
-                    console.log(relProps);
-                }
+                relProps = "{" + relProps.replace(/,$/,'') + "}"; //trim final comma and wrap in brackets
                 
-                relProps = "{" + relProps.replace(/,$/,'') + "}";
-                
-                console.log("relProps 3");
+                console.log("relProps");
                 console.log(relProps);
                 
                 return `
@@ -867,50 +896,6 @@ const handleCreate = async (session, nodeType, data) => {
             }
         }
     }, queryStr);
-
-            
-            
-            
-/*            
-            
-            
-            
-            return (relationship.properties) ? //if the relationship type has properties (some are just pbotID of remote node
-                data[relationship.graphqlName].reduce((str, relInstance) => { //iterate the instances of this relationship type
-                    const relProps = (relationship.properties.length > 1) ? "{" + //TODO: not sure this ternary is necessary 
-                        relationship.properties.reduce((str, prop) => { //iterate each property to build string for create
-                            return (prop !== "pbotID" && relInstance[prop]) ?
-                                ("entered_by" === prop) ?
-                                    `${str}${prop}: "${enteredByPersonID}",` :
-                                ("timestamp" === prop) ?
-                                    `${str}${prop}: datetime(),` :
-                                `${str}${prop}: "${relInstance[prop]}",` :
-                                `${str}`;
-                        }, '').replace(/,$/,'') + "}" :
-                        '';
-                    return `
-                        ${str}
-                        MATCH (remoteNode) WHERE remoteNode.pbotID = "${relInstance.pbotID}" 
-                        CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type} ${relProps}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
-                        WITH baseNode, ePerson
-                    `;
-                }, str) : //relationship has no properties, just pbotID strings
-                `
-                    ${str}
-                    MATCH (remoteNode) WHERE remoteNode.pbotID = "${data[relationship.graphqlName]}" 
-                    CREATE (baseNode)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
-                    WITH baseNode, ePerson
-                `;
-                
-        } else {
-            if (relationship.required) {
-                throw new ValidationError(`Missing required relationship ${relationship.graphqlName}`);
-            } else {
-                return str;
-            }
-        }
-    }, queryStr);
-*/
                             
     //Groups must be elements of themselves; the creator must be a member
     queryStr = "Group" === nodeType ? ` 
