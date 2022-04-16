@@ -668,11 +668,12 @@ const handleUpdate = async (session, nodeType, data) => {
             }
             console.log("newRemoteIDs");
             console.log(newRemoteIDs);
+            //TODO: make newRemoteIDs looks like this: ["246cccb4-39b7-47f6-b699-5110c4ddde37{"order":"3"}", "4cd6f8f7-950f-46ab-b50f-b1aff38412fc{"order":"1"}", "c9506243-2dea-4313-bffb-a89c9f2078fc{"order":"2"}"]
             
             return `
                 ${str}
                     OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
-                    WITH baseNode, eb, collect(remoteNode.pbotID) AS remoteNodeIDs, collect(apoc.convert.toJson(rel)) AS oldRelsJSON, collect(rel) AS oldRels
+                    WITH baseNode, eb, collect(remoteNode.pbotID + apoc.convert.toJson(properties(rel))) AS remoteNodeIDs, collect(apoc.convert.toJson(rel)) AS oldRelsJSON, collect(rel) AS oldRels
                     FOREACH (r IN oldRels | DELETE r)
                     WITH distinct baseNode, remoteNodeIDs, oldRelsJSON, apoc.coll.disjunction(remoteNodeIDs, ${JSON.stringify(newRemoteIDs)} ) AS diffList, eb
                     CALL
