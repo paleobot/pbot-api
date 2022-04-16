@@ -46,11 +46,11 @@ const getUser = async (driver, email) => {
     .then(result => {
         let user;
         result.records.forEach(record => {
-            console.log(record.get('person'));
+            //console.log(record.get('person'));
             user = record.get('person');
         })
         //console.log(user.get('given') + " " + user.get('surname'));
-        console.log(user);
+        //console.log(user);
         return user;
     })
     .finally(() => {

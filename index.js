@@ -145,7 +145,7 @@ const server = new ApolloServer({
             try {
                 if (token) {
                     const decodedToken = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-                    console.log(decodedToken);
+                    //console.log(decodedToken);
                     email = decodedToken.username;
                 }
             } catch (error) {
@@ -153,8 +153,8 @@ const server = new ApolloServer({
             }
             const user = await getUser(driver, email);
 
-            console.log("From context, user");
-            console.log(user);
+            //console.log("From context, user");
+            //console.log(user);
             // Add the user to the context
             return { 
                 user,
