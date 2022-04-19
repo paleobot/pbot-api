@@ -658,17 +658,35 @@ const handleUpdate = async (session, nodeType, data) => {
     }, queryStr);
     
     //Copy old relationships (as pbotID arrays) into ENTERED_BY. Also, go ahead and delete the relationships here for convenience.
+    //I'm not going to lie: this code is pretty stinky. In order to track changes to relationship properties and get them recorded 
+    //in the ENTERED_BY, we have to create these weird string concats with the remote node ID and the properties. This is then
+    //used by an apoc disjunction test in the cypher. This is made a bit more ugly yet by the fact that I have chosed to support
+    //the original array or ID strings as well as the new array of objects.
     queryStr = relationships.reduce((str, relationship) => {
         if (Array.isArray(data[relationship.graphqlName])) {
             let newRemoteIDs = [];
             if (data[relationship.graphqlName].length > 0) {
-                newRemoteIDs = typeof data[relationship.graphqlName][0] === "string" ?
-                    data[relationship.graphqlName] :
-                    data[relationship.graphqlName].map(r => r.pbotID);
+                newRemoteIDs = data[relationship.graphqlName].map(r => {
+                    console.log(r);
+                    let retStr;
+                    if (typeof r === "string") {
+                        retStr = r + "{}";
+                    } else {
+                        r.pbotID + JSON.stringify(Object.keys(r).reduce((t,propKey) => {
+                            console.log(propKey);
+                            if ("pbotID" !== propKey) {
+                                console.log(r[propKey]);
+                                t[propKey] = r[propKey];
+                            }
+                            return t;
+                        }, {}));
+                    }
+                    console.log(retStr);
+                    return retStr;
+                });
             }
             console.log("newRemoteIDs");
             console.log(newRemoteIDs);
-            //TODO: make newRemoteIDs looks like this: ["246cccb4-39b7-47f6-b699-5110c4ddde37{"order":"3"}", "4cd6f8f7-950f-46ab-b50f-b1aff38412fc{"order":"1"}", "c9506243-2dea-4313-bffb-a89c9f2078fc{"order":"2"}"]
             
             return `
                 ${str}
@@ -688,27 +706,34 @@ const handleUpdate = async (session, nodeType, data) => {
                     YIELD value
                     WITH baseNode, eb
             `
-        } else {
+        } else { //single relationship, no array
             if (data[relationship.graphqlName]) {
                 const newRemoteID = typeof data[relationship.graphqlName][0] === "string" ?
-                    data[relationship.graphqlName] :
-                    data[relationship.graphqlName].pbotID;
+                    data[relationship.graphqlName] + "{}" :
+                    r.pbotID + JSON.stringify(Object.keys(r).reduce((t,propKey) => {
+                        console.log(propKey);
+                        if ("pbotID" !== propKey) {
+                            console.log(r[propKey]);
+                            t[propKey] = r[propKey];
+                        }
+                        return t;
+                    }, {}));
                 console.log("newRemoteID");
                 console.log(newRemoteID);
                 
                 return `
                     ${str}
                         OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
-                        WITH baseNode, eb, remoteNode, apoc.convert.toJson(rel) AS relJSON
+                        WITH baseNode, eb, remoteNode, remoteNode.pbotID + apoc.convert.toJson(properties(rel)) AS remoteNodeID, apoc.convert.toJson(rel) AS relJSON, rel
                         DELETE rel
-                        WITH baseNode, eb, remoteNode, relJSON 	
+                        WITH baseNode, eb, remoteNode, remoteNodeID, relJSON 	
                             CALL apoc.do.case([
                                     remoteNode IS NULL,
                                     "SET eb.${relationship.graphqlName} = 'not present' RETURN eb",
-                                    remoteNode.pbotID  <> ${JSON.stringify(newRemoteID)},
+                                    remoteNodeID  <> ${JSON.stringify(newRemoteID)},
                                     "SET eb.${relationship.graphqlName} = relJSON RETURN eb"],
                                     "RETURN eb",
-                                    {remoteNode: remoteNode, relJSON: relJSON, eb: eb}
+                                    {remoteNode: remoteNode, remoteNodeID: remoteNodeID, relJSON: relJSON, eb: eb}
                                 ) YIELD value
                         WITH baseNode, eb
                 `
