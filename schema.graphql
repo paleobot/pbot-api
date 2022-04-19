@@ -45,7 +45,7 @@ type Reference {
     publisher: String
     doi: String
     citedBy: [Citer!]! @relation(name: "CITED_BY", direction: OUT)
-    authoredBy: [Person!]! @relation(name: "AUTHORED_BY", direction: OUT)
+    authoredBy: [ReferenceAuthoredBy!]!
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [ReferenceEnteredBy]
 }
@@ -305,21 +305,22 @@ input PersonInput {
 	enteredByPersonID: String
 } 
 
+input AuthoredBy {
+    pbotID: String
+    order: String
+}
+
 input ReferenceInput {
     pbotID: String
     title: String
 	year: String
 	publisher: String
 	doi: String
-	authors: [String]
+	authors: [AuthoredBy!]!
 	groups: [String]
 	enteredByPersonID: String
 } 
 
-input AuthoredBy {
-    pbotID: String
-    order: String
-}
 input SchemaInput {
     pbotID: String
     title: String

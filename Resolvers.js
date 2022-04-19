@@ -246,6 +246,7 @@ const schemaMap = {
                 required: false,
                 updatable: true,
                 properties: [
+                    "pbotID",
                     "order"
                 ]
             },
@@ -280,7 +281,6 @@ const schemaMap = {
                 properties: [
                     "pbotID",
                     "order",
-                    "gubba"
                 ]
             },
             {
