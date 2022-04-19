@@ -366,7 +366,11 @@ const schemaMap = {
                 direction: "in",
                 graphqlName: "references",
                 required: false,
-                updatable: true
+                updatable: true,
+                properties: [
+                    "pbotID",
+                    "order",
+                ]
             }, {
                 type: "ELEMENT_OF",
                 direction: "out",
@@ -745,7 +749,7 @@ const handleUpdate = async (session, nodeType, data) => {
                 return `
                     ${str}
                         OPTIONAL MATCH (baseNode)${relationship.direction === "in" ? "<-" : "-"}[rel:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(remoteNode)
-                        WITH baseNode, eb, remoteNode, apoc.convert.toJson(rel) AS relJSON
+                        WITH baseNode, eb, remoteNode, apoc.convert.toJson(rel) AS relJSON, rel
                         DELETE rel
                         WITH baseNode, eb, remoteNode, relJSON 	
                         CALL apoc.do.when(

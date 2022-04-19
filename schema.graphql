@@ -107,7 +107,7 @@ type Description {
     specimen: DescribedBy
     schema: Schema @relation(name: "APPLICATION_OF", direction: OUT)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
-    references: [Reference]! @relation(name: "CITED_BY", direction: IN)
+    references: [DescriptionCitedBy]
     enteredBy: [DescriptionEnteredBy]
 }
 
@@ -386,7 +386,7 @@ input DescriptionInput {
 	genus: String
 	species: String
 	schemaID: String!
-    references: [String]
+    references: [CitedBy]
 	groups: [String]
 	enteredByPersonID: String
 	cascade: Boolean
