@@ -271,7 +271,11 @@ const schemaMap = {
                 direction: "in",
                 graphqlName: "references",
                 required: false,
-                updatable: true
+                updatable: true,
+                properties: [
+                    "pbotID",
+                    "order",
+                ]
             }, {
                 type: "AUTHORED_BY",
                 direction: "out",
@@ -672,7 +676,7 @@ const handleUpdate = async (session, nodeType, data) => {
                     if (typeof r === "string") {
                         retStr = r + "{}";
                     } else {
-                        r.pbotID + JSON.stringify(Object.keys(r).reduce((t,propKey) => {
+                        retStr = r.pbotID + JSON.stringify(Object.keys(r).reduce((t,propKey) => {
                             console.log(propKey);
                             if ("pbotID" !== propKey) {
                                 console.log(r[propKey]);

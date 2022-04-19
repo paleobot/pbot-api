@@ -55,7 +55,7 @@ type Schema {
     title: String
     year: String
     acknowledgments: String
-    references: [Reference!]! @relation(name: "CITED_BY", direction: IN)
+    references: [SchemaCitedBy]
     characters: [Character] @relation(name: "CHARACTER_OF", direction: IN)
     authoredBy: [SchemaAuthoredBy!]!
     appliedBy: [Description]! @relation(name: "APPLICATION_OF", direction: IN)
@@ -230,6 +230,24 @@ type SchemaAuthoredBy @relation(name: "AUTHORED_BY") {
   order: String
 }
 
+"""CITED_BY for access to order"""
+type SchemaCitedBy @relation(name: "CITED_BY") {
+  from: Reference
+  to: Schema
+  order: String
+}
+
+type DescriptionCitedBy @relation(name: "CITED_BY") {
+  from: Reference
+  to: Description
+  order: String
+}
+
+type SpecimenCitedBy @relation(name: "CITED_BY") {
+  from: Reference
+  to: Specimen
+  order: String
+}
 
 """ HAS_STATE for access to value """
 type HasState @relation(name: "HAS_STATE") {
@@ -321,12 +339,17 @@ input ReferenceInput {
 	enteredByPersonID: String
 } 
 
+input CitedBy {
+    pbotID: String
+    order: String
+}
+
 input SchemaInput {
     pbotID: String
     title: String
 	year: String
     acknowledgments: String
-	references: [String]
+	references: [CitedBy]
 	authors: [AuthoredBy!]!
 	groups: [String]
 	enteredByPersonID: String
