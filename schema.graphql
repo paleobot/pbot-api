@@ -131,7 +131,7 @@ type Specimen {
     organ: Organ @relation(name: "IS_TYPE", direction: OUT)
     description: DescribedBy
     archtypeDescription: ExampleOf
-    references: [Reference]! @relation(name: "CITED_BY", direction: IN)
+    references: [SpecimenCitedBy]
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     collection: Collection @relation(name: "COLLECTED_IN", direction: OUT)
     enteredBy: [SpecimenEnteredBy]
@@ -412,7 +412,7 @@ input SpecimenInput {
     descriptionID: String
     otuID: String
     organID: String
-    references: [String]
+    references: [CitedBy]
     collection: String
 	groups: [String]
 	enteredByPersonID: String

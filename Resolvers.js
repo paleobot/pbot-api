@@ -420,7 +420,11 @@ const schemaMap = {
                 direction: "in",
                 graphqlName: "references",
                 required: false,
-                updatable: true
+                updatable: true,
+                properties: [
+                    "pbotID",
+                    "order",
+                ]
             }, {
                 type: "ELEMENT_OF",
                 direction: "out",
