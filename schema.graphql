@@ -469,7 +469,8 @@ type Mutation {
     """NOTE: Keeping CharacterInstance create and update here rather than in Resolvers.js because of the need 
     to check that the State is associated with the Character. It's too specific to fit with the generic approach 
     of the cypher-building code in Resolvers.js. Similarly, recording the old value of HAS_STATE for a quantity
-    State is also too specific."""
+    State is also too specific.
+    NOTE: That last sentence is no longer accurate. We are now generically recording relationship states where they occur."""
     CreateCharacterInstance(data: CharacterInstanceInput!): CharacterInstance!
         @cypher(
             statement: """
