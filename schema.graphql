@@ -491,7 +491,7 @@ type Mutation {
                 MATCH 
                     (description:Description {pbotID: $data.descriptionID}),
 					(description)-[:ELEMENT_OF]->(group:Group),
-                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF|CHARACTER_OF*1..100]-(state:State {pbotID: $data.stateID}),
+                    (character:Character {pbotID: $data.characterID})<-[:CHARACTER_OF*0..]-()<-[:STATE_OF*1..]-(state:State {pbotID: $data.stateID}),
                     (person:Person {pbotID: $data.enteredByPersonID})
 				WITH
 					collect(group) AS groups, description, character, state, person
@@ -546,7 +546,7 @@ type Mutation {
                         DELETE oldStateRelationship
 				WITH characterInstance
 				MATCH
-                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF|CHARACTER_OF*1..100]-(state:State {pbotID: $data.stateID})
+                    (character:Character {pbotID: $data.characterID})<-[:CHARACTER_OF*0..]-()<-[:STATE_OF*1..]-(state:State {pbotID: $data.stateID})
                 CREATE 
                     (character)<-[:INSTANCE_OF]-(characterInstance),
                     (state)<-[:HAS_STATE {value: $data.quantity, order: $data.order}]-(characterInstance) 
