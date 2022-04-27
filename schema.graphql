@@ -9,6 +9,8 @@ union Authorable = Reference | Schema
 
 union Statable = Character | State
 
+union Characterable = Schema | Character
+
 union Citer = Schema | Description | Specimen
 
 type Group {
@@ -67,7 +69,10 @@ type Character {
     pbotID: ID!
     name: String
     definition: String
-    characterOfSchema: Schema! @relation(name: "CHARACTER_OF", direction: OUT)
+    characterOf: Characterable! @cypher(
+      statement: "match (this)-[:CHARACTER_OF]->(n) return n limit 1"
+    )
+    characters: [Character!]! @relation(name: "CHARACTER_OF", direction: IN)
     states: [State!]! @relation(name: "STATE_OF", direction: IN)
     characterInstances: [CharacterInstance!]! @relation(name: "INSTANCE_OF" direction: IN)
     enteredBy: [CharacterEnteredBy]
@@ -298,6 +303,16 @@ type Query {
                 return n            
             """
         )
+
+    GetAllCharacters(schemaID: String!): [Character]
+        @cypher(
+            statement: """
+                match 
+                    (:Schema {pbotID: $schemaID})<-[:CHARACTER_OF*1..100]-(n:Character) 
+                return n            
+            """
+        )
+
 }
 
 
@@ -361,6 +376,7 @@ input CharacterInput {
     pbotID: String
     name: String
     definition: String
+    parentID: String
     schemaID: String
 	enteredByPersonID: String
 	cascade: Boolean
@@ -370,8 +386,6 @@ input StateInput {
     pbotID: String
     name: String
     definition: String
-    characterID: String
-    parentStateID: String
     parentID: String
     schemaID: String
 	enteredByPersonID: String
@@ -477,7 +491,7 @@ type Mutation {
                 MATCH 
                     (description:Description {pbotID: $data.descriptionID}),
 					(description)-[:ELEMENT_OF]->(group:Group),
-                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {pbotID: $data.stateID}),
+                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF|CHARACTER_OF*1..100]-(state:State {pbotID: $data.stateID}),
                     (person:Person {pbotID: $data.enteredByPersonID})
 				WITH
 					collect(group) AS groups, description, character, state, person
@@ -532,7 +546,7 @@ type Mutation {
                         DELETE oldStateRelationship
 				WITH characterInstance
 				MATCH
-                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF*1..100]-(state:State {pbotID: $data.stateID})
+                    (character:Character {pbotID: $data.characterID})<-[:STATE_OF|CHARACTER_OF*1..100]-(state:State {pbotID: $data.stateID})
                 CREATE 
                     (character)<-[:INSTANCE_OF]-(characterInstance),
                     (state)<-[:HAS_STATE {value: $data.quantity, order: $data.order}]-(characterInstance) 

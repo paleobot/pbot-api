@@ -63,6 +63,9 @@ const schemaDeleteMap = {
             direction: "in"
         }],
         cascadeRelationships: [{
+            type: "CHARACTER_OF",
+            direction: "in"
+        }, {
             type: "STATE_OF",
             direction: "in"
         }],
@@ -305,7 +308,7 @@ const schemaMap = {
             {
                 type: "CHARACTER_OF",
                 direction: "out",
-                graphqlName: "schemaID",
+                graphqlName: "parentID",
                 required: true,
                 updatable: false
             },
