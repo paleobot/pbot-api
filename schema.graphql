@@ -146,7 +146,7 @@ type Collection {
     pbotID: ID!
     name: String
     specimens: [Specimen]! @relation(name: "COLLECTED_IN", direction: IN)
-    references: [Reference!]! @relation(name: "CITED_BY", direction: IN)
+    references: [CollectionCitedBy]
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [CollectionEnteredBy]
 }
@@ -251,6 +251,12 @@ type DescriptionCitedBy @relation(name: "CITED_BY") {
 type SpecimenCitedBy @relation(name: "CITED_BY") {
   from: Reference
   to: Specimen
+  order: String
+}
+
+type CollectionCitedBy @relation(name: "CITED_BY") {
+  from: Reference
+  to: Collection
   order: String
 }
 
@@ -444,7 +450,7 @@ input CollectionInput {
     pbotID: String
     name: String
     specimens: [String]
-    references: [String]
+	references: [CitedBy]
 	groups: [String]
     enteredByPersonID: String
 }

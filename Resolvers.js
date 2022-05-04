@@ -450,8 +450,12 @@ const schemaMap = {
                 type: "CITED_BY",
                 direction: "in",
                 graphqlName: "references",
-                required: true,
-                updatable: true
+                required: false,
+                updatable: true,
+                properties: [
+                    "pbotID",
+                    "order",
+                ]
             }, {
                 type: "COLLECTED_IN",
                 direction: "in",
