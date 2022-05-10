@@ -942,11 +942,12 @@ const handleCreate = async (session, nodeType, data) => {
         }
     }, queryStr);
                             
-    //Groups must be elements of themselves; the creator must be a member
+    //Groups must be elements of themselves; the creator must be a member, if not already
     queryStr = "Group" === nodeType ? ` 
         ${queryStr}
         CREATE
-            (baseNode)-[:ELEMENT_OF]->(baseNode),
+            (baseNode)-[:ELEMENT_OF]->(baseNode)
+        MERGE
             (ePerson)-[:MEMBER_OF]->(baseNode)
     ` :
     queryStr;
