@@ -101,15 +101,9 @@ type Organ {
 """Note: schema should be non null, but isn't right now due to missing data"""
 type Description {
     pbotID: ID!
-    type: String
 	name: String
-	family: String
-	genus: String
-	species: String
     characterInstances: [CharacterInstance!]! @relation(name: "DEFINED_BY", direction: OUT)
-    candidateCharacterInstances: [CharacterInstance!]! @relation(name: "CANDIDATE_FOR", direction: IN)
-    exampleSpecimens: [ExampleOf!]!
-    specimen: DescribedBy
+    specimens: [DescribedBy]
     schema: Schema @relation(name: "APPLICATION_OF", direction: OUT)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     references: [DescriptionCitedBy]
@@ -125,6 +119,17 @@ type CharacterInstance {
     enteredBy: [CharacterInstanceEnteredBy]
 }
 
+type OTU {
+    pbotID: ID!
+	name: String
+	family: String
+	genus: String
+	species: String
+    exampleSpecimens: [ExampleOf!]!
+    holotype: HolotypeOf!
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
+}
+
 type Specimen {
     pbotID: ID!
     name: String
@@ -134,8 +139,9 @@ type Specimen {
     pbdbcid: String
     pbdboccid: String
     organ: Organ @relation(name: "IS_TYPE", direction: OUT)
-    description: DescribedBy
-    archtypeDescription: ExampleOf
+    describedBy: [DescribedBy]
+    exampleOf: ExampleOf
+    holotypeOf: HolotypeOf
     references: [SpecimenCitedBy]
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     collection: Collection @relation(name: "COLLECTED_IN", direction: OUT)
@@ -272,7 +278,15 @@ type HasState @relation(name: "HAS_STATE") {
 """ EXAMPLE_OF for access to entered_by and timestamp """
 type ExampleOf @relation(name: "EXAMPLE_OF") {
     from: Specimen
-    to: Description
+    to: OTU
+    entered_by: ID!
+    timestamp: DateTime
+}
+
+""" HOLOTYPE_OF for access to entered_by and timestamp """
+type HolotypeOf @relation(name: "HOLOTYPE_OF") {
+    from: Specimen
+    to: OTU
     entered_by: ID!
     timestamp: DateTime
 }
@@ -400,8 +414,7 @@ input StateInput {
 
 input DescriptionInput {
     pbotID: String
-    type: String!
-    specimenID: String
+    specimenIDs: [String]
 	name: String!
 	family: String
 	genus: String
@@ -423,6 +436,17 @@ input CharacterInstanceInput {
 	enteredByPersonID: String
 }
 
+type OTUInput {
+    pbotID: ID!
+	name: String
+	family: String
+	genus: String
+	species: String
+    exampleSpecimens: [ExampleOf!]!
+    holotype: HolotypeOf!
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
+}
+
 input SpecimenInput {
     pbotID: String
     name: String!
@@ -431,8 +455,9 @@ input SpecimenInput {
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
-    descriptionID: String
-    otuID: String
+    descriptionIDs: [String]
+    exampleOf: String
+    holotypeOf: String
     organID: String
     references: [CitedBy]
     collection: String

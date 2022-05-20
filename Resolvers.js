@@ -105,9 +105,6 @@ const schemaDeleteMap = {
         cascadeRelationships: [{
             type: "DEFINED_BY",
             direction: "out"
-        }, {
-            type: "CANDIDATE_FOR",
-            direction: "in"
         }],
         nonblockingRelationships: [{
             type: "APPLICATION_OF",
@@ -149,9 +146,29 @@ const schemaDeleteMap = {
             direction: "out"
         }]
     }, 
+    OTU: {
+        blockingRelationships: [],
+        cascadeRelationships: [],
+        nonblockingRelationships: [{
+            type: "EXAMPLE_OF",
+            direction: "out"
+        }, {
+            type: "HOLOTYPE_OF",
+            direction: "out",
+        }, {
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
+            type: "ENTERED_BY",
+            direction: "out"
+        }]
+    },
     Specimen: {
         blockingRelationships: [{
             type: "DESCRIBED_BY",
+            direction: "out",
+        }, {
+            type: "HOLOTYPE_OF",
             direction: "out",
         }],
         cascadeRelationships: [],
@@ -345,11 +362,7 @@ const schemaMap = {
     },
     Description: {
         properties: [
-            "type",
 			"name",
-			"family",
-			"genus",
-			"species"
         ],
         relationships: [
             {
@@ -361,7 +374,7 @@ const schemaMap = {
             }, {
                 type: "DESCRIBED_BY",
                 direction: "in",
-                graphqlName: "specimenID",
+                graphqlName: "specimenIDs",
                 required: false,
                 updatable: true
             }, {
@@ -374,6 +387,34 @@ const schemaMap = {
                     "pbotID",
                     "order",
                 ]
+            }, {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
+                updatable: true
+            }
+        ]
+    },
+    OTU: {
+        properties: [
+			"name",
+			"family",
+			"genus",
+			"species"
+        ],
+        relationships: [{
+                type: "EXAMPLE_OF",
+                direction: "in",
+                graphqlName: "exampleSpecimens",
+                required: true,
+                updatable: true
+            }, {
+                type: "HOLOTYPE_OF",
+                direction: "in",
+                graphqlName: "holotype",
+                required: true,
+                updatable: true
             }, {
                 type: "ELEMENT_OF",
                 direction: "out",
@@ -403,7 +444,13 @@ const schemaMap = {
             }, {
                 type: "EXAMPLE_OF",
                 direction: "out",
-                graphqlName: "otuID",
+                graphqlName: "exampleOf",
+                required: false,
+                updatable: true
+            }, {
+                type: "HOLOTYPE_OF",
+                direction: "out",
+                graphqlName: "holotypeOf",
                 required: false,
                 updatable: true
             }, {
@@ -1157,6 +1204,11 @@ export const Resolvers = {
             return await mutateNode(context, "CharacterInstance", args.data, "delete");
         },
 
+        DeleteOTU: async (obj, args, context, info) => {
+            console.log("DeleteOTU");
+            return await mutateNode(context, "OTU", args.data, "delete");
+        },        
+
         DeleteSpecimen: async (obj, args, context, info) => {
             console.log("DeleteSpecimen");
             return await mutateNode(context, "Specimen", args.data, "delete");
@@ -1217,6 +1269,11 @@ export const Resolvers = {
             return await mutateNode(context, "Description", args.data, "update");
         },
 
+        UpdateOTU: async (obj, args, context, info) => {
+            console.log("UpdateOTU");
+            return await mutateNode(context, "OTU", args.data, "update");
+        },
+
         UpdateSpecimen: async (obj, args, context, info) => {
             console.log("UpdateSpecimen");
             return await mutateNode(context, "Specimen", args.data, "update");
@@ -1268,6 +1325,12 @@ export const Resolvers = {
         CreateDescription: async (obj, args, context, info) => {
             console.log("CreateDescription");
             return await mutateNode(context, "Description", args.data, "create");
+            
+        },
+
+        CreateOTU: async (obj, args, context, info) => {
+            console.log("CreateOTU");
+            return await mutateNode(context, "OTU", args.data, "create");
             
         },
 
