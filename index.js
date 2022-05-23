@@ -163,7 +163,8 @@ const server = new ApolloServer({
                 schema,
                 cypherParams: {
                     user: user,
-                    cypherMatchPrefix: `(:Person {pbotID:"${user.pbotID}"})-[:MEMBER_OF]->(g:Group)<-[:ELEMENT_OF|:MEMBER_OF]-`,
+                    cypherMatchPrefix: `(p:Person {pbotID:"${user.pbotID}"})-[:MEMBER_OF]->(g:Group)<-[:ELEMENT_OF|:MEMBER_OF]-`,
+                    cypherMatchPostfix: `-[:ELEMENT_OF|:MEMBER_OF]->(g)<-[:MEMBER_OF]-(p)`,
                     skipPrefixNodeTypes: ["Person"]
                 },
             };
