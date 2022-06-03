@@ -119,6 +119,21 @@ type CharacterInstance {
     enteredBy: [CharacterInstanceEnteredBy]
 }
 
+type PseudoCharacterInstance {
+    pbotID: ID!
+    character: Character @relation(name: "INSTANCE_OF", direction: OUT)
+    state: HasState
+    candidateForArchtype: Description @relation(name: "CANDIDATE_FOR", direction: OUT)
+    description: Description @relation(name: "DEFINED_BY" direction: IN)
+    enteredBy: [CharacterInstanceEnteredBy]
+    characterName: String
+    characterID: String
+    stateName: String
+    stateID: String
+    stateOrder: String
+    stateValue: String
+}
+
 type OTU {
     pbotID: ID!
 	name: String
@@ -127,6 +142,34 @@ type OTU {
 	species: String
     exampleSpecimens: [ExampleOf!]!
     holotype: HolotypeOf!
+    mergedDescription: [PseudoCharacterInstance!]! @cypher(
+        statement: """
+            match
+                (otu:OTU {pbotID:this.pbotID})<-[:EXAMPLE_OF]-(specimen:Specimen)-[:DESCRIBED_BY]->(d:Description)-[:DEFINED_BY]->(ci:CharacterInstance),
+                (ci)-[:INSTANCE_OF]->(c:Character),
+                (ci)-[hs:HAS_STATE]->(s:State) 
+            with
+                distinct c, s{.*, value: hs.value, order:avg(hs.order)} as states, otu //Tuck the order and value relationship properties in temp object with state for use later. For order, we want to save the average value for this state. By aggregating on order, we also limit s to distinct states, so we don't need to specify DISTINCT. 
+            unwind states as s 
+                with
+                    otu, c, s,
+                    apoc.create.vNode(["CharacterInstance"]) as ci2
+                    match (state:State {pbotID:s.pbotID})  //s is a temp object. We need to get the actual state node we want to work with
+                with otu, ci2, c, s, state,
+                    apoc.create.vRelationship(otu, "vDEFINED_BY", {}, ci2) as definedBy,
+                    apoc.create.vRelationship(ci2, "vAPPLICATION_OF", {name:c.name}, c) as applicationOf,
+                    apoc.create.vRelationship(ci2, "vHAS_STATE", {name: s.name, value: s.value, order: s.order}, state) as hasState
+            return
+                {   
+                    characterName: c.name,
+                    characterID: c.pbotID,
+                    stateName: s.name,
+                    stateID: s.pbotID,
+                    stateOrder: s.order,
+                    stateValue: s.value
+                } as ci
+        """
+    )
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
 }
 
