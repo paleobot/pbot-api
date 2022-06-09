@@ -148,22 +148,26 @@ type OTU {
     mergedDescription: [PseudoCharacterInstance!]! @cypher(
         statement: """
             MATCH
-                (otu:OTU {pbotID:this.pbotID})<-[:EXAMPLE_OF]-(specimen:Specimen)-[:DESCRIBED_BY]->(d:Description)-[:DEFINED_BY]->(ci:CharacterInstance),
-                (ci)-[:INSTANCE_OF]->(c:Character),
-                (ci)-[hs:HAS_STATE]->(s:State),
-                (d)-[:APPLICATION_OF]->(schema:Schema) 
+                (otu:OTU {pbotID:this.pbotID})<-[:EXAMPLE_OF|:HOLOTYPE_OF]-(specimen:Specimen)-[:DESCRIBED_BY]->(d:Description)
             WITH
-                DISTINCT c, schema, s{.*, value: hs.value, order:avg(hs.order)} //Tuck the order and value relationship properties in temp object with state for use later. For order, we want to save the average value for this state. By aggregating on order, we also limit s to distinct states, so we don't need to specify DISTINCT. 
-            RETURN
-                { 
-                    schema: schema.title,
-                    characterName: c.name,
-                    characterID: c.pbotID,
-                    stateName: s.name,
-                    stateID: s.pbotID,
-                    stateOrder: s.order,
-                    stateValue: s.value
-                } AS md
+                DISTINCT d
+                MATCH   
+                    (d)-[:DEFINED_BY]->(ci:CharacterInstance),
+                    (ci)-[:INSTANCE_OF]->(c:Character),
+                    (ci)-[hs:HAS_STATE]->(s:State),
+                    (d)-[:APPLICATION_OF]->(schema:Schema) 
+                    WITH
+                        DISTINCT c, schema, s{.*, value: hs.value, order:avg(hs.order)} //Tuck the order and value relationship properties in temp object with state for use later. For order, we want to save the average value for this state. By aggregating on order, we also limit s to distinct states, so we don't need to specify DISTINCT. 
+                        RETURN
+                            { 
+                                schema: schema.title,
+                                characterName: c.name,
+                                characterID: c.pbotID,
+                                stateName: s.name,
+                                stateID: s.pbotID,
+                                stateOrder: s.order,
+                                stateValue: s.value
+                            } AS md
         """
     )
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
@@ -455,9 +459,6 @@ input DescriptionInput {
     pbotID: String
     specimenIDs: [String]
 	name: String!
-	family: String
-	genus: String
-	species: String
 	schemaID: String!
     references: [CitedBy]
 	groups: [String]
@@ -475,15 +476,15 @@ input CharacterInstanceInput {
 	enteredByPersonID: String
 }
 
-type OTUInput {
-    pbotID: ID!
+input OTUInput {
+    pbotID: String
 	name: String
 	family: String
 	genus: String
 	species: String
-    exampleSpecimens: [ExampleOf!]!
-    holotype: HolotypeOf!
-    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
+    exampleSpecimens: [String]
+    holotype: String
+	groups: [String]
 }
 
 input SpecimenInput {
@@ -495,8 +496,8 @@ input SpecimenInput {
     pbdbcid: String
     pbdboccid: String
     descriptionIDs: [String]
-    exampleOf: String
-    holotypeOf: String
+    exampleOfID: String
+    holotypeOfID: String
     organID: String
     references: [CitedBy]
     collection: String
@@ -545,6 +546,10 @@ type Mutation {
     CreateState(data: StateInput!): State! @neo4j_ignore
     UpdateState(data: StateInput!): State! @neo4j_ignore
     DeleteState(data: StateInput!): State! @neo4j_ignore
+
+    CreateOTU(data: OTUInput!): OTU! @neo4j_ignore
+    UpdateOTU(data: OTUInput!): OTU! @neo4j_ignore
+    DeleteOTU(data: OTUInput!): OTU!  @neo4j_ignore
 
     CreateDescription(data: DescriptionInput!): Description! @neo4j_ignore
     UpdateDescription(data: DescriptionInput!): Description! @neo4j_ignore
