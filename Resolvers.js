@@ -726,7 +726,7 @@ const handleUpdate = async (session, nodeType, data) => {
     //Copy old relationships (as pbotID arrays) into ENTERED_BY. Also, go ahead and delete the relationships here for convenience.
     //I'm not going to lie: this code is pretty stinky. In order to track changes to relationship properties and get them recorded 
     //in the ENTERED_BY, we have to create these weird string concats with the remote node ID and the properties. This is then
-    //used by an apoc disjunction test in the cypher. This is made a bit more ugly yet by the fact that I have chosed to support
+    //used by an apoc disjunction test in the cypher. This is made a bit more ugly yet by the fact that I have chosen to support
     //the original array or ID strings as well as the new array of objects.
     queryStr = relationships.reduce((str, relationship) => {
         if (Array.isArray(data[relationship.graphqlName])) {
