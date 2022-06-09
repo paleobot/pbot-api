@@ -150,7 +150,7 @@ type OTU {
             MATCH
                 (otu:OTU {pbotID:this.pbotID})<-[:EXAMPLE_OF|:HOLOTYPE_OF]-(specimen:Specimen)-[:DESCRIBED_BY]->(d:Description)
             WITH
-                DISTINCT d
+                DISTINCT d //This gets rid of possible EXAMPLE_OF/HOLOTYPE_OF duplicates
                 MATCH   
                     (d)-[:DEFINED_BY]->(ci:CharacterInstance),
                     (ci)-[:INSTANCE_OF]->(c:Character),
