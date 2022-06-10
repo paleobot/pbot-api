@@ -145,6 +145,7 @@ type OTU {
 	species: String
     exampleSpecimens: [ExampleOf!]!
     holotype: HolotypeOf!
+    references: [OTUCitedBy]
     mergedDescription: [PseudoCharacterInstance!]! @cypher(
         statement: """
             MATCH
@@ -183,11 +184,11 @@ type Specimen {
     pbdboccid: String
     organ: Organ @relation(name: "IS_TYPE", direction: OUT)
     describedBy: [DescribedBy]
-    exampleOf: ExampleOf
-    holotypeOf: HolotypeOf
+    exampleOf: [ExampleOf]
+    holotypeOf: [HolotypeOf]
     references: [SpecimenCitedBy]
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
-    collection: Collection @relation(name: "COLLECTED_IN", direction: OUT)
+    collection: Collection! @relation(name: "COLLECTED_IN", direction: OUT)
     enteredBy: [SpecimenEnteredBy]
 }
 
@@ -306,6 +307,12 @@ type SpecimenCitedBy @relation(name: "CITED_BY") {
 type CollectionCitedBy @relation(name: "CITED_BY") {
   from: Reference
   to: Collection
+  order: String
+}
+
+type OTUCitedBy @relation(name: "CITED_BY") {
+  from: Reference
+  to: OTU
   order: String
 }
 
@@ -484,6 +491,7 @@ input OTUInput {
 	species: String
     exampleSpecimens: [String]
     holotype: String
+	references: [CitedBy]
 	groups: [String]
 }
 
