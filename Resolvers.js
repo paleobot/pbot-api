@@ -428,7 +428,6 @@ const schemaMap = {
         //TODO: look into https://www.graphql-scalars.dev/docs/scalars/uuid for managing idigbiouuid
         properties: [
            "name",
-           "locality",
            "preservationMode",
            "idigbiouuid",
            "pbdbcid",
@@ -441,18 +440,6 @@ const schemaMap = {
                 graphqlName: "descriptionID",
                 required: false,
                 updatable: true,
-            }, {
-                type: "EXAMPLE_OF",
-                direction: "out",
-                graphqlName: "exampleOf",
-                required: false,
-                updatable: true
-            }, {
-                type: "HOLOTYPE_OF",
-                direction: "out",
-                graphqlName: "holotypeOf",
-                required: false,
-                updatable: true
             }, {
                 type: "IS_TYPE",
                 direction: "out",
