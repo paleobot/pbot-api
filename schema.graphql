@@ -177,7 +177,6 @@ type OTU {
 type Specimen {
     pbotID: ID!
     name: String
-    locality: String
     preservationMode: String
     idigbiouuid: String
     pbdbcid: String
@@ -498,17 +497,14 @@ input OTUInput {
 input SpecimenInput {
     pbotID: String
     name: String!
-    locality: String
     preservationMode: String
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
     descriptionIDs: [String]
-    exampleOfID: String
-    holotypeOfID: String
     organID: String
     references: [CitedBy]
-    collection: String
+    collection: String!
 	groups: [String]
 	enteredByPersonID: String
 }
