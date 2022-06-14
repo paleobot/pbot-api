@@ -220,6 +220,11 @@ const schemaDeleteMap = {
 //And we also need to be able to get a list of relationships that includes both their Cypher name and their graphql name.
 //There is probably a way to get this from schema.graphql, but it's probably terrible.
 //So, I'm ok with the extra maintenance required by this map.
+//
+//It's important to note that the relationships listed here for each node type are only the relationships 
+//we want a mutation on that node type to have access to. For instance, the Specimen type below does not include 
+//EXAMPLE_OF and HOLOTYPE_OF because we don't want mutations on Specimen to modify these. They are only modified
+//by OTU.
 const schemaMap = {
     Group: {
         properties: ["name"],
