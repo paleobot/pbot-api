@@ -421,6 +421,16 @@ const schemaMap = {
                 required: true,
                 updatable: true
             }, {
+                type: "CITED_BY",
+                direction: "in",
+                graphqlName: "references",
+                required: false,
+                updatable: true,
+                properties: [
+                    "pbotID",
+                    "order",
+                ]
+            }, {
                 type: "ELEMENT_OF",
                 direction: "out",
                 graphqlName: "groups",
