@@ -158,7 +158,7 @@ type OTU {
                     (ci)-[hs:HAS_STATE]->(s:State),
                     (d)-[:APPLICATION_OF]->(schema:Schema) 
                     WITH
-                        DISTINCT c, schema, s{.*, value: hs.value, order:avg(hs.order)} //Tuck the order and value relationship properties in temp object with state for use later. For order, we want to save the average value for this state. By aggregating on order, we also limit s to distinct states, so we don't need to specify DISTINCT. 
+                        DISTINCT c, schema, s{.*, value: hs.value, order:avg(toInteger(hs.order))} //Tuck the order and value relationship properties in temp object with state for use later. For order, we want to save the average value for this state. By aggregating on order, we also limit s to distinct states, so we don't need to specify DISTINCT. 
                         RETURN
                             { 
                                 schema: schema.title,
