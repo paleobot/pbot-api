@@ -147,7 +147,10 @@ const schemaDeleteMap = {
         }]
     }, 
     OTU: {
-        blockingRelationships: [],
+        blockingRelationships: [{
+            type: "SAME_AS",
+            direction: "out"
+        }],
         cascadeRelationships: [],
         nonblockingRelationships: [{
             type: "EXAMPLE_OF",
@@ -155,6 +158,20 @@ const schemaDeleteMap = {
         }, {
             type: "HOLOTYPE_OF",
             direction: "out",
+        }, {
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
+            type: "ENTERED_BY",
+            direction: "out"
+        }]
+    },
+    Synonym: {
+        blockingRelationships: [],
+        cascadeRelationships: [],
+        nonblockingRelationships: [{
+            type: "SAME_AS",
+            direction: "in"
         }, {
             type: "ELEMENT_OF",
             direction: "out"
@@ -418,6 +435,42 @@ const schemaMap = {
                 type: "HOLOTYPE_OF",
                 direction: "in",
                 graphqlName: "holotype",
+                required: true,
+                updatable: true
+            }, {
+                type: "SAME_AS",
+                direction: "out",
+                graphqlName: "synonyms",
+                required: false,
+                updatable: true
+            }, {
+                type: "CITED_BY",
+                direction: "in",
+                graphqlName: "references",
+                required: false,
+                updatable: true,
+                properties: [
+                    "pbotID",
+                    "order",
+                ]
+            }, {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
+                updatable: true
+            }
+        ]
+    },
+    Synonym: {
+        properties: [
+            "explanation",
+        ],
+        relationships: [
+            {
+                type: "SAME_AS",
+                direction: "in",
+                graphqlName: "otus",
                 required: true,
                 updatable: true
             }, {
@@ -1215,6 +1268,11 @@ export const Resolvers = {
             return await mutateNode(context, "OTU", args.data, "delete");
         },        
 
+        DeleteSynonym: async (obj, args, context, info) => {
+            console.log("DeleteSynonym");
+            return await mutateNode(context, "Synonym", args.data, "delete");
+        },        
+
         DeleteSpecimen: async (obj, args, context, info) => {
             console.log("DeleteSpecimen");
             return await mutateNode(context, "Specimen", args.data, "delete");
@@ -1280,6 +1338,11 @@ export const Resolvers = {
             return await mutateNode(context, "OTU", args.data, "update");
         },
 
+        UpdateSynonym: async (obj, args, context, info) => {
+            console.log("UpdateSynonym");
+            return await mutateNode(context, "Synonym", args.data, "update");
+        },
+
         UpdateSpecimen: async (obj, args, context, info) => {
             console.log("UpdateSpecimen");
             return await mutateNode(context, "Specimen", args.data, "update");
@@ -1337,6 +1400,12 @@ export const Resolvers = {
         CreateOTU: async (obj, args, context, info) => {
             console.log("CreateOTU");
             return await mutateNode(context, "OTU", args.data, "create");
+            
+        },
+
+        CreateSynonym: async (obj, args, context, info) => {
+            console.log("CreateSynonym");
+            return await mutateNode(context, "Synonym", args.data, "create");
             
         },
 

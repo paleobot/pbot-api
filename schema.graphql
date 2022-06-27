@@ -145,6 +145,7 @@ type OTU {
 	species: String
     exampleSpecimens: [ExampleOf!]!
     holotype: HolotypeOf!
+    synonyms: [OTU] @relation(name: "SAME_AS", direction: OUT)
     references: [OTUCitedBy]
     mergedDescription: [PseudoCharacterInstance!]! @cypher(
         statement: """
@@ -174,7 +175,15 @@ type OTU {
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
 }
 
-type Specimen {
+type Synonym {
+    pbotID: ID!
+	explanation: String
+    references: [SynonymCitedBy]
+    otus: [OTU!]! @relation(name: "SAME_AS", direction: IN)
+    elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
+}
+
+	type Specimen {
     pbotID: ID!
     name: String
     preservationMode: String
@@ -312,6 +321,12 @@ type CollectionCitedBy @relation(name: "CITED_BY") {
 type OTUCitedBy @relation(name: "CITED_BY") {
   from: Reference
   to: OTU
+  order: String
+}
+
+type SynonymCitedBy @relation(name: "CITED_BY") {
+  from: Reference
+  to: Synonym
   order: String
 }
 
@@ -490,7 +505,16 @@ input OTUInput {
 	species: String
     exampleSpecimens: [String]
     holotype: String
+    synonyms: [String]
 	references: [CitedBy]
+	groups: [String]
+}
+
+input SynonymInput {
+    pbotID: String
+	explanation: String
+    references: [CitedBy]
+    otus: [String!]!
 	groups: [String]
 }
 
@@ -554,6 +578,10 @@ type Mutation {
     CreateOTU(data: OTUInput!): OTU! @neo4j_ignore
     UpdateOTU(data: OTUInput!): OTU! @neo4j_ignore
     DeleteOTU(data: OTUInput!): OTU!  @neo4j_ignore
+
+    CreateSynonym(data: SynonymInput!): Synonym! @neo4j_ignore
+    UpdateSynonym(data: SynonymInput!): Synonym! @neo4j_ignore
+    DeleteSynonym(data: SynonymInput!): Synonym!  @neo4j_ignore
 
     CreateDescription(data: DescriptionInput!): Description! @neo4j_ignore
     UpdateDescription(data: DescriptionInput!): Description! @neo4j_ignore
