@@ -121,6 +121,9 @@ const schemaDeleteMap = {
         }, {
             type: "ENTERED_BY",
             direction: "out"
+        }, {
+            type: "CITED_BY",
+            direction: "in"
         }]
     },
     CharacterInstance: {
@@ -164,6 +167,9 @@ const schemaDeleteMap = {
         }, {
             type: "ENTERED_BY",
             direction: "out"
+        }, {
+            type: "CITED_BY",
+            direction: "in"
         }]
     },
     Synonym: {
@@ -178,6 +184,23 @@ const schemaDeleteMap = {
         }, {
             type: "ENTERED_BY",
             direction: "out"
+        }, {
+            type: "CITED_BY",
+            direction: "in"
+        }]
+    },
+    Comment: {
+        blockingRelationships: [],
+        cascadeRelationships: [],
+        nonblockingRelationships: [{
+            type: "REFERS_TO",
+            direction: "out"
+        }, {
+            type: "ENTERED_BY",
+            direction: "out"
+        }, {
+            type: "CITED_BY",
+            direction: "in"
         }]
     },
     Specimen: {
@@ -204,6 +227,9 @@ const schemaDeleteMap = {
         }, {
             type: "ENTERED_BY",
             direction: "out"
+        }, {
+            type: "CITED_BY",
+            direction: "in"
         }]
     }, 
     Collection: {
@@ -492,6 +518,30 @@ const schemaMap = {
             }
         ]
     },
+    Comment: {
+        properties: [
+            "comment"
+        ],
+        relationships: [
+            {
+                type: "REFERS_TO",
+                direction: "out",
+                graphqlName: "subjectID",
+                required: true,
+                updatable: true
+            }, {
+                type: "CITED_BY",
+                direction: "in",
+                graphqlName: "references",
+                required: false,
+                updatable: true,
+                properties: [
+                    "pbotID",
+                    "order",
+                ]
+            }        
+        ]
+    },
     Specimen: {
         //TODO: look into https://www.graphql-scalars.dev/docs/scalars/uuid for managing idigbiouuid
         properties: [
@@ -590,6 +640,22 @@ const isPublic = async (session, pbotID) => {
     const result = await session.run(
         queryStr,
         {pbotID: pbotID}
+    );
+    return result.records.length > 0;
+}
+
+const isSynonym = async (session, otus) => {
+    const queryStr = `
+        MATCH
+            (:OTU {pbotID: "${otus[0]}"})-[:SAME_AS]->(s:Synonym)<-[:SAME_AS]-(:OTU {pbotID: "${otus[1]}"})
+        RETURN
+            s    
+    `;
+    console.log(queryStr);
+        
+    const result = await session.run(
+        queryStr,
+        {otus: otus}
     );
     return result.records.length > 0;
 }
@@ -1114,6 +1180,10 @@ const mutateNode = async (context, nodeType, data, type) => {
                             console.log("person already exists");
                             throw new ValidationError(`${nodeType} with that email already exists`);
                         }
+                    } else if ("Synonym" === nodeType) {
+                        if (await isSynonym(tx, data.otus)) {
+                            throw new ValidationError(`${nodeType} already exists`);
+                        }
                     } else if ("Character" === nodeType || "State" === nodeType || "CharacterInstance" === nodeType) {
                         console.log("++++++++++++++++++++++fetching groups++++++++++++++++++");
                         //fetch groups from Schema and put in data
@@ -1274,6 +1344,11 @@ export const Resolvers = {
             return await mutateNode(context, "Synonym", args.data, "delete");
         },        
 
+        DeleteComment: async (obj, args, context, info) => {
+            console.log("DeleteComment");
+            return await mutateNode(context, "Comment", args.data, "delete");
+        },        
+
         DeleteSpecimen: async (obj, args, context, info) => {
             console.log("DeleteSpecimen");
             return await mutateNode(context, "Specimen", args.data, "delete");
@@ -1344,6 +1419,11 @@ export const Resolvers = {
             return await mutateNode(context, "Synonym", args.data, "update");
         },
 
+        UpdateComment: async (obj, args, context, info) => {
+            console.log("UpdateComment");
+            return await mutateNode(context, "Comment", args.data, "update");
+        },
+
         UpdateSpecimen: async (obj, args, context, info) => {
             console.log("UpdateSpecimen");
             return await mutateNode(context, "Specimen", args.data, "update");
@@ -1407,6 +1487,12 @@ export const Resolvers = {
         CreateSynonym: async (obj, args, context, info) => {
             console.log("CreateSynonym");
             return await mutateNode(context, "Synonym", args.data, "create");
+            
+        },
+
+        CreateComment: async (obj, args, context, info) => {
+            console.log("CreateComment");
+            return await mutateNode(context, "Comment", args.data, "create");
             
         },
 
