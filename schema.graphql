@@ -13,6 +13,8 @@ union Characterable = Schema | Character
 
 union Citer = Schema | Description | Specimen
 
+union Commentable = Synonym
+
 type Group {
     pbotID: ID!
     name: String
@@ -145,7 +147,7 @@ type OTU {
 	species: String
     exampleSpecimens: [ExampleOf!]!
     holotype: HolotypeOf!
-    synonyms: [OTU] @relation(name: "SAME_AS", direction: OUT)
+    synonyms: [Synonym] @relation(name: "SAME_AS", direction: OUT)
     references: [OTUCitedBy]
     mergedDescription: [PseudoCharacterInstance!]! @cypher(
         statement: """
@@ -173,17 +175,28 @@ type OTU {
         """
     )
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
+    enteredBy: [OTUEnteredBy]
 }
 
 type Synonym {
     pbotID: ID!
 	explanation: String
+	comments: [SynonymRefersTo!]!
     references: [SynonymCitedBy]
     otus: [OTU!]! @relation(name: "SAME_AS", direction: IN)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
+    enteredBy: [SynonymEnteredBy]
 }
 
-	type Specimen {
+type Comment {
+    pbotID: ID!
+    comment: String
+    subject: Commentable! @relation(name: "REFERS_TO", direction: OUT)
+    references: [CommentCitedBy]
+    enteredBy: [CommentEnteredBy]
+}
+
+type Specimen {
     pbotID: ID!
     name: String
     preservationMode: String
@@ -280,6 +293,24 @@ type CollectionEnteredBy @relation(name: "ENTERED_BY") {
   timestamp: DateTime
 }
 
+type OTUEnteredBy @relation(name: "ENTERED_BY") {
+  from: OTU
+  to: Person
+  timestamp: DateTime
+}
+
+type SynonymEnteredBy @relation(name: "ENTERED_BY") {
+  from: Synonym
+  to: Person
+  timestamp: DateTime
+}
+
+type CommentEnteredBy @relation(name: "ENTERED_BY") {
+  from: Comment
+  to: Person
+  timestamp: DateTime
+}
+
 """AUTHORED_BY for access to order"""
 type ReferenceAuthoredBy @relation(name: "AUTHORED_BY") {
   from: Reference
@@ -329,6 +360,19 @@ type SynonymCitedBy @relation(name: "CITED_BY") {
   to: Synonym
   order: String
 }
+
+type CommentCitedBy @relation(name: "CITED_BY") {
+  from: Reference
+  to: Comment
+  order: String
+}
+
+type SynonymRefersTo @relation(name: "REFERS_TO") {
+  from: Comment
+  to: Synonym
+  order: String
+}
+
 
 """ HAS_STATE for access to value and order"""
 type HasState @relation(name: "HAS_STATE") {
@@ -439,7 +483,7 @@ input ReferenceInput {
 	enteredByPersonID: String
 } 
 
-input CitedBy {
+input CitedByInput {
     pbotID: String
     order: String
 }
@@ -449,7 +493,7 @@ input SchemaInput {
     title: String
 	year: String
     acknowledgments: String
-	references: [CitedBy]
+	references: [CitedByInput]
 	authors: [AuthoredBy!]!
 	groups: [String]
 	enteredByPersonID: String
@@ -481,7 +525,7 @@ input DescriptionInput {
     specimenIDs: [String]
 	name: String!
 	schemaID: String!
-    references: [CitedBy]
+    references: [CitedByInput]
 	groups: [String]
 	enteredByPersonID: String
 	cascade: Boolean
@@ -506,16 +550,23 @@ input OTUInput {
     exampleSpecimens: [String]
     holotype: String
     synonyms: [String]
-	references: [CitedBy]
+	references: [CitedByInput]
 	groups: [String]
 }
 
 input SynonymInput {
     pbotID: String
 	explanation: String
-    references: [CitedBy]
+    references: [CitedByInput]
     otus: [String!]!
 	groups: [String]
+}
+
+input CommentInput {
+    pbotID: String
+    comment: String
+    subjectID: String
+    references: [CitedByInput]
 }
 
 input SpecimenInput {
@@ -527,7 +578,7 @@ input SpecimenInput {
     pbdboccid: String
     descriptionIDs: [String]
     organID: String
-    references: [CitedBy]
+    references: [CitedByInput]
     collection: String!
 	groups: [String]
 	enteredByPersonID: String
@@ -543,7 +594,7 @@ input CollectionInput {
     pbotID: String
     name: String
     specimens: [String]
-	references: [CitedBy]
+	references: [CitedByInput]
 	groups: [String]
     enteredByPersonID: String
 }
@@ -582,6 +633,10 @@ type Mutation {
     CreateSynonym(data: SynonymInput!): Synonym! @neo4j_ignore
     UpdateSynonym(data: SynonymInput!): Synonym! @neo4j_ignore
     DeleteSynonym(data: SynonymInput!): Synonym!  @neo4j_ignore
+
+    CreateComment(data: CommentInput!): Comment! @neo4j_ignore
+    UpdateComment(data: CommentInput!): Comment! @neo4j_ignore
+    DeleteComment(data: CommentInput!): Comment!  @neo4j_ignore
 
     CreateDescription(data: DescriptionInput!): Description! @neo4j_ignore
     UpdateDescription(data: DescriptionInput!): Description! @neo4j_ignore
