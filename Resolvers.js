@@ -777,7 +777,6 @@ const handleDelete = async (session, nodeType, pbotID, enteredByPersonID, relati
     return result;
 }
     
-//TODO: figure out how to handle Group change cascade 
 const handleUpdate = async (session, nodeType, data) => {
     console.log("handleUpdate");
     
