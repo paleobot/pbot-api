@@ -520,7 +520,7 @@ const schemaMap = {
     },
     Comment: {
         properties: [
-            "comment"
+            "content"
         ],
         relationships: [
             {
