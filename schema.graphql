@@ -13,7 +13,7 @@ union Characterable = Schema | Character
 
 union Citer = Schema | Description | Specimen
 
-union Commentable = Synonym
+union Commentable = Synonym | Comment
 
 type Group {
     pbotID: ID!
@@ -190,9 +190,10 @@ type Synonym {
 
 type Comment {
     pbotID: ID!
-    comment: String
+    content: String
     subject: Commentable! @relation(name: "REFERS_TO", direction: OUT)
     references: [CommentCitedBy]
+	comments: [CommentRefersTo!]
     enteredBy: [CommentEnteredBy]
 }
 
@@ -373,6 +374,12 @@ type SynonymRefersTo @relation(name: "REFERS_TO") {
   order: String
 }
 
+type CommentRefersTo @relation(name: "REFERS_TO") {
+  from: Comment
+  to: Comment
+  order: String
+}
+
 
 """ HAS_STATE for access to value and order"""
 type HasState @relation(name: "HAS_STATE") {
@@ -437,6 +444,15 @@ type Query {
             statement: """
                 match 
                     (:Schema {pbotID: $schemaID})<-[:CHARACTER_OF*1..100]-(n:Character) 
+                return n            
+            """
+        )
+
+    GetAllComments(synonymID: String!): [Comment]
+        @cypher(
+            statement: """
+                match 
+                    (:Synonym {pbotID: $synonymID})<-[:REFERS_TO*1..100]-(n:Comment) 
                 return n            
             """
         )
@@ -564,7 +580,7 @@ input SynonymInput {
 
 input CommentInput {
     pbotID: String
-    comment: String
+    content: String
     subjectID: String
     references: [CitedByInput]
 }
