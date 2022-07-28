@@ -191,8 +191,9 @@ type Synonym {
 type Comment {
     pbotID: ID!
     content: String
-    subject: Commentable! @relation(name: "REFERS_TO", direction: OUT)
-    references: [CommentCitedBy]
+    subject: Commentable! @cypher(
+      statement: "match (this)-[:REFERS_TO]->(n) return n limit 1"
+    )    references: [CommentCitedBy]
 	comments: [CommentRefersTo!]
     enteredBy: [CommentEnteredBy]
 }
