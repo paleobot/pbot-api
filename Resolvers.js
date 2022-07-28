@@ -190,7 +190,10 @@ const schemaDeleteMap = {
         }]
     },
     Comment: {
-        blockingRelationships: [],
+        blockingRelationships: [{
+            type: "REFERS_TO",
+            direction: "in"
+        }],
         cascadeRelationships: [],
         nonblockingRelationships: [{
             type: "REFERS_TO",
