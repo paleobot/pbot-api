@@ -181,7 +181,7 @@ type OTU {
 type Synonym {
     pbotID: ID!
 	explanation: String
-	comments: [SynonymRefersTo!]!
+    comments: [Comment!] @relation(name: "REFERS_TO", direction: IN)
     references: [SynonymCitedBy]
     otus: [OTU!]! @relation(name: "SAME_AS", direction: IN)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
@@ -194,7 +194,7 @@ type Comment {
     subject: Commentable! @cypher(
       statement: "match (this)-[:REFERS_TO]->(n) return n limit 1"
     )    references: [CommentCitedBy]
-	comments: [CommentRefersTo!]
+    comments: [Comment!] @relation(name: "REFERS_TO", direction: IN)
     enteredBy: [CommentEnteredBy]
 }
 
@@ -365,18 +365,6 @@ type SynonymCitedBy @relation(name: "CITED_BY") {
 
 type CommentCitedBy @relation(name: "CITED_BY") {
   from: Reference
-  to: Comment
-  order: String
-}
-
-type SynonymRefersTo @relation(name: "REFERS_TO") {
-  from: Comment
-  to: Synonym
-  order: String
-}
-
-type CommentRefersTo @relation(name: "REFERS_TO") {
-  from: Comment
   to: Comment
   order: String
 }
