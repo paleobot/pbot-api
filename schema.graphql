@@ -193,7 +193,8 @@ type Comment {
     content: String
     subject: Commentable! @cypher(
       statement: "match (this)-[:REFERS_TO]->(n) return n limit 1"
-    )    references: [CommentCitedBy]
+    )    
+    references: [CommentCitedBy]
     comments: [Comment!] @relation(name: "REFERS_TO", direction: IN)
     enteredBy: [CommentEnteredBy]
 }
