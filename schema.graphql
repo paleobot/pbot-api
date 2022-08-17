@@ -207,6 +207,7 @@ type Specimen {
     pbdbcid: String
     pbdboccid: String
     organ: Organ @relation(name: "IS_TYPE", direction: OUT)
+    images: [Image] @relation(name: "IMAGE_OF", direction: IN)
     describedBy: [DescribedBy]
     exampleOf: [ExampleOf]
     holotypeOf: [HolotypeOf]
@@ -214,6 +215,15 @@ type Specimen {
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     collection: Collection! @relation(name: "COLLECTED_IN", direction: OUT)
     enteredBy: [SpecimenEnteredBy]
+}
+
+type Image {
+    pbotID: ID!
+    link: String!
+    citation: String
+    caption: String
+    type: String
+    imageOf: Specimen! @relation(name: "IMAGE_OF", direction: OUT)
 }
 
 type Collection {
@@ -582,12 +592,22 @@ input SpecimenInput {
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
+    images: [ImageInput]
     descriptionIDs: [String]
     organID: String
     references: [CitedByInput]
     collection: String!
 	groups: [String]
 	enteredByPersonID: String
+}
+
+input ImageInput {
+    pbotID: String
+    link: String!
+    citation: String
+    caption: String
+    type: String
+    imageOf: String
 }
 
 input OrganInput {
