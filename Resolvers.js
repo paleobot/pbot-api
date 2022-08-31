@@ -1331,6 +1331,13 @@ const mutateNode = async (context, nodeType, data, type) => {
 }
 
 export const Resolvers = {
+    Person: {
+        email: (parent, args, context, info) => {
+            return context.user.password ?
+                parent.email :
+                null;
+        }
+    },
     Mutation: {
         DeleteReference: async (obj, args, context, info) => {
             console.log("DeleteReference");
