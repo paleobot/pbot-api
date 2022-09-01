@@ -3,6 +3,23 @@ import {ValidationError} from 'apollo-server';
 import {cypherQuery} from 'neo4j-graphql-js';
 
 const schemaDeleteMap = {
+    Person: {
+        blockingRelationships: [{
+            type: "ENTERED_BY",
+            direction: "in"
+        }, {
+            type: "AUTHORED_BY",
+            direction: "in"
+        }],
+        cascadeRelationships: [],
+        nonblockingRelationships: [{
+            type: "MEMBER_OF",
+            direction: "out"
+        }, {
+            type: "ENTERED_BY",
+            direction: "out"
+        }]
+    },
     Group: {
         blockingRelationships: [{
             type: "MEMBER_OF",
@@ -1162,7 +1179,7 @@ const mutateNode = async (context, nodeType, data, type) => {
             throw new ValidationError(`A public Collection cannot be empty.`);
         }
     
-        if (data.groups && data.groups.includes(publicGroupID) && data.groups.length > 1) {
+        if ("Person" !== nodeType && data.groups && data.groups.includes(publicGroupID) && data.groups.length > 1) {
             throw new ValidationError(`A public ${nodeType} cannot be in other groups.`);
         }
     
@@ -1207,6 +1224,15 @@ const mutateNode = async (context, nodeType, data, type) => {
                         if (person && person.properties.pbotID !== data.pbotID) {
                             console.log("person already exists");
                             throw new ValidationError(`${nodeType} with that email already exists`);
+                        }
+                        if (person) {
+                            if (person.properties.password && person.properties.pbotID !== data.enteredByPersonID) {
+                                console.log("attempt to edit registered user");
+                                throw new ValidationError(`Cannot edit registered users other than yourself`);
+                            } else if (person.properties.pbotID !== data.pbotID) {
+                                console.log("person already exists");
+                                throw new ValidationError(`${nodeType} with that email already exists`);
+                            }
                         }
                     }
                     
@@ -1305,6 +1331,13 @@ const mutateNode = async (context, nodeType, data, type) => {
 }
 
 export const Resolvers = {
+    Person: {
+        email: (parent, args, context, info) => {
+            return context.user.password ?
+                parent.email :
+                null;
+        }
+    },
     Mutation: {
         DeleteReference: async (obj, args, context, info) => {
             console.log("DeleteReference");

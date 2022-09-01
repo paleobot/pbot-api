@@ -34,6 +34,9 @@ type Person {
     surname: String
     email: String
     orcid: String
+    registered: Boolean @cypher(
+      statement: "return this.password is not null"
+    )
     entered:   [Enterable] @cypher(
       statement: "match (n)-[:ENTERED_BY]->(this) return n"
     )
