@@ -16,6 +16,7 @@ import { applyMiddleware } from "graphql-middleware";
 
 import  permissions  from './permissions.js';
 import {getUser, handleLogin, handleRegistration, handleReset} from './UserManagement.js';
+import {handleImages} from './ImageManagement.js';
 
 import {Resolvers} from './Resolvers.js';
 
@@ -194,6 +195,9 @@ app.post('/register', async (req, res) => {handleRegistration(req, res, driver)}
 
 app.post('/reset', async (req, res) => {handleReset(req, res, driver)});
 app.get('/reset', async (req, res) => {handleReset(req, res, driver)});
+
+app.post('/images', async (req, res) => {handleImages(req, res, driver)});
+app.get('/images/:pbotID/:image', async (req, res) => {handleImages(req, res, driver)});
 
 app.listen({ host, port, path }, () => {
   console.log(`GraphQL server ready at http://${host}:${port}${pth}`)
