@@ -173,10 +173,13 @@ const server = new ApolloServer({
     schema: applyMiddleware(schema, permissions, middleware),
     introspection: true,
     playground: true,
+    csrfPrevention: true
     //plugins: [
     //    debugPlugin,
     //],
-})
+});
+
+await server.start();
 
 // Specify host, port and path for GraphQL endpoint
 const port = process.env.GRAPHQL_SERVER_PORT || 4001
