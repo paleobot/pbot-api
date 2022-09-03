@@ -1,6 +1,7 @@
 //import * as neo4j from 'neo4j-driver';
 import {ValidationError} from 'apollo-server';
 import {cypherQuery} from 'neo4j-graphql-js';
+import  GraphQLUpload  from 'graphql-upload/GraphQLUpload.mjs';
 
 const schemaDeleteMap = {
     Person: {
@@ -1331,6 +1332,7 @@ const mutateNode = async (context, nodeType, data, type) => {
 }
 
 export const Resolvers = {
+    Upload: GraphQLUpload,
     Person: {
         email: (parent, args, context, info) => {
             return context.user.password ?

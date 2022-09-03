@@ -1,4 +1,5 @@
 scalar DateTime
+scalar Upload
 
 """ These unions are a way for a property to hold references to different types """
 union Enterable = Group | Person | Reference | Schema | Character | State | Description | CharacterInstance | Specimen | Collection

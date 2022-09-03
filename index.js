@@ -12,6 +12,7 @@ import ejwt from 'express-jwt';
 import unless from 'express-unless';
 import bcrypt from 'bcrypt';
 
+import  graphqlUploadExpress  from 'graphql-upload/graphqlUploadExpress.mjs';
 import { applyMiddleware } from "graphql-middleware";
 
 import  permissions  from './permissions.js';
@@ -180,6 +181,10 @@ const server = new ApolloServer({
 });
 
 await server.start();
+
+// This middleware should be added before calling `applyMiddleware`.
+app.use(graphqlUploadExpress());
+
 
 // Specify host, port and path for GraphQL endpoint
 const port = process.env.GRAPHQL_SERVER_PORT || 4001
