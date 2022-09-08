@@ -2,6 +2,10 @@
 import {ValidationError} from 'apollo-server';
 import {cypherQuery} from 'neo4j-graphql-js';
 import  GraphQLUpload  from 'graphql-upload/GraphQLUpload.mjs';
+import fs from 'fs'
+import path from 'path'
+//import { finished } from 'stream';
+import { promises as streamPromises } from 'stream';
 
 const schemaDeleteMap = {
     Person: {
@@ -1341,6 +1345,22 @@ export const Resolvers = {
         }
     },
     Mutation: {
+        //TODO: Can this be directly combined with the Specimen mutation?
+        singleUpload: async (parent, { file }) => {
+            const { createReadStream, filename, mimetype, encoding } = await file;
+
+            // Invoking the `createReadStream` will return a Readable Stream.
+            // See https://nodejs.org/api/stream.html#stream_readable_streams
+            const stream = createReadStream();
+
+            // TODO: get pbotID and imageDir
+            const out = fs.createWriteStream(path.resolve(/*imageDir, pbotID,*/"/home/douglas/images/1010c69a-ff05-4b14-99f7-f8fc1aa93e90", filename));
+            stream.pipe(out);
+            await streamPromises.finished(out);
+
+            return { filename, mimetype, encoding };
+        },
+
         DeleteReference: async (obj, args, context, info) => {
             console.log("DeleteReference");
             return await mutateNode(context, "Reference", args.data, "delete");
