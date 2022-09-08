@@ -629,8 +629,16 @@ input CollectionInput {
     enteredByPersonID: String
 }
 
+  type File {
+    filename: String!
+    mimetype: String!
+    encoding: String!
+  }
+
 
 type Mutation {
+    singleUpload(file: Upload!): File!
+
     CreateGroup(data: GroupInput!): Group! @neo4j_ignore
     UpdateGroup(data: GroupInput!): Group!  @neo4j_ignore
     DeleteGroup(data: GroupInput!): Group! @neo4j_ignore
