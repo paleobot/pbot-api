@@ -102,7 +102,7 @@ const addUserID = async (resolve, root, args, context, info) => {
   console.log("addUserID");
   console.log(context.user);
   console.log(args);
-  args.data.enteredByPersonID = context.user.pbotID;
+  if (args.data) args.data.enteredByPersonID = context.user.pbotID;
   console.log(args);
   console.log("here goes...");
   const result = await resolve(root, args, context, info)
