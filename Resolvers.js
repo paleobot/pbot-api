@@ -1335,6 +1335,24 @@ const mutateNode = async (context, nodeType, data, type) => {
     }
 }
 
+const uploadFile = async ( file ) => {
+    const { createReadStream, filename, mimetype, encoding } = await file;
+
+    // Invoking the `createReadStream` will return a Readable Stream.
+    // See https://nodejs.org/api/stream.html#stream_readable_streams
+    const stream = createReadStream();
+
+    // TODO: get pbotID and imageDir
+    const filePath = path.resolve(/*imageDir, pbotID,*/"/home/douglas/images/1010c69a-ff05-4b14-99f7-f8fc1aa93e90", filename);
+    
+    const out = fs.createWriteStream(filePath);
+    stream.pipe(out);
+    await streamPromises.finished(out);
+
+    //TODO: build this from stuff
+    return "http://localhost:3000/images/1010c69a-ff05-4b14-99f7-f8fc1aa93e90/" + filename;
+}
+        
 export const Resolvers = {
     Upload: GraphQLUpload,
     Person: {
@@ -1555,7 +1573,13 @@ export const Resolvers = {
 
         CreateSpecimen: async (obj, args, context, info) => {
             console.log("CreateSpecimen");
-            return await mutateNode(context, "Specimen", args.data, "create");
+            if (args.data.uploadImages && args.data.uploadImages.length > 0) {
+                args.data.uploadImages.forEach(image => {
+                    image.image = uploadFile(image.image); //upload image and replace with its url
+                });
+            }
+            return ({pbotID: "All good"});
+            //return await mutateNode(context, "Specimen", args.data, "create");
             
         },
 

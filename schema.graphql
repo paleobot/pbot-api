@@ -589,6 +589,11 @@ input CommentInput {
     references: [CitedByInput]
 }
 
+input ImageUpload {
+    image: Upload!,
+    order: String!
+}
+
 input SpecimenInput {
     pbotID: String
     name: String!
@@ -601,6 +606,7 @@ input SpecimenInput {
     organID: String
     references: [CitedByInput]
     collection: String!
+    uploadImages: [ImageUpload]
 	groups: [String]
 	enteredByPersonID: String
 }
