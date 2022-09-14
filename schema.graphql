@@ -591,8 +591,14 @@ input CommentInput {
 
 input ImageUpload {
     image: Upload!,
-    order: String!
+    specimenID: String!,
+    order: String
 }
+
+type ImageReturn {
+    link: String!,
+}
+
 
 input SpecimenInput {
     pbotID: String
@@ -773,4 +779,9 @@ type Mutation {
     UpdateOrgan(data: OrganInput!): Organ! @neo4j_ignore
     DeleteOrgan(data: OrganInput!): Organ! @neo4j_ignore
 
+    CreateImage(data: ImageInput!): Image! @neo4j_ignore
+    UpdateImage(data: ImageInput!): Image! @neo4j_ignore
+    DeleteImage(data: ImageInput!): Image! @neo4j_ignore
+
+    UploadImage(image: Upload!, specimenID: String!): ImageReturn! @neo4j_ignore
 }

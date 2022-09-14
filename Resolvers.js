@@ -648,6 +648,30 @@ const schemaMap = {
             }
         ]
     },
+    Image: {
+        properties: [
+           "link",
+           "citation",
+           "caption",
+           "type"
+        ],
+        relationships: [
+            {
+                type: "IMAGE_OF",
+                direction: "out",
+                graphqlName: "imageOf",
+                required: true,
+                updatable: true,
+            },
+            {
+                type: "ELEMENT_OF",
+                direction: "out",
+                graphqlName: "groups",
+                required: true,
+                updatable: true
+            }
+        ]
+    },
     
 }
 
@@ -1353,6 +1377,30 @@ const uploadFile = async ( file ) => {
     return "http://localhost:3000/images/1010c69a-ff05-4b14-99f7-f8fc1aa93e90/" + filename;
 }
         
+const imageDir = "/home/douglas/images";
+const imageLinkPre = "http://localhost:3000/images";
+const uploadFile2 = async ( file, specimenID ) => {
+    const { createReadStream, filename, mimetype, encoding } = await file;
+
+    // Invoking the `createReadStream` will return a Readable Stream.
+    // See https://nodejs.org/api/stream.html#stream_readable_streams
+    const stream = createReadStream();
+
+    if (!fs.existsSync(path.resolve(imageDir, specimenID))){
+        fs.mkdirSync(path.resolve(imageDir, specimenID), { recursive: true });
+    }
+    
+    // TODO: get pbotID and imageDir
+    const filePath = path.resolve(imageDir, specimenID, filename);
+    
+    const out = fs.createWriteStream(filePath);
+    stream.pipe(out);
+    await streamPromises.finished(out);
+
+    //TODO: build this from stuff
+    return { link: "http://localhost:3000/images/" + specimenID + "/" + filename};
+}
+        
 export const Resolvers = {
     Upload: GraphQLUpload,
     Person: {
@@ -1449,6 +1497,11 @@ export const Resolvers = {
             throw new ValidationError(`Cannot delete Organ nodes`);
         },        
      
+        DeleteImage: async (obj, args, context, info) => {
+            console.log("DeleteImage");
+            throw new ValidationError(`Delete of Image nodes not yet implemented`);
+        },    
+        
         UpdateGroup: async (obj, args, context, info) => {
             console.log("UpdateGroup");
             return await mutateNode(context, "Group", args.data, "update");
@@ -1514,6 +1567,11 @@ export const Resolvers = {
             return await mutateNode(context, "Organ", args.data, "update");
         },
         
+        UpdateImage: async (obj, args, context, info) => {
+            console.log("UpdateImage");
+            throw new ValidationError(`Update of Image nodes not yet implemented`);
+        },    
+
         CreateGroup: async (obj, args, context, info) => {
             console.log("CreateGroup");
             return await mutateNode(context, "Group", args.data, "create");
@@ -1594,6 +1652,18 @@ export const Resolvers = {
             return await mutateNode(context, "Organ", args.data, "create");
             
         },
+        
+        CreateImage: async (obj, args, context, info) => {
+            console.log("CreateImage");
+            return await mutateNode(context, "Image", args.data, "create");
+            
+        },
+        
+        UploadImage: async (obj, args, context, info) => {
+            console.log("UploadImage");
+            return await uploadFile2(args.image, args.specimenID); 
+        },
+        
     }
 };
 
