@@ -1398,7 +1398,7 @@ const uploadFile2 = async ( file, specimenID ) => {
     await streamPromises.finished(out);
 
     //TODO: build this from stuff
-    return { link: "http://localhost:3000/images/" + specimenID + "/" + filename};
+    return { link: imageLinkPre + "/" + specimenID + "/" + filename};
 }
         
 export const Resolvers = {
@@ -1655,6 +1655,14 @@ export const Resolvers = {
         
         CreateImage: async (obj, args, context, info) => {
             console.log("CreateImage");
+            if (!args.data.link) {
+                if (!args.data.image) {
+                    throw new ValidationError(`Must supply either url link to image or image to upload`);
+                } else {
+                    const image = await uploadFile2(args.data.image, args.data.imageOf); //upload image and replace with its url
+                    args.data.link = image.link;
+                }
+            }
             return await mutateNode(context, "Image", args.data, "create");
             
         },
