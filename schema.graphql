@@ -619,10 +619,12 @@ input SpecimenInput {
 
 input ImageInput {
     pbotID: String
-    link: String!
+    link: String
+    image: Upload
     citation: String
     caption: String
     type: String
+	groups: [String]
     imageOf: String
 }
 
