@@ -6,6 +6,7 @@ import fs from 'fs'
 import path from 'path'
 //import { finished } from 'stream';
 import { promises as streamPromises } from 'stream';
+import crypto from 'crypto';
 
 const schemaDeleteMap = {
     Person: {
@@ -1390,15 +1391,18 @@ const uploadFile2 = async ( file, specimenID ) => {
         fs.mkdirSync(path.resolve(imageDir, specimenID), { recursive: true });
     }
     
+    //const newFilename = `${crypto.randomUUID()}--${filename}`;
+    const newFilename = filename; //TODO: Not worrying about collisions for now. This makes Update easier.
+    
     // TODO: get pbotID and imageDir
-    const filePath = path.resolve(imageDir, specimenID, filename);
+    const filePath = path.resolve(imageDir, specimenID, newFilename);
     
     const out = fs.createWriteStream(filePath);
     stream.pipe(out);
     await streamPromises.finished(out);
 
     //TODO: build this from stuff
-    return { link: imageLinkPre + "/" + specimenID + "/" + filename};
+    return { link: imageLinkPre + "/" + specimenID + "/" + newFilename};
 }
         
 export const Resolvers = {
