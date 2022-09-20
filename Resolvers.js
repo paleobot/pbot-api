@@ -258,6 +258,20 @@ const schemaDeleteMap = {
             direction: "in"
         }]
     }, 
+    Image: {
+        blockingRelationships: [],
+        cascadeRelationships: [],
+        nonblockingRelationships: [{
+            type: "IMAGE_OF",
+            direction: "out"
+        }, {
+            type: "ELEMENT_OF",
+            direction: "out"
+        }, {
+            type: "ENTERED_BY",
+            direction: "out"
+        }]
+    }, 
     Collection: {
         blockingRelationships: [{
             type: "COLLECTED_IN",
@@ -1405,6 +1419,43 @@ const uploadFile2 = async ( file, specimenID ) => {
     return { link: imageLinkPre + "/" + specimenID + "/" + newFilename};
 }
         
+const deleteFile = async ( context, deletedNode ) => {
+    console.log("---------------delete file--------------------");
+    console.log(deletedNode);
+    
+    const driver = context.driver;
+    const session = driver.session()
+
+    const queryStr = `
+        MATCH 
+            (n)
+        WHERE
+            n.pbotID = "${deletedNode.pbotID}"
+        RETURN
+            n
+    `;
+    
+    const pgResult = await session.run(
+        queryStr
+    );
+    const link = pgResult.records.length > 0 ? pgResult.records[0].get(0).properties.link : null;    
+    console.log(link);
+    
+    const regex = /([^\/]*\/[^\/]+)$/g;    
+    const filePath = new URL(link).pathname.match(regex);
+    const fullPath = path.join(imageDir, filePath[0]);
+    console.log(fullPath);
+    
+    try {
+        await fs.unlinkSync(fullPath);
+    } catch (error) {
+        console.error(`Unable to delete file ${fullPath}: ${error.message}`);
+    }    
+    
+    return `${fullPath} deleted`;
+    
+}
+        
 export const Resolvers = {
     Upload: GraphQLUpload,
     Person: {
@@ -1503,8 +1554,13 @@ export const Resolvers = {
      
         DeleteImage: async (obj, args, context, info) => {
             console.log("DeleteImage");
-            throw new ValidationError(`Delete of Image nodes not yet implemented`);
-        },    
+            //throw new ValidationError(`Delete of Image nodes not yet implemented`);
+             const retVal =  await mutateNode(context, "Image", args.data, "delete");
+             //TODO: delete the image file
+             //TODO: This is dumb. We don't have this information here. Instead, need to pass retVal to deleteFile. That contains the pbotID of the deleted node. We can query that for the link, then get what we need from there.
+             await deleteFile(context, retVal);
+             return retVal;
+       },    
         
         UpdateGroup: async (obj, args, context, info) => {
             console.log("UpdateGroup");
