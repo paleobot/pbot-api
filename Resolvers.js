@@ -1555,11 +1555,7 @@ export const Resolvers = {
         DeleteImage: async (obj, args, context, info) => {
             console.log("DeleteImage");
             //throw new ValidationError(`Delete of Image nodes not yet implemented`);
-             const retVal =  await mutateNode(context, "Image", args.data, "delete");
-             //TODO: delete the image file
-             //TODO: This is dumb. We don't have this information here. Instead, need to pass retVal to deleteFile. That contains the pbotID of the deleted node. We can query that for the link, then get what we need from there.
-             await deleteFile(context, retVal);
-             return retVal;
+             return await mutateNode(context, "Image", args.data, "delete");
        },    
         
         UpdateGroup: async (obj, args, context, info) => {
