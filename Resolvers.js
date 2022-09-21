@@ -1373,54 +1373,42 @@ const mutateNode = async (context, nodeType, data, type) => {
         await session.close();
     }
 }
-
-const uploadFile = async ( file ) => {
-    const { createReadStream, filename, mimetype, encoding } = await file;
-
-    // Invoking the `createReadStream` will return a Readable Stream.
-    // See https://nodejs.org/api/stream.html#stream_readable_streams
-    const stream = createReadStream();
-
-    // TODO: get pbotID and imageDir
-    const filePath = path.resolve(/*imageDir, pbotID,*/"/home/douglas/images/1010c69a-ff05-4b14-99f7-f8fc1aa93e90", filename);
-    
-    const out = fs.createWriteStream(filePath);
-    stream.pipe(out);
-    await streamPromises.finished(out);
-
-    //TODO: build this from stuff
-    return "http://localhost:3000/images/1010c69a-ff05-4b14-99f7-f8fc1aa93e90/" + filename;
-}
         
+//TODO: Get imageDir from config. Get imageLinkPre from wherever we have access to req.
 const imageDir = "/home/douglas/images";
 const imageLinkPre = "http://localhost:3000/images";
-const uploadFile2 = async ( file, specimenID ) => {
-    const { createReadStream, filename, mimetype, encoding } = await file;
+const uploadFile = async ( file, specimenID ) => {
+    try {
+        const { createReadStream, filename, mimetype, encoding } = await file;
 
-    // Invoking the `createReadStream` will return a Readable Stream.
-    // See https://nodejs.org/api/stream.html#stream_readable_streams
-    const stream = createReadStream();
+        // Invoking the `createReadStream` will return a Readable Stream.
+        // See https://nodejs.org/api/stream.html#stream_readable_streams
+        const stream = createReadStream();
 
-    if (!fs.existsSync(path.resolve(imageDir, specimenID))){
-        fs.mkdirSync(path.resolve(imageDir, specimenID), { recursive: true });
+        if (!fs.existsSync(path.resolve(imageDir, specimenID))){
+            fs.mkdirSync(path.resolve(imageDir, specimenID), { recursive: true });
+        }
+        
+        //const newFilename = `${crypto.randomUUID()}--${filename}`;
+        const newFilename = filename; //TODO: Not worrying about collisions for now. This makes Update easier.
+        
+        // TODO: get pbotID and imageDir
+        const filePath = path.resolve(imageDir, specimenID, newFilename);
+        
+        const out = fs.createWriteStream(filePath);
+        stream.pipe(out);
+        await streamPromises.finished(out);
+
+        //TODO: build this from stuff
+        return { link: imageLinkPre + "/" + specimenID + "/" + newFilename};
+    } catch (error) {
+        throw new Error("Unable to upload file");
     }
     
-    //const newFilename = `${crypto.randomUUID()}--${filename}`;
-    const newFilename = filename; //TODO: Not worrying about collisions for now. This makes Update easier.
-    
-    // TODO: get pbotID and imageDir
-    const filePath = path.resolve(imageDir, specimenID, newFilename);
-    
-    const out = fs.createWriteStream(filePath);
-    stream.pipe(out);
-    await streamPromises.finished(out);
-
-    //TODO: build this from stuff
-    return { link: imageLinkPre + "/" + specimenID + "/" + newFilename};
 }
         
-const deleteFile = async ( context, pbotID ) => {
-    console.log("---------------delete file--------------------");
+const renameFile = async ( context, pbotID ) => {
+    console.log("---------------rename file--------------------");
     console.log(pbotID);
     
     const driver = context.driver;
@@ -1442,17 +1430,35 @@ const deleteFile = async ( context, pbotID ) => {
     console.log(link);
     
     const regex = /([^\/]*\/[^\/]+)$/g;    
-    const filePath = new URL(link).pathname.match(regex);
-    const fullPath = path.join(imageDir, filePath[0]);
-    console.log(fullPath);
+    const filePath = new URL(link).pathname.match(regex)[0];
+    const newFilePath = `${filePath}.sav`;
+    const oldFullPath = path.join(imageDir, filePath);
+    const newFullPath = path.join(imageDir, newFilePath);
+    
+    console.log(oldFullPath);
+    console.log(newFullPath);
     
     try {
-        await fs.unlinkSync(fullPath);
+        await fs.renameSync(oldFullPath, newFullPath);
     } catch (error) {
-        console.error(`Unable to delete file ${fullPath}: ${error.message}`);
+        throw new Error(`Unable to rename file ${oldFullPath}: ${error.message}`);
     }    
     
-    return `${fullPath} deleted`;
+    return newFullPath;
+    
+}
+
+const deleteFile = async ( filePath ) => {
+    console.log("---------------delete file--------------------");
+    console.log(filePath);
+        
+    try {
+        await fs.unlinkSync(filePath);
+    } catch (error) {
+        throw new Error(`Unable to delete file ${filePath}: ${error.message}`);
+    }    
+    
+    return `${filePath} deleted`;
     
 }
         
@@ -1630,11 +1636,13 @@ export const Resolvers = {
                 if (!args.data.image) {
                     throw new ValidationError(`Must supply either url link to image or image to upload`);
                 } else {
-                    //TODO: There is a problem here. If the mutation fails, we will have already changed the image. Need to rename it first, then upload, then mutate, then delete the renamed image.
-                    await deleteFile(context,  args.data.pbotID);
-                    const image = await uploadFile2(args.data.image, args.data.imageOf); //upload image and replace with its url
+                    //We don't want to delete the old image until after the mutation. Rename it first, then upload the new one, then mutate, then delete the renamed image.
+                    const tmpFilePath = await renameFile(context, args.data.pbotID);
+                    const image = await uploadFile(args.data.image, args.data.imageOf); 
                     args.data.link = image.link;
-                    return await mutateNode(context, "Image", args.data, "update");
+                    const retVal = await mutateNode(context, "Image", args.data, "update");
+                    await deleteFile(tmpFilePath);
+                    return retVal;
                 }
             }
         },    
@@ -1698,13 +1706,7 @@ export const Resolvers = {
 
         CreateSpecimen: async (obj, args, context, info) => {
             console.log("CreateSpecimen");
-            if (args.data.uploadImages && args.data.uploadImages.length > 0) {
-                args.data.uploadImages.forEach(image => {
-                    image.image = uploadFile(image.image); //upload image and replace with its url
-                });
-            }
-            return ({pbotID: "All good"});
-            //return await mutateNode(context, "Specimen", args.data, "create");
+            return await mutateNode(context, "Specimen", args.data, "create");
             
         },
 
@@ -1726,7 +1728,7 @@ export const Resolvers = {
                 if (!args.data.image) {
                     throw new ValidationError(`Must supply either url link to image or image to upload`);
                 } else {
-                    const image = await uploadFile2(args.data.image, args.data.imageOf); //upload image and replace with its url
+                    const image = await uploadFile(args.data.image, args.data.imageOf); //upload image and replace with its url
                     args.data.link = image.link;
                 }
             }
@@ -1736,7 +1738,7 @@ export const Resolvers = {
         
         UploadImage: async (obj, args, context, info) => {
             console.log("UploadImage");
-            return await uploadFile2(args.image, args.specimenID); 
+            return await uploadFile(args.image, args.specimenID); 
         },
         
     }
