@@ -1419,9 +1419,9 @@ const uploadFile2 = async ( file, specimenID ) => {
     return { link: imageLinkPre + "/" + specimenID + "/" + newFilename};
 }
         
-const deleteFile = async ( context, deletedNode ) => {
+const deleteFile = async ( context, pbotID ) => {
     console.log("---------------delete file--------------------");
-    console.log(deletedNode);
+    console.log(pbotID);
     
     const driver = context.driver;
     const session = driver.session()
@@ -1430,7 +1430,7 @@ const deleteFile = async ( context, deletedNode ) => {
         MATCH 
             (n)
         WHERE
-            n.pbotID = "${deletedNode.pbotID}"
+            n.pbotID = "${pbotID}"
         RETURN
             n
     `;
@@ -1625,7 +1625,18 @@ export const Resolvers = {
         
         UpdateImage: async (obj, args, context, info) => {
             console.log("UpdateImage");
-            throw new ValidationError(`Update of Image nodes not yet implemented`);
+            //throw new ValidationError(`Update of Image nodes not yet implemented`);
+            if (!args.data.link) {
+                if (!args.data.image) {
+                    throw new ValidationError(`Must supply either url link to image or image to upload`);
+                } else {
+                    //TODO: There is a problem here. If the mutation fails, we will have already changed the image. Need to rename it first, then upload, then mutate, then delete the renamed image.
+                    await deleteFile(context,  args.data.pbotID);
+                    const image = await uploadFile2(args.data.image, args.data.imageOf); //upload image and replace with its url
+                    args.data.link = image.link;
+                    return await mutateNode(context, "Image", args.data, "update");
+                }
+            }
         },    
 
         CreateGroup: async (obj, args, context, info) => {
