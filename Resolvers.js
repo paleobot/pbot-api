@@ -237,7 +237,7 @@ const schemaDeleteMap = {
             type: "HOLOTYPE_OF",
             direction: "out",
         }],
-        cascadeRelationships: [],
+        cascadeRelationships: [], //TODO: IMAGE_OF should go here
         nonblockingRelationships: [{
             type: "IS_TYPE",
             direction: "out"
@@ -1400,14 +1400,18 @@ const uploadFile = async ( file, specimenID ) => {
         await streamPromises.finished(out);
 
         //TODO: build this from stuff
-        return { link: imageLinkPre + "/" + specimenID + "/" + newFilename};
+        return {
+            path: filePath,
+            link: imageLinkPre + "/" + specimenID + "/" + newFilename
+        
+        };
     } catch (error) {
         throw new Error("Unable to upload file");
     }
     
 }
         
-const renameFile = async ( context, pbotID ) => {
+const renameFile = async ( context, pbotID, revert ) => {
     console.log("---------------rename file--------------------");
     console.log(pbotID);
     
@@ -1431,9 +1435,16 @@ const renameFile = async ( context, pbotID ) => {
     
     const regex = /([^\/]*\/[^\/]+)$/g;    
     const filePath = new URL(link).pathname.match(regex)[0];
-    const newFilePath = `${filePath}.sav`;
-    const oldFullPath = path.join(imageDir, filePath);
-    const newFullPath = path.join(imageDir, newFilePath);
+    const tmpFilePath = `${filePath}.sav`;
+    
+    let oldFullPath, newFullPath;
+    if (revert) {
+        newFullPath = path.join(imageDir, filePath);
+        oldFullPath = path.join(imageDir, tmpFilePath);
+    } else {
+        oldFullPath = path.join(imageDir, filePath);
+        newFullPath = path.join(imageDir, tmpFilePath);
+    }
     
     console.log(oldFullPath);
     console.log(newFullPath);
@@ -1636,11 +1647,34 @@ export const Resolvers = {
                 if (!args.data.image) {
                     throw new ValidationError(`Must supply either url link to image or image to upload`);
                 } else {
-                    //We don't want to delete the old image until after the mutation. Rename it first, then upload the new one, then mutate, then delete the renamed image.
+                    //We don't want to delete the old image until after the mutation. Rename it first, then upload the new one, then mutate, then delete the renamed image. Fix stuff if anything bad happens along the way.
                     const tmpFilePath = await renameFile(context, args.data.pbotID);
-                    const image = await uploadFile(args.data.image, args.data.imageOf); 
+                    let image;
+                    try {
+                        image = await uploadFile(args.data.image, args.data.imageOf)
+                    } catch(error) {
+                        console.log("upload failed");
+                        //revert tmp file to original file name
+                        await renameFile(context, args.data.pbotID, true);
+                        console.log("rethrowing");
+                        throw error;
+                    } 
                     args.data.link = image.link;
-                    const retVal = await mutateNode(context, "Image", args.data, "update");
+                    
+                    let retVal;
+                    try {
+                        retVal = await mutateNode(context, "Image", args.data, "update")
+                    } catch(error) {
+                        console.log("mutate failed");
+                        //delete new file
+                        await deleteFile(image.path);
+                        //revert tmp file to original file name
+                        await renameFile(context, args.data.pbotID, true);
+                        console.log("rethrowing");
+                        throw error;
+                    }
+                    
+                    //all good
                     await deleteFile(tmpFilePath);
                     return retVal;
                 }
