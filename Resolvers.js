@@ -7,6 +7,9 @@ import path from 'path'
 //import { finished } from 'stream';
 import { promises as streamPromises } from 'stream';
 import crypto from 'crypto';
+import dotenv from "dotenv"
+
+dotenv.config();
 
 const schemaDeleteMap = {
     Person: {
@@ -237,7 +240,10 @@ const schemaDeleteMap = {
             type: "HOLOTYPE_OF",
             direction: "out",
         }],
-        cascadeRelationships: [], //TODO: IMAGE_OF should go here
+        cascadeRelationships: [{
+            type: "IMAGE_OF",
+            direction: "in"
+        }], 
         nonblockingRelationships: [{
             type: "IS_TYPE",
             direction: "out"
@@ -1375,12 +1381,14 @@ const mutateNode = async (context, nodeType, data, type) => {
 }
         
 //TODO: Get imageDir from config. Get imageLinkPre from wherever we have access to req.
-const imageDir = "/home/douglas/images";
-const imageLinkPre = "http://localhost:3000/images";
+const imageDir = process.env.IMAGE_DIR;
+const imageLinkPre = process.env.IMAGE_LINK_PRE;
 const uploadFile = async ( file, specimenID ) => {
+    console.log("uploadFile");
+    
     try {
         const { createReadStream, filename, mimetype, encoding } = await file;
-
+        
         // Invoking the `createReadStream` will return a Readable Stream.
         // See https://nodejs.org/api/stream.html#stream_readable_streams
         const stream = createReadStream();
@@ -1406,7 +1414,7 @@ const uploadFile = async ( file, specimenID ) => {
         
         };
     } catch (error) {
-        throw new Error("Unable to upload file");
+        throw new Error(`Unable to upload file: ${error.message}`);
     }
     
 }
@@ -1483,22 +1491,6 @@ export const Resolvers = {
         }
     },
     Mutation: {
-        //TODO: Can this be directly combined with the Specimen mutation?
-        singleUpload: async (parent, { file }) => {
-            const { createReadStream, filename, mimetype, encoding } = await file;
-
-            // Invoking the `createReadStream` will return a Readable Stream.
-            // See https://nodejs.org/api/stream.html#stream_readable_streams
-            const stream = createReadStream();
-
-            // TODO: get pbotID and imageDir
-            const out = fs.createWriteStream(path.resolve(/*imageDir, pbotID,*/"/home/douglas/images/1010c69a-ff05-4b14-99f7-f8fc1aa93e90", filename));
-            stream.pipe(out);
-            await streamPromises.finished(out);
-
-            return { filename, mimetype, encoding };
-        },
-
         DeleteReference: async (obj, args, context, info) => {
             console.log("DeleteReference");
             return await mutateNode(context, "Reference", args.data, "delete");
