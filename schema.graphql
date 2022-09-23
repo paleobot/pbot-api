@@ -616,6 +616,7 @@ input SpecimenInput {
     uploadImages: [ImageUpload]
 	groups: [String]
 	enteredByPersonID: String
+	cascade: Boolean
 }
 
 input ImageInput {
