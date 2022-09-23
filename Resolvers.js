@@ -1383,7 +1383,7 @@ const mutateNode = async (context, nodeType, data, type) => {
 //TODO: Get imageDir from config. Get imageLinkPre from wherever we have access to req.
 const imageDir = process.env.IMAGE_DIR;
 const imageLinkPre = process.env.IMAGE_LINK_PRE;
-const uploadFile = async ( file, specimenID ) => {
+const uploadFile = async ( file, imagedID ) => {
     console.log("uploadFile");
     
     try {
@@ -1393,15 +1393,15 @@ const uploadFile = async ( file, specimenID ) => {
         // See https://nodejs.org/api/stream.html#stream_readable_streams
         const stream = createReadStream();
 
-        if (!fs.existsSync(path.resolve(imageDir, specimenID))){
-            fs.mkdirSync(path.resolve(imageDir, specimenID), { recursive: true });
+        if (!fs.existsSync(path.resolve(imageDir, imagedID))){
+            fs.mkdirSync(path.resolve(imageDir, imagedID), { recursive: true });
         }
         
         //const newFilename = `${crypto.randomUUID()}--${filename}`;
         const newFilename = filename; //TODO: Not worrying about collisions for now. This makes Update easier.
         
         // TODO: get pbotID and imageDir
-        const filePath = path.resolve(imageDir, specimenID, newFilename);
+        const filePath = path.resolve(imageDir, imagedID, newFilename);
         
         const out = fs.createWriteStream(filePath);
         stream.pipe(out);
@@ -1410,7 +1410,7 @@ const uploadFile = async ( file, specimenID ) => {
         //TODO: build this from stuff
         return {
             path: filePath,
-            link: imageLinkPre + "/" + specimenID + "/" + newFilename
+            link: imageLinkPre + "/" + imagedID + "/" + newFilename
         
         };
     } catch (error) {
