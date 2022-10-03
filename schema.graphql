@@ -104,6 +104,13 @@ type Organ {
     enteredBy: [OrganEnteredBy]
 }
 
+type PreservationMode {
+    pbotID: ID!
+    name: String
+    specimens: [Specimen!]! @relation(name: "PRESERVED_BY" direction: IN)
+    enteredBy: [PreservationModeEnteredBy]
+}
+
 """Note: schema should be non null, but isn't right now due to missing data"""
 type Description {
     pbotID: ID!
@@ -206,7 +213,7 @@ type Comment {
 type Specimen {
     pbotID: ID!
     name: String
-    preservationMode: String
+    preservationMode: PreservationMode @relation(name: "PRESERVED_BY", direction: OUT)
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
@@ -283,6 +290,12 @@ type StateEnteredBy @relation(name: "ENTERED_BY") {
 
 type OrganEnteredBy @relation(name: "ENTERED_BY") {
   from: Organ
+  to: Person
+  timestamp: DateTime
+}
+
+type PreservationModeEnteredBy @relation(name: "ENTERED_BY") {
+  from: PreservationMode
   to: Person
   timestamp: DateTime
 }
@@ -604,7 +617,7 @@ type ImageReturn {
 input SpecimenInput {
     pbotID: String
     name: String!
-    preservationMode: String
+    preservationModeID: String
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
@@ -633,6 +646,12 @@ input ImageInput {
 input OrganInput {
     pbotID: String
     type: String!
+	enteredByPersonID: String
+}
+
+input PreservationModeInput {
+    pbotID: String
+    name: String!
 	enteredByPersonID: String
 }
 
@@ -782,6 +801,10 @@ type Mutation {
     CreateOrgan(data: OrganInput!): Organ! @neo4j_ignore
     UpdateOrgan(data: OrganInput!): Organ! @neo4j_ignore
     DeleteOrgan(data: OrganInput!): Organ! @neo4j_ignore
+
+    CreatePreservationMode(data: PreservationModeInput!): PreservationMode! @neo4j_ignore
+    UpdatePreservationMode(data: PreservationModeInput!): PreservationMode! @neo4j_ignore
+    DeletePreservationMode(data: PreservationModeInput!): PreservationMode! @neo4j_ignore
 
     CreateImage(data: ImageInput!): Image! @neo4j_ignore
     UpdateImage(data: ImageInput!): Image! @neo4j_ignore

@@ -235,6 +235,9 @@ export const schemaDeleteMap = {
             type: "IS_TYPE",
             direction: "out"
         }, {
+            type: "PRESERVED_BY",
+            direction: "out"
+        }, {
             type: "EXAMPLE_OF",
             direction: "out"
         }, {
@@ -579,7 +582,6 @@ export const schemaMap = {
         //TODO: look into https://www.graphql-scalars.dev/docs/scalars/uuid for managing idigbiouuid
         properties: [
            "name",
-           "preservationMode",
            "idigbiouuid",
            "pbdbcid",
            "pbdboccid"
@@ -595,6 +597,12 @@ export const schemaMap = {
                 type: "IS_TYPE",
                 direction: "out",
                 graphqlName: "organID",
+                required: true,
+                updatable: true
+            }, {
+                type: "PRESERVED_BY",
+                direction: "out",
+                graphqlName: "preservationModeID",
                 required: true,
                 updatable: true
             }, {
@@ -625,6 +633,12 @@ export const schemaMap = {
     Organ: {
         properties: [
            "type"
+        ],
+        relationships: []
+    },
+    PreservationMode: {
+        properties: [
+           "name"
         ],
         relationships: []
     },

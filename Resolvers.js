@@ -776,6 +776,11 @@ export const Resolvers = {
             throw new ValidationError(`Cannot delete Organ nodes`);
         },        
      
+        DeletePreservationMode: async (obj, args, context, info) => {
+            console.log("DeletePreservationMode");
+            throw new ValidationError(`Cannot delete PreservationMode nodes`);
+        },        
+     
         DeleteImage: async (obj, args, context, info) => {
             console.log("DeleteImage");
             //throw new ValidationError(`Delete of Image nodes not yet implemented`);
@@ -845,6 +850,11 @@ export const Resolvers = {
         UpdateOrgan: async (obj, args, context, info) => {
             console.log("UpdateOrgan");
             return await mutateNode(context, "Organ", args.data, "update");
+        },
+        
+        UpdatePreservationMode: async (obj, args, context, info) => {
+            console.log("UpdatePreservationMode");
+            return await mutateNode(context, "PreservationMode", args.data, "update");
         },
         
         UpdateImage: async (obj, args, context, info) => {
@@ -960,6 +970,12 @@ export const Resolvers = {
         CreateOrgan: async (obj, args, context, info) => {
             console.log("CreateOrgan");
             return await mutateNode(context, "Organ", args.data, "create");
+            
+        },
+        
+        CreatePreservationMode: async (obj, args, context, info) => {
+            console.log("CreatePreservationMode");
+            return await mutateNode(context, "PreservationMode", args.data, "create");
             
         },
         
