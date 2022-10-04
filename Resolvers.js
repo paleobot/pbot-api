@@ -537,7 +537,17 @@ const mutateNode = async (context, nodeType, data, type) => {
         const pgResult = await session.run(
             queryStr
         );
-        const publicGroupID = pgResult.records.length > 0 ? pgResult.records[0].get(0).properties.pbotID : null;            
+        const publicGroupID = pgResult.records.length > 0 ? pgResult.records[0].get(0).properties.pbotID : null;    
+
+        if (data.references) {
+            const testSet = new Set();
+            data.references.forEach(ref => {
+                testSet.add(ref.pbotID);
+            });
+            if (testSet.size < data.references.length) {
+                throw new ValidationError(`Cannot not have duplicate references`);
+            }
+        }
         
         if ("Collection" === nodeType  && data.specimens.length === 0 && (data.groups && data.groups.includes(publicGroupID)) ) {
             throw new ValidationError(`A public Collection cannot be empty.`);
