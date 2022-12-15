@@ -593,6 +593,8 @@ const mutateNode = async (context, nodeType, data, type) => {
                     break;
                 case "update":
                     console.log("Updating");
+
+                    let doGroupCascade = true;
                     if ("Person" === nodeType) {
                         const person = await getPerson(tx, data.email);                    
                         if (person && person.properties.pbotID !== data.pbotID) {
@@ -608,6 +610,16 @@ const mutateNode = async (context, nodeType, data, type) => {
                                 throw new ValidationError(`${nodeType} with that email already exists`);
                             }
                         }
+                    } else if (("Character" === nodeType || "State" === nodeType) && !data.groupCascade) {
+                        console.log("++++++++++++++++++++++fetching groups++++++++++++++++++");
+                        //fetch groups from Schema and put in data
+                        const groups = await getGroups(tx, data);
+                        console.log("Groups:");
+                        console.log(groups);
+                        data["groups"] = groups;
+                        //We are moving a Characgter to State to a new parent within same Schema. 
+                        //Groups are not changing so no need to cascade.
+                        doGroupCascade = false; 
                     }
                     
                     //Prevent privatization of public nodes
@@ -617,27 +629,28 @@ const mutateNode = async (context, nodeType, data, type) => {
                     
                     //TODO: If setting to newly public, clean out old DELETE data
                         
-    
-                    const groupCascadeRelationships = schemaDeleteMap[nodeType].cascadeRelationships || [];
-                    const remoteNodes = await getRelationships(
-                        tx, 
-                        data.pbotID, 
-                        groupCascadeRelationships
-                    );
-                    //console.log("remoteNodes");
-                    //console.log(remoteNodes);
-                    console.log("cascading groups");
-                    await Promise.all(remoteNodes.map(node => {
-                        node.groups = data.groups;
-                        node.groupCascade = true;
-                        node.enteredByPersonID = data.enteredByPersonID;
-                        console.log("node after");
-                        console.log(node);
-                        return mutateNode(context, node.nodeType, node, "update")
-                    })).catch(error => {
-                        console.log(error);
-                        throw new ValidationError(`Unable to cascade groups for ${nodeType}`);
-                    });
+                    if (doGroupCascade) {
+                        const groupCascadeRelationships = schemaDeleteMap[nodeType].cascadeRelationships || [];
+                        const remoteNodes = await getRelationships(
+                            tx, 
+                            data.pbotID, 
+                            groupCascadeRelationships
+                        );
+                        //console.log("remoteNodes");
+                        //console.log(remoteNodes);
+                        console.log("cascading groups");
+                        await Promise.all(remoteNodes.map(node => {
+                            node.groups = data.groups;
+                            node.groupCascade = true;
+                            node.enteredByPersonID = data.enteredByPersonID;
+                            console.log("node after");
+                            console.log(node);
+                            return mutateNode(context, node.nodeType, node, "update")
+                        })).catch(error => {
+                            console.log(error);
+                            throw new ValidationError(`Unable to cascade groups for ${nodeType}`);
+                        });
+                    }
                     
                     result = await handleUpdate(
                         tx, 
