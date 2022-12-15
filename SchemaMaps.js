@@ -411,7 +411,7 @@ export const schemaMap = {
                 direction: "out",
                 graphqlName: "parentID",
                 required: true,
-                updatable: false
+                updatable: true
             },
             {
                 type: "ELEMENT_OF",
