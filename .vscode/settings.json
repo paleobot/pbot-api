@@ -1,0 +1,8 @@
+{
+    "files.watcherExclude": {
+        "**/client/.git/objects/**": true,
+        "**/client/.git/subtree-cache/**": true,
+        "**/client/.hg/store/**": true,
+        "**/client/node_modules/*/**": true
+    }
+}
