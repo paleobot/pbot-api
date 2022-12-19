@@ -1,27 +1,30 @@
 {
-  "name": "neo4j-graphql-js-play",
-  "version": "0.0.1",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "Douglas Meredith <douglasm@arizona.edu>",
-  "license": "Apache-2.0",
-  "dependencies": {
-    "apollo-server": "^3.10.1",
-    "apollo-server-express": "^3.10.1",
-    "bcrypt": "^5.0.1",
-    "dotenv": "^10.0.0",
-    "express-jwt": "^6.1.0",
-    "graphql": "^16.6.0",
-    "graphql-middleware": "^6.0.10",
-    "graphql-shield": "^7.5.0",
-    "graphql-upload": "^16.0.2",
-    "jsonwebtoken": "^8.5.1",
-    "neo4j-driver": "^4.4.1",
-    "neo4j-graphql-js": "https://github.com/paleobot/neo4j-graphql-js.git",
-    "nodemailer": "^6.6.5"
-  },
-  "type": "module"
+    "name": "pbot-api",
+    "version": "0.0.1",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "Douglas Meredith <douglasm@arizona.edu>",
+    "license": "Apache-2.0",
+    "dependencies": {
+        "apollo-server": "^3.10.1",
+        "apollo-server-express": "^3.10.1",
+        "bcrypt": "^5.0.1",
+        "dotenv": "^10.0.0",
+        "express-jwt": "^6.1.0",
+        "graphql": "^16.6.0",
+        "graphql-middleware": "^6.0.10",
+        "graphql-shield": "^7.5.0",
+        "graphql-upload": "^16.0.2",
+        "jsonwebtoken": "^8.5.1",
+        "neo4j-driver": "^4.4.1",
+        "neo4j-graphql-js": "https://github.com/paleobot/neo4j-graphql-js.git",
+        "nodemailer": "^6.6.5"
+    },
+    "overrides": {
+        "graphql": "^16.6.0"
+    },
+    "type": "module"
 }
