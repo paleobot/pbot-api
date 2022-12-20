@@ -596,7 +596,7 @@ export const schemaMap = {
             }, {
                 type: "IS_TYPE",
                 direction: "out",
-                graphqlName: "organID",
+                graphqlName: "organIDs",
                 required: true,
                 updatable: true
             }, {

@@ -217,7 +217,7 @@ type Specimen {
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
-    organ: Organ @relation(name: "IS_TYPE", direction: OUT)
+    organs: [Organ] @relation(name: "IS_TYPE", direction: OUT)
     images: [Image] @relation(name: "IMAGE_OF", direction: IN)
     describedBy: [DescribedBy]
     exampleOf: [ExampleOf]
@@ -623,7 +623,7 @@ input SpecimenInput {
     pbdboccid: String
     images: [ImageInput]
     descriptionIDs: [String]
-    organID: String
+    organIDs: [String]
     references: [CitedByInput]
     collection: String!
     uploadImages: [ImageUpload]
