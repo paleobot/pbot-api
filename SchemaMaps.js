@@ -403,7 +403,8 @@ export const schemaMap = {
     Character: {
         properties: [
            "name",
-           "definition"
+           "definition",
+           "order"
         ],
         relationships: [
             {
@@ -425,7 +426,8 @@ export const schemaMap = {
     State: {
         properties: [
             "name",
-            "definition"
+            "definition",
+            "order"
         ],
         relationships: [
             {

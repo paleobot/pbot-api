@@ -75,6 +75,7 @@ type Character {
     pbotID: ID!
     name: String
     definition: String
+    order: String
     characterOf: Characterable! @cypher(
       statement: "match (this)-[:CHARACTER_OF]->(n) return n limit 1"
     )
@@ -88,6 +89,7 @@ type State {
     pbotID: ID!
     name: String
     definition: String
+    order: String
     stateOf:  Statable! @cypher(
       statement: "match (this)-[:STATE_OF]->(n) return n limit 1"
     )
@@ -538,6 +540,7 @@ input CharacterInput {
     pbotID: String
     name: String
     definition: String
+    order: String
     parentID: String
     schemaID: String
 	enteredByPersonID: String
@@ -548,6 +551,7 @@ input StateInput {
     pbotID: String
     name: String
     definition: String
+    order: String
     parentID: String
     schemaID: String
 	enteredByPersonID: String
