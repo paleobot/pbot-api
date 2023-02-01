@@ -340,7 +340,8 @@ export const schemaMap = {
            "title",
            "year",
            "publisher",
-           "doi"
+           "doi",
+           "pbdbid"
         ],
         relationships: [
             {
