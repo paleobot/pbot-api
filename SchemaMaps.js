@@ -646,7 +646,10 @@ export const schemaMap = {
         relationships: []
     },
     Collection: {
-        properties: ["name"],
+        properties: [
+            "name",
+            "pbdbid"
+        ],
         relationships: [
             {
                 type: "CITED_BY",

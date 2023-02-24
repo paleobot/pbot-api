@@ -244,6 +244,7 @@ type Image {
 type Collection {
     pbotID: ID!
     name: String
+    pbdbid: String
     specimens: [Specimen]! @relation(name: "COLLECTED_IN", direction: IN)
     references: [CollectionCitedBy]
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
@@ -664,6 +665,7 @@ input PreservationModeInput {
 input CollectionInput {
     pbotID: String
     name: String
+    pbdbid: String
     specimens: [String]
 	references: [CitedByInput]
 	groups: [String]
