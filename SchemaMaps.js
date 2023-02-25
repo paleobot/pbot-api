@@ -648,6 +648,8 @@ export const schemaMap = {
     Collection: {
         properties: [
             "name",
+            "lat",
+            "lon",
             "pbdbid"
         ],
         relationships: [

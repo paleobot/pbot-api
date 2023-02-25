@@ -1,6 +1,9 @@
 scalar DateTime
 scalar Upload
 
+scalar Latitude
+scalar Longitude
+
 """ These unions are a way for a property to hold references to different types """
 union Enterable = Group | Person | Reference | Schema | Character | State | Description | CharacterInstance | Specimen | Collection
 
@@ -244,6 +247,8 @@ type Image {
 type Collection {
     pbotID: ID!
     name: String
+    lat: Latitude
+    lon: Longitude
     pbdbid: String
     specimens: [Specimen]! @relation(name: "COLLECTED_IN", direction: IN)
     references: [CollectionCitedBy]
@@ -439,6 +444,10 @@ type DescribedBy @relation(name: "DESCRIBED_BY") {
 
 
 type Query {        
+    
+    echoLat(lat: Latitude!): Latitude!
+    echoLon(lon: Longitude!): Longitude!
+ 
     """
     Not sure this will be useful, but it's a way to get at the leaf states in state hierarchies."""
     GetLeafStates(characterID: String!): [State]
@@ -665,6 +674,8 @@ input PreservationModeInput {
 input CollectionInput {
     pbotID: String
     name: String
+    lat: Latitude
+    lon: Longitude
     pbdbid: String
     specimens: [String]
 	references: [CitedByInput]

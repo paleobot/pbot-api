@@ -5,6 +5,7 @@ import  GraphQLUpload  from 'graphql-upload/GraphQLUpload.mjs';
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto';
+import { GraphQLScalarType, Kind, GraphQLError } from 'graphql';
 
 import {schemaDeleteMap, schemaMap} from './SchemaMaps.js';
 import {uploadFile, renameFile, deleteFile} from './ImageManagement.js';
@@ -718,8 +719,74 @@ const mutateNode = async (context, nodeType, data, type) => {
 }
         
 
-        
+// Validation functions for checking latitude/longitude
+//Based on https://www.apollographql.com/docs/apollo-server/schema/custom-scalars/
+function latValue(value) {
+    if (typeof value === 'number' && value >= -90 && value <= 90) {
+        return value;
+    }
+    throw new GraphQLError(
+        `Provided value (${value}, ${typeof value}) is not avalid latitude`, 
+        {
+            extensions: { code: 'BAD_USER_INPUT' },
+        }
+    );
+}   
+
+function lonValue(value) {
+    if (typeof value === 'number' && value >= -180 && value <= 180) {
+        return value;
+    }
+    throw new GraphQLError(
+        `Provided value (${value}, ${typeof value}) is not a valid longitude`, 
+        {
+            extensions: { code: 'BAD_USER_INPUT' },
+        }
+    );
+}  
+
 export const Resolvers = {
+
+    Latitude: new GraphQLScalarType({
+        name: 'Latitude',
+        description: 'Latitude custom scalar type',
+        parseValue: latValue,
+        serialize: latValue,
+        parseLiteral(ast) {
+            if (ast.kind === Kind.FLOAT) {
+                return latValue(parseFloat(ast.value));
+            }
+            throw new GraphQLError('Provided value is not a valid latitude', {
+                extensions: { code: 'BAD_USER_INPUT' },
+            });
+        },
+    }),
+    Query: {
+        echoLat(_, { lat }) {
+            return lat;
+        },
+    },
+
+      Longitude: new GraphQLScalarType({
+        name: 'Longitude',
+        description: 'Longitude custom scalar type',
+        parseValue: lonValue,
+        serialize: lonValue,
+        parseLiteral(ast) {
+            if (ast.kind === Kind.FLOAT) {
+                return lonValue(parseFloat(ast.value));
+            }
+            throw new GraphQLError('Provided value is not a valid longitude', {
+                extensions: { code: 'BAD_USER_INPUT' },
+            });
+        },
+    }),
+    Query: {
+        echoLon(_, { lon }) {
+            return lon;
+        },
+    },
+    
     Upload: GraphQLUpload,
     Person: {
         email: (parent, args, context, info) => {
