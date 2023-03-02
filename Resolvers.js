@@ -549,11 +549,7 @@ const mutateNode = async (context, nodeType, data, type) => {
                 throw new ValidationError(`Cannot not have duplicate references`);
             }
         }
-        
-        if ("Collection" === nodeType  && data.specimens.length === 0 && (data.groups && data.groups.includes(publicGroupID)) ) {
-            throw new ValidationError(`A public Collection cannot be empty.`);
-        }
-    
+               
         if ("Person" !== nodeType && data.groups && data.groups.includes(publicGroupID) && data.groups.length > 1) {
             throw new ValidationError(`A public ${nodeType} cannot be in other groups.`);
         }
