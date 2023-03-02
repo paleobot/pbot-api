@@ -652,6 +652,7 @@ export const schemaMap = {
             "maxinterval",
             "lithology",
             "environment",
+            "collectors",
             "lat",
             "lon",
             "pbdbid"
@@ -667,6 +668,12 @@ export const schemaMap = {
                     "pbotID",
                     "order",
                 ]
+            }, {
+                type: "PRESERVED_BY",
+                direction: "out",
+                graphqlName: "preservationModeIDs",
+                required: true,
+                updatable: true
             }, {
                 type: "COLLECTED_IN",
                 direction: "in",

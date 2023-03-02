@@ -246,16 +246,18 @@ type Image {
 
 type Collection {
     pbotID: ID!
-    name: String
+    name: String!
     mininterval: String
     maxinterval: String
     lithology: String
+    preservationModes: [PreservationMode] @relation(name: "PRESERVED_BY", direction: OUT)
     environment: String
+    collectors: String
     lat: Latitude
     lon: Longitude
     pbdbid: String
     specimens: [Specimen] @relation(name: "COLLECTED_IN", direction: IN)
-    references: [CollectionCitedBy]
+    references: [CollectionCitedBy!]!
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [CollectionEnteredBy]
 }
@@ -677,13 +679,15 @@ input PreservationModeInput {
 
 input CollectionInput {
     pbotID: String
-    name: String
+    name: String!
     mininterval: String
-    maxinterval: String
-    lithology: String
+    maxinterval: String!
+    lithology: String!
+    preservationModeIDs: [String!]!
     environment: String
-    lat: Latitude
-    lon: Longitude
+    collectors: String
+    lat: Latitude!
+    lon: Longitude!
     pbdbid: String
     specimens: [String]
 	references: [CitedByInput]
