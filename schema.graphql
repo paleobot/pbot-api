@@ -247,6 +247,8 @@ type Image {
 type Collection {
     pbotID: ID!
     name: String!
+    collectionType: String
+    sizeClasses: [String]
     mininterval: String
     maxinterval: String
     lithology: String
@@ -680,6 +682,8 @@ input PreservationModeInput {
 input CollectionInput {
     pbotID: String
     name: String!
+    collectionType: String!
+    sizeClasses: [String!]!
     mininterval: String
     maxinterval: String!
     lithology: String!

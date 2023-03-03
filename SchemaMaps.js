@@ -648,6 +648,8 @@ export const schemaMap = {
     Collection: {
         properties: [
             "name",
+            "collectionType",
+            "sizeClasses",
             "mininterval",
             "maxinterval",
             "lithology",
