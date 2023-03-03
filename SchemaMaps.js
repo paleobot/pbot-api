@@ -657,6 +657,7 @@ export const schemaMap = {
             "collectors",
             "lat",
             "lon",
+            "country",
             "pbdbid"
         ],
         relationships: [
