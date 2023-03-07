@@ -682,7 +682,7 @@ export const schemaMap = {
                 direction: "in",
                 graphqlName: "specimens",
                 required: false,
-                updatable: true
+                updatable: false
             }, {
                 type: "ELEMENT_OF",
                 direction: "out",

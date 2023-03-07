@@ -695,7 +695,6 @@ input CollectionInput {
     lon: Longitude!
     country: String!
     pbdbid: String
-    specimens: [String]
 	references: [CitedByInput]
 	groups: [String]
     enteredByPersonID: String
