@@ -698,6 +698,7 @@ input CollectionInput {
 	references: [CitedByInput]
 	groups: [String]
     enteredByPersonID: String
+	cascade: Boolean
 }
 
   type File {
