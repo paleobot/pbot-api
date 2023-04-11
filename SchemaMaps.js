@@ -269,11 +269,11 @@ export const schemaDeleteMap = {
         }]
     }, 
     Collection: {
-        blockingRelationships: [{
+        blockingRelationships: [],
+        cascadeRelationships: [{
             type: "COLLECTED_IN",
             direction: "in"
         }, ],
-        cascadeRelationships: [],
         nonblockingRelationships: [{
             type: "ELEMENT_OF",
             direction: "out"
