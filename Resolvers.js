@@ -62,7 +62,7 @@ const getPerson = async (session, email) => {
 }
 
 const getGroups = async (session, data) => {
-    const rootID = data.schemaID || data.descriptionID || null;
+    const rootID = data.schemaID || data.descriptionID || data.collection || null;
     
     if (rootID !== null) {
         const queryStr = `
@@ -574,9 +574,9 @@ const mutateNode = async (context, nodeType, data, type) => {
                         if (await isSynonym(tx, data.otus)) {
                             throw new ValidationError(`${nodeType} already exists`);
                         }
-                    } else if ("Character" === nodeType || "State" === nodeType || "CharacterInstance" === nodeType) {
+                    } else if ("Character" === nodeType || "State" === nodeType || "CharacterInstance" === nodeType || "Specimen" === nodeType) {
                         console.log("++++++++++++++++++++++fetching groups++++++++++++++++++");
-                        //fetch groups from Schema and put in data
+                        //fetch groups from root and put in data
                         const groups = await getGroups(tx, data);
                         console.log("Groups:");
                         console.log(groups);
@@ -614,7 +614,7 @@ const mutateNode = async (context, nodeType, data, type) => {
                         console.log("Groups:");
                         console.log(groups);
                         data["groups"] = groups;
-                        //We are moving a Characgter to State to a new parent within same Schema. 
+                        //We are moving a Character or State to a new parent within same Schema. 
                         //Groups are not changing so no need to cascade.
                         doGroupCascade = false; 
                     }
