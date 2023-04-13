@@ -162,16 +162,17 @@ type OTU {
 	family: String
 	genus: String
 	species: String
-    exampleSpecimens: [ExampleOf!]!
-    holotype: HolotypeOf!
+    identifiedSpecimens: [IdentifiedSpecimenOf!]!
+    typeSpecimens: [TypeSpecimenOf!]!
+    holotypeSpecimen: HolotypeSpecimenOf!
     synonyms: [Synonym] @relation(name: "SAME_AS", direction: OUT)
     references: [OTUCitedBy]
     mergedDescription: [PseudoCharacterInstance!]! @cypher(
         statement: """
             MATCH
-                (otu:OTU {pbotID:this.pbotID})<-[:EXAMPLE_OF|:HOLOTYPE_OF]-(specimen:Specimen)-[:DESCRIBED_BY]->(d:Description)
+                (otu:OTU {pbotID:this.pbotID})<-[:TYPE_OF|:HOLOTYPE_OF]-(specimen:Specimen)-[:DESCRIBED_BY]->(d:Description)
             WITH
-                DISTINCT d //This gets rid of possible EXAMPLE_OF/HOLOTYPE_OF duplicates
+                DISTINCT d //This gets rid of possible TYPE_OF/HOLOTYPE_OF duplicates
                 MATCH   
                     (d)-[:DEFINED_BY]->(ci:CharacterInstance),
                     (ci)-[:INSTANCE_OF]->(c:Character),
@@ -226,8 +227,9 @@ type Specimen {
     organs: [Organ] @relation(name: "IS_TYPE", direction: OUT)
     images: [Image] @relation(name: "IMAGE_OF", direction: IN)
     describedBy: [DescribedBy]
-    exampleOf: [ExampleOf]
-    holotypeOf: [HolotypeOf]
+    identifiedAs: [IdentifiedSpecimenOf]
+    typeOf: [TypeSpecimenOf]
+    holotypeOf: [HolotypeSpecimenOf]
     references: [SpecimenCitedBy]
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     collection: Collection! @relation(name: "COLLECTED_IN", direction: OUT)
@@ -426,8 +428,16 @@ type HasState @relation(name: "HAS_STATE") {
 }
 
 
-""" EXAMPLE_OF for access to entered_by and timestamp """
-type ExampleOf @relation(name: "EXAMPLE_OF") {
+""" IDENTIFIED_AS for access to entered_by and timestamp """
+type IdentifiedSpecimenOf @relation(name: "IDENTIFIED_AS") {
+    from: Specimen
+    to: OTU
+    entered_by: ID!
+    timestamp: DateTime
+}
+
+""" TYPE_OF for access to entered_by and timestamp """
+type TypeSpecimenOf @relation(name: "TYPE_OF") {
     from: Specimen
     to: OTU
     entered_by: ID!
@@ -435,7 +445,7 @@ type ExampleOf @relation(name: "EXAMPLE_OF") {
 }
 
 """ HOLOTYPE_OF for access to entered_by and timestamp """
-type HolotypeOf @relation(name: "HOLOTYPE_OF") {
+type HolotypeSpecimenOf @relation(name: "HOLOTYPE_OF") {
     from: Specimen
     to: OTU
     entered_by: ID!
@@ -606,8 +616,9 @@ input OTUInput {
 	family: String
 	genus: String
 	species: String
-    exampleSpecimens: [String]
-    holotype: String
+    identifiedSpecimens: [String]
+    typeSpecimens: [String]
+    holotypeSpecimen: String
     synonyms: [String]
 	references: [CitedByInput]
 	groups: [String]

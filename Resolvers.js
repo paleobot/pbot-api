@@ -554,8 +554,15 @@ const mutateNode = async (context, nodeType, data, type) => {
             throw new ValidationError(`A public ${nodeType} cannot be in other groups.`);
         }
     
-        if ("OTU" === nodeType && !data.exampleSpecimens.includes(data.holotype)) {
-            throw new ValidationError(`Holotype must also be an example specimen`);
+        if ("OTU" === nodeType) {
+            data.typeSpecimens.forEach(specimen => {
+                if (!data.identifiedSpecimens.includes(specimen)) {
+                    throw new ValidationError(`Type specimens must also be identified specimens`);
+                }
+            })
+            if (!data.typeSpecimens.includes(data.holotypeSpecimen)) {
+                throw new ValidationError(`Holotype must also be a type specimen`);
+            }
         }
             
         const result = await session.writeTransaction(async tx => {

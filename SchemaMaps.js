@@ -169,8 +169,11 @@ export const schemaDeleteMap = {
         }],
         cascadeRelationships: [],
         nonblockingRelationships: [{
-            type: "EXAMPLE_OF",
+            type: "IDENTIFIED_AS",
             direction: "out"
+        }, {
+            type: "TYPE_OF",
+            direction: "out",
         }, {
             type: "HOLOTYPE_OF",
             direction: "out",
@@ -224,6 +227,9 @@ export const schemaDeleteMap = {
             type: "DESCRIBED_BY",
             direction: "out",
         }, {
+            type: "TYPE_OF",
+            direction: "out",
+        }, {
             type: "HOLOTYPE_OF",
             direction: "out",
         }],
@@ -238,7 +244,7 @@ export const schemaDeleteMap = {
             type: "PRESERVED_BY",
             direction: "out"
         }, {
-            type: "EXAMPLE_OF",
+            type: "IDENTIFIED_AS",
             direction: "out"
         }, {
             type: "COLLECTED_IN",
@@ -491,15 +497,21 @@ export const schemaMap = {
 			"species"
         ],
         relationships: [{
-                type: "EXAMPLE_OF",
+                type: "IDENTIFIED_AS",
                 direction: "in",
-                graphqlName: "exampleSpecimens",
+                graphqlName: "identifiedSpecimens",
+                required: true,
+                updatable: true
+            }, {
+                type: "TYPE_OF",
+                direction: "in",
+                graphqlName: "typeSpecimens",
                 required: true,
                 updatable: true
             }, {
                 type: "HOLOTYPE_OF",
                 direction: "in",
-                graphqlName: "holotype",
+                graphqlName: "holotypeSpecimen",
                 required: true,
                 updatable: true
             }, {
