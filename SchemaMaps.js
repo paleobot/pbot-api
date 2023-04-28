@@ -669,6 +669,7 @@ export const schemaMap = {
             "collectors",
             "lat",
             "lon",
+            "gpsCoordinateUncertainty",
             "protectedSite",
             "country",
             "pbdbid"

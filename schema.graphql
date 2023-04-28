@@ -259,6 +259,7 @@ type Collection {
     collectors: String
     lat: Latitude
     lon: Longitude
+    gpsCoordinateUncertainty: Int
     protectedSite: Boolean
     country: String
     pbdbid: String
@@ -705,6 +706,7 @@ input CollectionInput {
     collectors: String
     lat: Latitude!
     lon: Longitude!
+    gpsCoordinateUncertainty: Int!
     protectedSite: Boolean!
     country: String!
     pbdbid: String
