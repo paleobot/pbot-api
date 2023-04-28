@@ -669,6 +669,7 @@ export const schemaMap = {
             "collectors",
             "lat",
             "lon",
+            "protectedSite",
             "country",
             "pbdbid"
         ],

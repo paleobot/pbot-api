@@ -259,6 +259,7 @@ type Collection {
     collectors: String
     lat: Latitude
     lon: Longitude
+    protectedSite: Boolean
     country: String
     pbdbid: String
     specimens: [Specimen] @relation(name: "COLLECTED_IN", direction: IN)
@@ -704,6 +705,7 @@ input CollectionInput {
     collectors: String
     lat: Latitude!
     lon: Longitude!
+    protectedSite: Boolean!
     country: String!
     pbdbid: String
 	references: [CitedByInput]
