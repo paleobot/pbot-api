@@ -670,6 +670,8 @@ export const schemaMap = {
             "lat",
             "lon",
             "gpsCoordinateUncertainty",
+            "geographicResolution",
+            "geographicComments",
             "protectedSite",
             "country",
             "state",

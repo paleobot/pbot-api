@@ -260,6 +260,8 @@ type Collection {
     lat: Latitude
     lon: Longitude
     gpsCoordinateUncertainty: Int
+    geographicResolution: String
+    geographicComments: String
     protectedSite: Boolean
     country: String
     state: String
@@ -708,6 +710,8 @@ input CollectionInput {
     lat: Latitude!
     lon: Longitude!
     gpsCoordinateUncertainty: Int!
+    geographicResolution: String
+    geographicComments: String
     protectedSite: Boolean!
     country: String!
     state: String
