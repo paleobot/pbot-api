@@ -672,6 +672,7 @@ export const schemaMap = {
             "gpsCoordinateUncertainty",
             "protectedSite",
             "country",
+            "state",
             "pbdbid"
         ],
         relationships: [

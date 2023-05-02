@@ -262,6 +262,7 @@ type Collection {
     gpsCoordinateUncertainty: Int
     protectedSite: Boolean
     country: String
+    state: String
     pbdbid: String
     specimens: [Specimen] @relation(name: "COLLECTED_IN", direction: IN)
     references: [CollectionCitedBy!]!
@@ -709,6 +710,7 @@ input CollectionInput {
     gpsCoordinateUncertainty: Int!
     protectedSite: Boolean!
     country: String!
+    state: String
     pbdbid: String
 	references: [CitedByInput]
 	groups: [String]
