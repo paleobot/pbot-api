@@ -21,6 +21,8 @@ import {handleImages} from './ImageManagement.js';
 
 import {Resolvers} from './Resolvers.js';
 
+import { Country, State }  from 'country-state-city';
+
 dotenv.config();
 
 const app = express()
@@ -206,6 +208,16 @@ app.get('/reset', async (req, res) => {handleReset(req, res, driver)});
 
 app.post('/images', async (req, res) => {handleImages(req, res, driver)});
 app.get('/images/:pbotID/:image', async (req, res) => {handleImages(req, res, driver)});
+
+app.get('/countries', async (req, res) => {
+    const countries = Country.getAllCountries();
+    res.status(200).json(countries);
+});
+
+app.get('/states/:countryCode', async (req, res) => {
+    const states = State.getStatesOfCountry(req.params.countryCode);
+    res.status(200).json(states);
+});
 
 app.listen({ host, port, path }, () => {
   console.log(`GraphQL server ready at http://${host}:${port}${pth}`)
