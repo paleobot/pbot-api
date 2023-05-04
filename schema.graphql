@@ -254,9 +254,18 @@ type Collection {
     mininterval: String
     maxinterval: String
     lithology: String
+    additionalLithology: String
+    stratigraphicGroup: String
+    stratigraphicFormation: String
+    stratigraphicMember: String
+    stratigraphicBed: String
+    stratigraphicComments: String
     preservationModes: [PreservationMode] @relation(name: "PRESERVED_BY", direction: OUT)
     environment: String
+    environmentComments: String
     collectors: String
+    collectionMethods: [String]
+    collectingComments: String
     lat: Latitude
     lon: Longitude
     gpsCoordinateUncertainty: Int
@@ -714,9 +723,18 @@ input CollectionInput {
     mininterval: String
     maxinterval: String!
     lithology: String!
+    additionalLithology: String
+    stratigraphicGroup: String
+    stratigraphicFormation: String
+    stratigraphicMember: String
+    stratigraphicBed: String
+    stratigraphicComments: String
     preservationModeIDs: [String!]!
     environment: String
+    environmentComments: String
     collectors: String
+    collectionMethods: [String]
+    collectingComments: String
     lat: Latitude!
     lon: Longitude!
     gpsCoordinateUncertainty: Int!
