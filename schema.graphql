@@ -262,6 +262,16 @@ type Collection {
     gpsCoordinateUncertainty: Int
     geographicResolution: String
     geographicComments: String
+    directDate: Int
+    directDateError: Int
+    directDateType: String
+    numericAgeMin: Int
+    numericAgeMinError: Int
+    numericAgeMinType: String
+    numericAgeMax: Int
+    numericAgeMaxError: Int
+    numericAgeMaxType: String
+    ageComments: String
     protectedSite: Boolean
     country: String
     state: String
@@ -712,6 +722,16 @@ input CollectionInput {
     gpsCoordinateUncertainty: Int!
     geographicResolution: String
     geographicComments: String
+    directDate: Int
+    directDateError: Int
+    directDateType: String
+    numericAgeMin: Int
+    numericAgeMinError: Int
+    numericAgeMinType: String
+    numericAgeMax: Int
+    numericAgeMaxError: Int
+    numericAgeMaxType: String
+    ageComments: String
     protectedSite: Boolean!
     country: String!
     state: String
