@@ -107,7 +107,16 @@ type Organ {
     pbotID: ID!
     type: String
     specimens: [Specimen!]! @relation(name: "IS_TYPE" direction: IN)
+    otus: [OTU!]! @relation(name: "HAS_PART" direction: IN)
     enteredBy: [OrganEnteredBy]
+}
+
+type Feature {
+    pbotID: ID!
+    name: String
+    specimens: [Specimen!]! @relation(name: "IS_TYPE" direction: IN)
+    otus: [OTU!]! @relation(name: "HAS_FEATURE" direction: IN)
+    enteredBy: [FeatureEnteredBy]
 }
 
 type PreservationMode {
@@ -159,9 +168,15 @@ type PseudoDescription {
 type OTU {
     pbotID: ID!
 	name: String
+    authority: String
+    diagnosis: String
+    qualityIndex: String
+    partsPreserved: [Organ] @relation(name: "HAS_PART", direction: OUT)
+    notableFeatures: [Feature] @relation(name: "HAS_FEATURE", direction: OUT)
 	family: String
 	genus: String
 	species: String
+    additionalClades: String
     identifiedSpecimens: [IdentifiedSpecimenOf!]!
     typeSpecimens: [TypeSpecimenOf!]!
     holotypeSpecimen: HolotypeSpecimenOf!
@@ -334,6 +349,12 @@ type StateEnteredBy @relation(name: "ENTERED_BY") {
 
 type OrganEnteredBy @relation(name: "ENTERED_BY") {
   from: Organ
+  to: Person
+  timestamp: DateTime
+}
+
+type FeatureEnteredBy @relation(name: "ENTERED_BY") {
+  from: Feature
   to: Person
   timestamp: DateTime
 }
@@ -636,16 +657,22 @@ input CharacterInstanceInput {
 
 input OTUInput {
     pbotID: String
-	name: String
+	name: String!
+    authority: String!
+    diagnosis: String!
+    qualityIndex: String!
+    partsPreserved: [String!]!
+    notableFeatures: [String]
 	family: String
 	genus: String
 	species: String
+    additionalClades: String
     identifiedSpecimens: [String]
     typeSpecimens: [String]
-    holotypeSpecimen: String
+    holotypeSpecimen: String!
     synonyms: [String]
-	references: [CitedByInput]
-	groups: [String]
+	references: [CitedByInput!]!
+	groups: [String!]!
 }
 
 input SynonymInput {
@@ -706,6 +733,12 @@ input ImageInput {
 input OrganInput {
     pbotID: String
     type: String!
+	enteredByPersonID: String
+}
+
+input FeatureInput {
+    pbotID: String
+    name: String!
 	enteredByPersonID: String
 }
 
@@ -897,6 +930,10 @@ type Mutation {
     CreateOrgan(data: OrganInput!): Organ! @neo4j_ignore
     UpdateOrgan(data: OrganInput!): Organ! @neo4j_ignore
     DeleteOrgan(data: OrganInput!): Organ! @neo4j_ignore
+
+    CreateFeature(data: FeatureInput!): Feature! @neo4j_ignore
+    UpdateFeature(data: FeatureInput!): Feature! @neo4j_ignore
+    DeleteFeature(data: FeatureInput!): Feature! @neo4j_ignore
 
     CreatePreservationMode(data: PreservationModeInput!): PreservationMode! @neo4j_ignore
     UpdatePreservationMode(data: PreservationModeInput!): PreservationMode! @neo4j_ignore
