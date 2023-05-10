@@ -171,8 +171,8 @@ type OTU {
     authority: String
     diagnosis: String
     qualityIndex: String
-    partsPreserved: [Organ] @relation(name: "HAS_PART", direction: OUT)
-    notableFeatures: [Feature] @relation(name: "HAS_FEATURE", direction: OUT)
+    majorTaxonGroup: String
+    pbdbParentTaxon: String
 	family: String
 	genus: String
 	species: String
@@ -661,8 +661,8 @@ input OTUInput {
     authority: String!
     diagnosis: String!
     qualityIndex: String!
-    partsPreserved: [String!]!
-    notableFeatures: [String]
+    majorTaxonGroup: String!
+    pbdbParentTaxon: String!
 	family: String
 	genus: String
 	species: String

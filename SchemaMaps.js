@@ -169,9 +169,6 @@ export const schemaDeleteMap = {
         }],
         cascadeRelationships: [],
         nonblockingRelationships: [{
-            type: "HAS_PART",
-            direction: "out"
-        }, {
             type: "IDENTIFIED_AS",
             direction: "out"
         }, {
@@ -498,24 +495,14 @@ export const schemaMap = {
             "authority",
             "diagnosis",
             "qualityIndex",
+            "majorTaxonGroup",
+            "pbdbParentTaxon",
             "family",
 			"genus",
 			"species",
             "additionalClades"
         ],
         relationships: [{
-                type: "HAS_PART",
-                direction: "out",
-                graphqlName: "partsPreserved",
-                required: true,
-                updatable: true
-            }, {
-                type: "HAS_FEATURE",
-                direction: "out",
-                graphqlName: "notableFeatures",
-                required: true,
-                updatable: true
-            }, {
                 type: "IDENTIFIED_AS",
                 direction: "in",
                 graphqlName: "identifiedSpecimens",
