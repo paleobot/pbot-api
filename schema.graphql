@@ -239,7 +239,8 @@ type Specimen {
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
-    organs: [Organ] @relation(name: "IS_TYPE", direction: OUT)
+    partsPreserved: [Organ] @relation(name: "IS_TYPE", direction: OUT)
+    notableFeatures: [Feature] @relation(name: "HAS_FEATURE", direction: OUT)
     images: [Image] @relation(name: "IMAGE_OF", direction: IN)
     describedBy: [DescribedBy]
     identifiedAs: [IdentifiedSpecimenOf]
@@ -710,7 +711,8 @@ input SpecimenInput {
     pbdboccid: String
     images: [ImageInput]
     descriptionIDs: [String]
-    organIDs: [String]
+    partsPreservedIDs: [String]
+    notableFeaturesIDs: [String]
     references: [CitedByInput]
     collection: String!
     uploadImages: [ImageUpload]

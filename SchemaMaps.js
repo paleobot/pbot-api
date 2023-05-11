@@ -241,6 +241,9 @@ export const schemaDeleteMap = {
             type: "IS_TYPE",
             direction: "out"
         }, {
+            type: "HAS_FEATURE",
+            direction: "out"
+        }, {
             type: "PRESERVED_BY",
             direction: "out"
         }, {
@@ -617,7 +620,13 @@ export const schemaMap = {
             }, {
                 type: "IS_TYPE",
                 direction: "out",
-                graphqlName: "organIDs",
+                graphqlName: "partsPreservedIDs",
+                required: true,
+                updatable: true
+            }, {
+                type: "HAS_FEATURE",
+                direction: "out",
+                graphqlName: "notableFeaturesIDs",
                 required: true,
                 updatable: true
             }, {
