@@ -667,7 +667,7 @@ export const schemaMap = {
             }, {
                 type: "HAS_IDENTIFIED",
                 direction: "in",
-                graphqlName: "indentifiers",
+                graphqlName: "identifiers",
                 required: false,
                 updatable: true
             }
