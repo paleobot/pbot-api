@@ -250,6 +250,9 @@ export const schemaDeleteMap = {
             type: "IDENTIFIED_AS",
             direction: "out"
         }, {
+            type: "HAS_IDENTIFIED",
+            direction: "in"
+        }, {
             type: "COLLECTED_IN",
             direction: "out"
         }, {
@@ -605,10 +608,14 @@ export const schemaMap = {
     Specimen: {
         //TODO: look into https://www.graphql-scalars.dev/docs/scalars/uuid for managing idigbiouuid
         properties: [
-           "name",
-           "idigbiouuid",
-           "pbdbcid",
-           "pbdboccid"
+            "name",
+            "repository",
+            "otherRepositoryLink",
+            "notes",
+            "gbifID",
+            "idigbiouuid",
+            "pbdbcid",
+            "pbdboccid"
         ],
         relationships: [
             {
@@ -656,6 +663,12 @@ export const schemaMap = {
                 direction: "out",
                 graphqlName: "groups",
                 required: true,
+                updatable: true
+            }, {
+                type: "HAS_IDENTIFIED",
+                direction: "in",
+                graphqlName: "indentifiers",
+                required: false,
                 updatable: true
             }
         ]

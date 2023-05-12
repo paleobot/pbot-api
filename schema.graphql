@@ -45,6 +45,7 @@ type Person {
       statement: "match (n)-[:ENTERED_BY]->(this) return n"
     )
     authored: [Authorable!]! @relation(name: "AUTHORED_BY", direction: IN)
+    identified: [Specimen] @relation(name: "HAS_IDENTIFIED", direction: OUT)
     memberOf: [Group!]! @relation(name: "MEMBER_OF", direction: OUT)
     enteredBy: [PersonEnteredBy]
 }
@@ -236,6 +237,10 @@ type Specimen {
     pbotID: ID!
     name: String
     preservationMode: PreservationMode @relation(name: "PRESERVED_BY", direction: OUT)
+    repository: String
+    otherRepositoryLink: String
+    notes: String
+    gbifID: String
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
@@ -246,6 +251,7 @@ type Specimen {
     identifiedAs: [IdentifiedSpecimenOf]
     typeOf: [TypeSpecimenOf]
     holotypeOf: [HolotypeSpecimenOf]
+    identifiers: [Person] @relation(name: "HAS_IDENTIFIED", direction: IN)
     references: [SpecimenCitedBy]
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     collection: Collection! @relation(name: "COLLECTED_IN", direction: OUT)
@@ -705,14 +711,19 @@ type ImageReturn {
 input SpecimenInput {
     pbotID: String
     name: String!
-    preservationModeID: String
+    preservationModeID: String!
+    repository: String!
+    otherRepositoryLink: String
+    notes: String
+    gbifID: String
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
     images: [ImageInput]
     descriptionIDs: [String]
-    partsPreservedIDs: [String]
+    partsPreservedIDs: [String!]!
     notableFeaturesIDs: [String]
+    identifiers: [String]
     references: [CitedByInput]
     collection: String!
     uploadImages: [ImageUpload]
