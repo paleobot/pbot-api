@@ -634,7 +634,7 @@ export const schemaMap = {
                 type: "HAS_FEATURE",
                 direction: "out",
                 graphqlName: "notableFeaturesIDs",
-                required: true,
+                required: false,
                 updatable: true
             }, {
                 type: "PRESERVED_BY",
