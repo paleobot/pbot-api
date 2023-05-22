@@ -613,6 +613,8 @@ export const schemaMap = {
             "otherRepositoryLink",
             "notes",
             "gbifID",
+            "idigbioInstitutionCode",
+            "idigbioCatalogNumber",
             "idigbiouuid",
             "pbdbcid",
             "pbdboccid"

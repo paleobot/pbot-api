@@ -241,6 +241,8 @@ type Specimen {
     otherRepositoryLink: String
     notes: String
     gbifID: String
+    idigbioInstitutionCode: String
+    idigbioCatalogNumber: String
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
@@ -716,6 +718,8 @@ input SpecimenInput {
     otherRepositoryLink: String
     notes: String
     gbifID: String
+    idigbioInstitutionCode: String
+    idigbioCatalogNumber: String
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
