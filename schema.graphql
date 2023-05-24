@@ -54,7 +54,18 @@ type Reference {
     pbotID: ID!
     title: String
     year: String
+    publicationType: String
+    firstPage: String
+    lastPage: String
+    journal: String
+    bookTitle: String
+    publicationVolume: String
+    publicationNumber: String
     publisher: String
+    description: String
+    bookType: String
+    editors: String
+    notes: String
     doi: String
     pbdbid: String
     citedBy: [Citer!]! @relation(name: "CITED_BY", direction: OUT)
@@ -596,7 +607,18 @@ input ReferenceInput {
     pbotID: String
     title: String
 	year: String
-	publisher: String
+    publicationType: String
+    firstPage: String
+    lastPage: String
+    journal: String
+    bookTitle: String
+    publicationVolume: String
+    publicationNumber: String
+    publisher: String
+    description: String
+    bookType: String
+    editors: String
+    notes: String
 	doi: String
     pbdbid: String
 	authors: [AuthoredBy!]!

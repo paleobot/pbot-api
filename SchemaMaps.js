@@ -351,8 +351,19 @@ export const schemaMap = {
         properties: [
            "title",
            "year",
-           "publisher",
-           "doi",
+            "publicationType",
+            "firstPage",
+            "lastPage",
+            "journal",
+            "bookTitle",
+            "publicationVolume",
+            "publicationNumber",
+            "publisher",
+            "description",
+            "bookType",
+            "editors",
+            "notes",
+            "doi",
            "pbdbid"
         ],
         relationships: [
