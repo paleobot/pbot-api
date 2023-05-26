@@ -349,8 +349,8 @@ export const schemaMap = {
     },
     Reference: {
         properties: [
-           "title",
-           "year",
+            "title",
+            "year",
             "publicationType",
             "firstPage",
             "lastPage",
@@ -364,7 +364,7 @@ export const schemaMap = {
             "editors",
             "notes",
             "doi",
-           "pbdbid"
+            "pbdbid"
         ],
         relationships: [
             {
