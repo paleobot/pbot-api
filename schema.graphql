@@ -79,6 +79,9 @@ type Schema {
     title: String
     year: String
     acknowledgments: String
+    purpose: String
+    partsPreserved: [Organ] @relation(name: "IS_TYPE", direction: OUT)
+    notableFeatures: [Feature] @relation(name: "HAS_FEATURE", direction: OUT)
     references: [SchemaCitedBy]
     characters: [Character] @relation(name: "CHARACTER_OF", direction: IN)
     authoredBy: [SchemaAuthoredBy!]!
@@ -633,10 +636,13 @@ input CitedByInput {
 
 input SchemaInput {
     pbotID: String
-    title: String
+    title: String!
 	year: String
     acknowledgments: String
-	references: [CitedByInput]
+    purpose: String!
+    partsPreservedIDs: [String!]!
+    notableFeaturesIDs: [String]
+	references: [CitedByInput!]!
 	authors: [AuthoredBy!]!
 	groups: [String]
 	enteredByPersonID: String

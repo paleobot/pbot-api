@@ -57,6 +57,12 @@ export const schemaDeleteMap = {
             direction: "in"
         }],
         nonblockingRelationships: [{
+            type: "IS_TYPE",
+            direction: "out",
+        }, {
+            type: "HAS_FEATURE",
+            direction: "out",
+        }, {
             type: "AUTHORED_BY",
             direction: "out"
         }, {
@@ -391,10 +397,23 @@ export const schemaMap = {
         properties: [
            "title",
            "year",
-           "acknowledgments"
+           "acknowledgments",
+           "purpose"
         ],
         relationships: [
             {
+                type: "IS_TYPE",
+                direction: "out",
+                graphqlName: "partsPreservedIDs",
+                required: true,
+                updatable: true,
+            }, {
+                type: "HAS_FEATURE",
+                direction: "out",
+                graphqlName: "notableFeaturesIDs",
+                required: false,
+                updatable: true,
+            }, {
                 type: "CITED_BY",
                 direction: "in",
                 graphqlName: "references",
