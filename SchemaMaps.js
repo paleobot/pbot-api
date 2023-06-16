@@ -324,7 +324,10 @@ export const schemaDeleteMap = {
 //by OTU.
 export const schemaMap = {
     Group: {
-        properties: ["name"],
+        properties: [
+            "name",
+            "purpose"
+        ],
         relationships: [
             {
                 type: "MEMBER_OF",

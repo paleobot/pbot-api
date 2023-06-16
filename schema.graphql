@@ -22,6 +22,7 @@ union Commentable = Synonym | Comment
 type Group {
     pbotID: ID!
     name: String
+    purpose: String
     members: [Person!]! @relation(name: "MEMBER_OF", direction: IN)
     elements: [Groupable!]! @relation(name: "ELEMENT_OF", direction: IN)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
@@ -585,6 +586,7 @@ Mutations overrides. We might want to think about only using these, rather than 
 input GroupInput {
     pbotID: String
     name: String
+    purpose: String
     members: [String]
     elements: [String]
 	groups: [String]
