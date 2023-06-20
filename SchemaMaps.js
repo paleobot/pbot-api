@@ -800,9 +800,10 @@ export const schemaMap = {
     Image: {
         properties: [
            "link",
+           "category",
            "citation",
            "caption",
-           "type"
+           //"type"
         ],
         relationships: [
             {
