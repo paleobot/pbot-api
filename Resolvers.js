@@ -988,6 +988,8 @@ export const Resolvers = {
                     await deleteFile(tmpFilePath);
                     return retVal;
                 }
+            } else {
+                return await mutateNode(context, "Image", args.data, "update");
             }
         },    
 
