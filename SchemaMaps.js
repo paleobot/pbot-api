@@ -341,8 +341,11 @@ export const schemaMap = {
     Person: {
         properties: [
             "given",
+            "middle",
             "surname",
             "email",
+            "reason",
+            "bio",
             "orcid"
         ],
         relationships:[

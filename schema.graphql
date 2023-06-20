@@ -36,9 +36,12 @@ type Person {
     pbotID: ID!
     password: String
     given: String
+    middle: String
     surname: String
     email: String
     orcid: String
+    reason: String
+    bio: String
     registered: Boolean @cypher(
       statement: "return this.password is not null"
     )
@@ -597,9 +600,12 @@ input GroupInput {
 input PersonInput {
     pbotID: String
     given: String
+    middle: String
 	surname: String
 	email: String
 	orcid: String
+    reason: String
+    bio: String
 	groups: [String]
 	enteredByPersonID: String
 } 
