@@ -278,6 +278,7 @@ type Specimen {
 type Image {
     pbotID: ID!
     link: String!
+    category: String
     citation: String
     caption: String
     type: String
@@ -770,6 +771,7 @@ input ImageInput {
     pbotID: String
     link: String
     image: Upload
+    category: String
     citation: String
     caption: String
     type: String
