@@ -24,9 +24,11 @@ const getUser = async (driver, email) => {
             person{
                 .pbotID,
                 .given, 
+                .middle,
                 .surname, 
                 .email,
                 .password,
+                .bio,
                 roles:collect(
                     replace(
                         replace(
@@ -79,7 +81,10 @@ const createUser = async (driver, user) => {
             ON CREATE SET
                 person.pbotID = apoc.create.uuid(),
                 person.given = $given,
+                person.middle = $middle,
                 person.surname = $surname,
+                person.reason = $reason,
+                person.bio = $bio,
                 person.password = $password
             ON MATCH SET
                 person.password = $password
@@ -91,9 +96,11 @@ const createUser = async (driver, user) => {
             (person)-[:MEMBER_OF]->(public) 	
         RETURN 
             person{
-                .given, 
+                .given,
+                .middle, 
                 .surname, 
                 .email,
+                .bio,
                 .password,
                 roles: [user.name, admin.name],
                 groups:[public.name]
@@ -101,7 +108,10 @@ const createUser = async (driver, user) => {
         `, {
             email: user.email,
             given: user.givenName,
+            middle: user.middleName,
             surname: user.surname,
+            reason: user.reason,
+            bio: user.bio,
             password: pwHash
         }
     )
@@ -136,6 +146,7 @@ const prepareUserReset = async (driver, email, token) => {
         RETURN 
             person{
                 .given, 
+                .middle,
                 .surname, 
                 .email,
                 .password,
@@ -178,6 +189,7 @@ const resetUser = async (driver, email, token) => {
         RETURN 
             person{
                 .given, 
+                .middle,
                 .surname, 
                 .email
             }           
@@ -266,10 +278,12 @@ const handleRegistration = async (req, res, driver) => {
         if (!req.body.givenName ||
             !req.body.surname ||
             !req.body.email ||
+            !req.body.reason ||
+            !req.body.bio ||
             !req.body.password) {
             return res.status(400).send({
                 code: 400, 
-                msg: "Please pass given name, surname, email, and password",
+                msg: "Please pass given name, surname, reason, email, and password",
             });
         } else {
             let user = await getUser(driver, req.body.email);
