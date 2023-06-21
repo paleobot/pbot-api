@@ -605,6 +605,11 @@ const mutateNode = async (context, nodeType, data, type) => {
 
                     let doGroupCascade = true;
                     if ("Person" === nodeType) {
+                        //Stub in reason/bio to prevent undefined error
+                        data.reason = data.reason ? data.reason : null;
+                        data.bio = data.bio ? data.bio : null;
+
+                        //Check if person already exists
                         const person = await getPerson(tx, data.email);                    
                         if (person && person.properties.pbotID !== data.pbotID) {
                             console.log("person already exists");
