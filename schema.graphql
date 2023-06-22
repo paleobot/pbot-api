@@ -88,7 +88,7 @@ type Schema {
     notableFeatures: [Feature] @relation(name: "HAS_FEATURE", direction: OUT)
     references: [SchemaCitedBy]
     characters: [Character] @relation(name: "CHARACTER_OF", direction: IN)
-    authoredBy: [SchemaAuthoredBy!]!
+    authoredBy: [SchemaAuthoredBy]
     appliedBy: [Description]! @relation(name: "APPLICATION_OF", direction: IN)
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [SchemaEnteredBy]
@@ -652,7 +652,7 @@ input SchemaInput {
     partsPreservedIDs: [String!]!
     notableFeaturesIDs: [String]
 	references: [CitedByInput!]!
-	authors: [AuthoredBy!]!
+	authors: [AuthoredBy]
 	groups: [String]
 	enteredByPersonID: String
 	cascade: Boolean
