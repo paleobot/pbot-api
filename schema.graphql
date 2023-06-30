@@ -50,7 +50,7 @@ type Person {
     )
     authored: [Authorable!]! @relation(name: "AUTHORED_BY", direction: IN)
     identified: [Specimen] @relation(name: "HAS_IDENTIFIED", direction: OUT)
-    memberOf: [Group!]! @relation(name: "MEMBER_OF", direction: OUT)
+    memberOf: [Group] @relation(name: "MEMBER_OF", direction: OUT)
     enteredBy: [PersonEnteredBy]
 }
 
