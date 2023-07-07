@@ -149,6 +149,7 @@ type PreservationMode {
 type Description {
     pbotID: ID!
 	name: String
+    notes: String
     characterInstances: [CharacterInstance!]! @relation(name: "DEFINED_BY", direction: OUT)
     specimens: [DescribedBy]
     schema: Schema @relation(name: "APPLICATION_OF", direction: OUT)
@@ -684,6 +685,7 @@ input DescriptionInput {
     pbotID: String
     specimenIDs: [String]
 	name: String!
+    notes: String
 	schemaID: String!
     references: [CitedByInput]
 	groups: [String]

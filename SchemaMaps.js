@@ -498,6 +498,7 @@ export const schemaMap = {
     Description: {
         properties: [
 			"name",
+            "notes",
         ],
         relationships: [
             {
