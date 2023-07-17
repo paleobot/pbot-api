@@ -255,7 +255,7 @@ type Comment {
 type Specimen {
     pbotID: ID!
     name: String
-    preservationMode: PreservationMode @relation(name: "PRESERVED_BY", direction: OUT)
+    preservationModes: [PreservationMode] @relation(name: "PRESERVED_BY", direction: OUT)
     repository: String
     otherRepositoryLink: String
     notes: String
@@ -752,7 +752,7 @@ type ImageReturn {
 input SpecimenInput {
     pbotID: String
     name: String!
-    preservationModeID: String!
+    preservationModeIDs: [String!]!
     repository: String!
     otherRepositoryLink: String
     notes: String

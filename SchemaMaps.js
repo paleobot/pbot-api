@@ -678,7 +678,7 @@ export const schemaMap = {
             }, {
                 type: "PRESERVED_BY",
                 direction: "out",
-                graphqlName: "preservationModeID",
+                graphqlName: "preservationModeIDs",
                 required: true,
                 updatable: true
             }, {
