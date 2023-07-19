@@ -85,6 +85,7 @@ const createUser = async (driver, user) => {
                 person.surname = $surname,
                 person.reason = $reason,
                 person.bio = $bio,
+                person.orcid = $orcid,
                 person.password = $password
             ON MATCH SET
                 person.password = $password
@@ -101,6 +102,7 @@ const createUser = async (driver, user) => {
                 .surname, 
                 .email,
                 .bio,
+                .orcid,
                 .password,
                 roles: [user.name, admin.name],
                 groups:[public.name]
@@ -112,6 +114,7 @@ const createUser = async (driver, user) => {
             surname: user.surname,
             reason: user.reason,
             bio: user.bio,
+            orcid: user.orcid,
             password: pwHash
         }
     )
@@ -283,7 +286,12 @@ const handleRegistration = async (req, res, driver) => {
             !req.body.password) {
             return res.status(400).send({
                 code: 400, 
-                msg: "Please pass given name, surname, reason, email, and password",
+                msg: "Please pass given name, surname, reason, bio, email, and password",
+            });
+        } else if (req.body.orcid && !new RegExp(/https:\/\/orcid.org\/\d{4}-\d{4}-\d{4}-\d{4}/).test(req.body.orcid)) {
+            return res.status(400).send({
+                code: 400, 
+                msg: `orcid (${req.body.orcid}) is not valid format`,
             });
         } else {
             let user = await getUser(driver, req.body.email);
