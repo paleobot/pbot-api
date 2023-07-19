@@ -570,6 +570,10 @@ const mutateNode = async (context, nodeType, data, type) => {
             switch (type) {
                 case "create": 
                     if ("Person" === nodeType) {
+                        if (req.body.orcid && !new RegExp(/https:\/\/orcid.org\/\d{4}-\d{4}-\d{4}-\d{4}/).test(req.body.orcid)) {
+                            throw new ValidationError(`orcid (${req.body.orcid}) is not valid format`);
+                        }
+
                         //Stub in reason/bio to prevent undefined error
                         data.reason = data.reason ? data.reason : null;
                         data.bio = data.bio ? data.bio : null;
@@ -605,6 +609,10 @@ const mutateNode = async (context, nodeType, data, type) => {
 
                     let doGroupCascade = true;
                     if ("Person" === nodeType) {
+                        if (data.orcid && !new RegExp(/https:\/\/orcid.org\/\d{4}-\d{4}-\d{4}-\d{4}/).test(data.orcid)) {
+                            throw new ValidationError(`orcid (${data.orcid}) is not valid format`);
+                        }
+                        
                         //Stub in reason/bio to prevent undefined error
                         data.reason = data.reason ? data.reason : null;
                         data.bio = data.bio ? data.bio : null;
