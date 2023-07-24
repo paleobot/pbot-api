@@ -295,6 +295,7 @@ type Collection {
     name: String!
     collectionType: String
     sizeClasses: [String]
+    timescale: String
     mininterval: String
     maxinterval: String
     lithology: String
@@ -810,6 +811,7 @@ input CollectionInput {
     name: String!
     collectionType: String!
     sizeClasses: [String!]!
+    timescale: String!
     mininterval: String
     maxinterval: String!
     lithology: String!

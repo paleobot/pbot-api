@@ -735,6 +735,7 @@ export const schemaMap = {
             "name",
             "collectionType",
             "sizeClasses",
+            "timescale",
             "mininterval",
             "maxinterval",
             "lithology",
