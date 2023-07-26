@@ -313,17 +313,17 @@ type Collection {
     collectingComments: String
     lat: Latitude
     lon: Longitude
-    gpsCoordinateUncertainty: Int
+    gpsCoordinateUncertainty: Float
     geographicResolution: String
     geographicComments: String
-    directDate: Int
-    directDateError: Int
+    directDate: Float
+    directDateError: Float
     directDateType: String
-    numericAgeMin: Int
-    numericAgeMinError: Int
+    numericAgeMin: Float
+    numericAgeMinError: Float
     numericAgeMinType: String
-    numericAgeMax: Int
-    numericAgeMaxError: Int
+    numericAgeMax: Float
+    numericAgeMaxError: Float
     numericAgeMaxType: String
     ageComments: String
     protectedSite: Boolean
@@ -829,17 +829,17 @@ input CollectionInput {
     collectingComments: String
     lat: Latitude!
     lon: Longitude!
-    gpsCoordinateUncertainty: Int!
+    gpsCoordinateUncertainty: Float!
     geographicResolution: String
     geographicComments: String
-    directDate: Int
-    directDateError: Int
+    directDate: Float
+    directDateError: Float
     directDateType: String
-    numericAgeMin: Int
-    numericAgeMinError: Int
+    numericAgeMin: Float
+    numericAgeMinError: Float
     numericAgeMinType: String
-    numericAgeMax: Int
-    numericAgeMaxError: Int
+    numericAgeMax: Float
+    numericAgeMaxError: Float
     numericAgeMaxType: String
     ageComments: String
     protectedSite: Boolean!
