@@ -84,7 +84,7 @@ type Schema {
     year: String
     acknowledgments: String
     purpose: String
-    partsPreserved: [Organ] @relation(name: "IS_TYPE", direction: OUT)
+    partsPreserved: [Organ] @relation(name: "HAS_PART", direction: OUT)
     notableFeatures: [Feature] @relation(name: "HAS_FEATURE", direction: OUT)
     references: [SchemaCitedBy]
     characters: [Character] @relation(name: "CHARACTER_OF", direction: IN)
@@ -125,7 +125,7 @@ type State {
 type Organ {
     pbotID: ID!
     type: String
-    specimens: [Specimen!]! @relation(name: "IS_TYPE" direction: IN)
+    specimens: [Specimen!]! @relation(name: "HAS_PART" direction: IN)
     otus: [OTU!]! @relation(name: "HAS_PART" direction: IN)
     enteredBy: [OrganEnteredBy]
 }
@@ -133,7 +133,7 @@ type Organ {
 type Feature {
     pbotID: ID!
     name: String
-    specimens: [Specimen!]! @relation(name: "IS_TYPE" direction: IN)
+    specimens: [Specimen!]! @relation(name: "HAS_FEATURE" direction: IN)
     otus: [OTU!]! @relation(name: "HAS_FEATURE" direction: IN)
     enteredBy: [FeatureEnteredBy]
 }
@@ -202,6 +202,9 @@ type OTU {
     holotypeSpecimen: HolotypeSpecimenOf!
     synonyms: [Synonym] @relation(name: "SAME_AS", direction: OUT)
     references: [OTUCitedBy]
+    partsPreserved: [Organ] @relation(name: "HAS_PART", direction: OUT)
+    notableFeatures: [Feature] @relation(name: "HAS_FEATURE", direction: OUT)
+    notes: String
     mergedDescription: [PseudoCharacterInstance!]! @cypher(
         statement: """
             MATCH
@@ -265,7 +268,7 @@ type Specimen {
     idigbiouuid: String
     pbdbcid: String
     pbdboccid: String
-    partsPreserved: [Organ] @relation(name: "IS_TYPE", direction: OUT)
+    partsPreserved: [Organ] @relation(name: "HAS_PART", direction: OUT)
     notableFeatures: [Feature] @relation(name: "HAS_FEATURE", direction: OUT)
     images: [Image] @relation(name: "IMAGE_OF", direction: IN)
     describedBy: [DescribedBy]
@@ -721,6 +724,9 @@ input OTUInput {
     holotypeSpecimen: String!
     synonyms: [String]
 	references: [CitedByInput!]!
+    partsPreservedIDs: [String!]!
+    notableFeaturesIDs: [String]
+    notes: String
 	groups: [String!]!
 }
 

@@ -57,7 +57,7 @@ export const schemaDeleteMap = {
             direction: "in"
         }],
         nonblockingRelationships: [{
-            type: "IS_TYPE",
+            type: "HAS_PART",
             direction: "out",
         }, {
             type: "HAS_FEATURE",
@@ -175,6 +175,12 @@ export const schemaDeleteMap = {
         }],
         cascadeRelationships: [],
         nonblockingRelationships: [{
+            type: "HAS_PART",
+            direction: "out"
+        }, {
+            type: "HAS_FEATURE",
+            direction: "out"
+        }, {
             type: "IDENTIFIED_AS",
             direction: "out"
         }, {
@@ -244,7 +250,7 @@ export const schemaDeleteMap = {
             direction: "in"
         }], 
         nonblockingRelationships: [{
-            type: "IS_TYPE",
+            type: "HAS_PART",
             direction: "out"
         }, {
             type: "HAS_FEATURE",
@@ -408,7 +414,7 @@ export const schemaMap = {
         ],
         relationships: [
             {
-                type: "IS_TYPE",
+                type: "HAS_PART",
                 direction: "out",
                 graphqlName: "partsPreservedIDs",
                 required: true,
@@ -543,7 +549,8 @@ export const schemaMap = {
             "family",
 			"genus",
 			"species",
-            "additionalClades"
+            "additionalClades",
+            "notes"
         ],
         relationships: [{
                 type: "IDENTIFIED_AS",
@@ -562,6 +569,18 @@ export const schemaMap = {
                 direction: "in",
                 graphqlName: "holotypeSpecimen",
                 required: true,
+                updatable: true
+            }, {
+                type: "HAS_PART",
+                direction: "out",
+                graphqlName: "partsPreservedIDs",
+                required: true,
+                updatable: true
+            }, {
+                type: "HAS_FEATURE",
+                direction: "out",
+                graphqlName: "notableFeaturesIDs",
+                required: false,
                 updatable: true
             }, {
                 type: "SAME_AS",
@@ -664,7 +683,7 @@ export const schemaMap = {
                 required: false,
                 updatable: true,
             }, {
-                type: "IS_TYPE",
+                type: "HAS_PART",
                 direction: "out",
                 graphqlName: "partsPreservedIDs",
                 required: true,
