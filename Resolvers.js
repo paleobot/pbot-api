@@ -632,14 +632,14 @@ const mutateNode = async (context, nodeType, data, type) => {
                                 throw new ValidationError(`${nodeType} with that email already exists`);
                             }
                         }
-                    } else if (("Character" === nodeType || "State" === nodeType) && !data.groupCascade) {
+                    } else if (("Character" === nodeType || "State" === nodeType || "Specimen" === nodeType) && !data.groupCascade) {
                         console.log("++++++++++++++++++++++fetching groups++++++++++++++++++");
                         //fetch groups from Schema and put in data
                         const groups = await getGroups(tx, data);
                         console.log("Groups:");
                         console.log(groups);
                         data["groups"] = groups;
-                        //We are moving a Character or State to a new parent within same Schema. 
+                        //For Characters/States, we are moving them to a new parent within same Schema. For Specimens, there is no cascade. 
                         //Groups are not changing so no need to cascade.
                         doGroupCascade = false; 
                     }
