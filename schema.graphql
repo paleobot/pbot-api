@@ -611,7 +611,6 @@ input PersonInput {
 	orcid: String
     reason: String
     bio: String
-	groups: [String]
 	enteredByPersonID: String
 } 
 

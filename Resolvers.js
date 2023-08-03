@@ -574,6 +574,9 @@ const mutateNode = async (context, nodeType, data, type) => {
                             throw new ValidationError(`orcid (${data.orcid}) is not valid format`);
                         }
 
+                        //All people are created public
+                        data.groups = [publicGroupID];
+
                         //Stub in reason/bio to prevent undefined error
                         data.reason = data.reason ? data.reason : null;
                         data.bio = data.bio ? data.bio : null;
