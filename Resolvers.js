@@ -620,6 +620,15 @@ const mutateNode = async (context, nodeType, data, type) => {
                         data.reason = data.reason ? data.reason : null;
                         data.bio = data.bio ? data.bio : null;
 
+                        //All people are public
+                        if (data.groups) {
+                            if (!data.groups.includes(publicGroupID)) {
+                                data.groups.push(publicGroupID);
+                            }
+                        } else {
+                            data.groups = [publicGroupID];
+                        }
+
                         //Check if person already exists
                         const person = await getPerson(tx, data.email);                    
                         if (person && person.properties.pbotID !== data.pbotID) {

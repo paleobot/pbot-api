@@ -359,7 +359,7 @@ export const schemaMap = {
                 type: "MEMBER_OF",
                 direction: "out",
                 graphqlName: "groups",
-                required: false,
+                required: true,
                 updatable: true
             }
             
