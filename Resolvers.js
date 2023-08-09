@@ -563,6 +563,16 @@ const mutateNode = async (context, nodeType, data, type) => {
             if (!data.typeSpecimens.includes(data.holotypeSpecimen)) {
                 throw new ValidationError(`Holotype must also be a type specimen`);
             }
+            const pubHolo = await isPublic(session, data.holotypeSpecimen);
+            if (data.groups.includes(publicGroupID) && !pubHolo) {
+                throw new ValidationError(`A holotype specimen for a public OTU must also be public`);
+            }
+            if (data.groups.includes(publicGroupID)) {
+                const pubHolo = await isPublic(session, data.holotypeSpecimen);
+                if (!pubHolo) {
+                    throw new ValidationError(`A holotype specimen for a public OTU must also be public`);
+                }
+            }
         }
             
         const result = await session.writeTransaction(async tx => {
