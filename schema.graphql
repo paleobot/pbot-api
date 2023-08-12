@@ -348,96 +348,112 @@ type GroupEnteredBy @relation(name: "ENTERED_BY") {
   from: Group
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type PersonEnteredBy @relation(name: "ENTERED_BY") {
   from: Person
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type ReferenceEnteredBy @relation(name: "ENTERED_BY") {
   from: Reference
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type SchemaEnteredBy @relation(name: "ENTERED_BY") {
   from: Schema
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type CharacterEnteredBy @relation(name: "ENTERED_BY") {
   from: Character
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type StateEnteredBy @relation(name: "ENTERED_BY") {
   from: State
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type OrganEnteredBy @relation(name: "ENTERED_BY") {
   from: Organ
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type FeatureEnteredBy @relation(name: "ENTERED_BY") {
   from: Feature
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type PreservationModeEnteredBy @relation(name: "ENTERED_BY") {
   from: PreservationMode
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type DescriptionEnteredBy @relation(name: "ENTERED_BY") {
   from: Description
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type CharacterInstanceEnteredBy @relation(name: "ENTERED_BY") {
   from: CharacterInstance
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type SpecimenEnteredBy @relation(name: "ENTERED_BY") {
   from: Specimen
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type CollectionEnteredBy @relation(name: "ENTERED_BY") {
   from: Collection
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type OTUEnteredBy @relation(name: "ENTERED_BY") {
   from: OTU
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type SynonymEnteredBy @relation(name: "ENTERED_BY") {
   from: Synonym
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 type CommentEnteredBy @relation(name: "ENTERED_BY") {
   from: Comment
   to: Person
   timestamp: DateTime
+  type: String
 }
 
 """AUTHORED_BY for access to order"""
