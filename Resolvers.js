@@ -519,6 +519,69 @@ const handleCreate = async (session, nodeType, data) => {
     return result;
 }
 
+const isDuplicate = async (session, actionType, nodeType, data) => {
+    console.log("checkDuplicate")
+
+    if ("delete" === actionType) return;
+
+    let query = '';
+    let error = '';
+    if (["Reference", "Schema"].includes(nodeType)) {
+        query = `MATCH (n:${nodeType} {title: "${data.title}"})`;
+        error = `${nodeType} with same title found`
+    } else if (["OTU", "Specimen", "Description", "Collection", "Group"].includes(nodeType)) {
+        query = `MATCH (n:${nodeType} {name: "${data.name}"})`;
+        error = `${nodeType} with same name found`
+    } else if ("Person" === nodeType) {
+        query = `MATCH (n:${nodeType} {surname: "${data.surname}", given: "${data.given}" ${data.middle ? `, middle: "${data.middle}"` : '' }})`;
+        error = `${nodeType} with same name found`
+    } else if ("Image" === nodeType) {
+        query = `MATCH (n:${nodeType} {link: "${data.link}"})-[:IMAGE_OF]-(m {pbotID: "${data.imageOf}"})`;
+        error = `${nodeType} with same link found`
+    } else if ("Character" === nodeType) {
+        query = `
+            MATCH 
+                (n:${nodeType} {name: "${data.name}"})-[:CHARACTER_OF]->(m {pbotID:"${data.parentID}"})   
+        `;
+            error = `${nodeType} with same name and parent found`
+    } else if ("State" === nodeType) {
+        query = `
+            MATCH 
+                (n:${nodeType} {name: "${data.name}"})-[:STATE_OF]->(m {pbotID:"${data.parentID}"})             
+        `;
+            error = `${nodeType} with same name and parent found`
+    } else if ("CharacterInstance" === nodeType) {
+        //TODO: This does nothing because CharacterInstance create and edit are in schema.graphql. Add dup check logic there.
+        query = `
+            MATCH 
+                (s:State {pbotID: "${data.stateID}"})<-[:HAS_STATE]-(n:${nodeType})-[:INSTANCE_OF]->(c:Character {pbotID: "${data.characterID}"})
+            `;
+        error = `${nodeType} with same name and parent found`
+    } else if ("Synonym" === nodeType) {
+        query = `
+            MATCH 
+            (:OTU {pbotID: "${data.otus[0]}"})<-[:SAME_AS]-(n:${nodeType})-[:SAME_AS]->(:OTU {pbotID: "${data.otus[1]}"}),
+                (n)-[:SAME_AS]->(o2:OTU)
+        `;
+        error = `${nodeType} with same OTUs found`
+    }
+
+    if ("update" === actionType) {
+        query = `${query} WHERE n.pbotID <> "${data.pbotID}"`;
+    }
+
+    query = `${query} RETURN n`;
+
+    console.log("dup query = ")
+    console.log(query)
+
+    const result = await session.run(query);
+    return {
+        value: result.records.length > 0,
+        msg: error
+    }    
+}
+
 const mutateNode = async (context, nodeType, data, type) => {
     const driver = context.driver;
     const session = driver.session()
@@ -527,7 +590,13 @@ const mutateNode = async (context, nodeType, data, type) => {
     console.log(data);
     
     try {
-        //First, check that public group setting is exclusive
+
+        const dup = await isDuplicate(session, type, nodeType, data);
+        if (dup.value) {
+            throw new ValidationError(dup.msg);
+        }
+
+        //TODO: this is all to get public group ID. Should probably get this once on boot.
         const queryStr = `
             MATCH
                 (g:Group {name:"public"})
