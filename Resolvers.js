@@ -550,6 +550,7 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
                 (n:${nodeType} {name: "${data.name}"})-[:STATE_OF]->(m {pbotID:"${data.parentID}"})             
         `;
             error = `${nodeType} with same name and parent found`
+    /*
     } else if ("CharacterInstance" === nodeType) {
         //TODO: This does nothing because CharacterInstance create and edit are in schema.graphql. Add dup check logic there.
         query = `
@@ -557,6 +558,7 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
                 (s:State {pbotID: "${data.stateID}"})<-[:HAS_STATE]-(n:${nodeType})-[:INSTANCE_OF]->(c:Character {pbotID: "${data.characterID}"})
             `;
         error = `${nodeType} with same name and parent found`
+    */
     } else if ("Synonym" === nodeType) {
         query = `
             MATCH 
