@@ -522,7 +522,9 @@ const handleCreate = async (session, nodeType, data) => {
 const isDuplicate = async (session, actionType, nodeType, data) => {
     console.log("checkDuplicate")
 
-    if ("delete" === actionType) return;
+    if ("delete" === actionType) {
+        return { value: false };
+    } 
 
     let query = '';
     let error = '';
