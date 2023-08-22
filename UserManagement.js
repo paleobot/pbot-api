@@ -266,7 +266,7 @@ const handleLogin = async (req, res, driver) => {
                         username: req.body.username
                     //}, process.env.JWT_SECRET, { expiresIn: '1h' });
                     }, process.env.JWT_SECRET, {});
-                    res.json({ token: token }); //TODO: error handling and reporting through API good enough?
+                    res.json({ token: token, pbotID: user.pbotID }); //TODO: error handling and reporting through API good enough?
                 }
             } else {
                 res.status(400).json({msg: "User not found"});
