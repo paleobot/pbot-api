@@ -21,7 +21,7 @@ export const schemaDeleteMap = {
             type: "MEMBER_OF",
             direction: "in"
         }, {
-            type: "ITEM_OF",
+            type: "ELEMENT_OF",
             direction: "in"
         }],
         cascadeRelationships: [],
