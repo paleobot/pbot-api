@@ -92,7 +92,26 @@ const getGroups = async (session, data) => {
     }
 }
 
-const getRelationships = async (session, pbotID, relationships) => {
+const getRelationships = async (session, pbotID, relationships, enteredByPersonID, nodeType) => {
+    //This variation with nodeType and enteredByID is to handle Group deletion. 
+    //If a group has been cleaned out, it will still have one ELEMENT_OF to itself and one 
+    //MEMBER_OF to the current user. But we want to delete it anyhow. Leaving the original 
+    //query ghosted for now.
+    let queryStr = relationships.reduce((str, relationship) => `
+        ${str}
+        MATCH
+            (n)${relationship.direction === "in" ? "<-" : "-"}[:${relationship.type}]${relationship.direction === "in" ? "-" : "->"}(r) 
+        WHERE n.pbotID="${pbotID}" ${nodeType === "Group" ? 
+            `AND r.pbotID<>"${enteredByPersonID}" AND r.pbotID<>n.pbotID` :
+            ''
+        }
+        RETURN 
+            r
+        UNION ALL
+    `,'');
+
+    /*
+    //Original
     let queryStr = relationships.reduce((str, relationship) => `
         ${str}
         MATCH
@@ -102,6 +121,8 @@ const getRelationships = async (session, pbotID, relationships) => {
             r
         UNION ALL
     `,'');
+    */
+
     queryStr = queryStr.substring(0, queryStr.lastIndexOf("UNION ALL"))
     console.log(queryStr);
     
@@ -747,7 +768,9 @@ const mutateNode = async (context, nodeType, data, type) => {
                         const remoteNodes = await getRelationships(
                             tx, 
                             data.pbotID, 
-                            groupCascadeRelationships
+                            groupCascadeRelationships,
+                            data.enteredByPersonID,
+                            nodeType
                         );
                         //console.log("remoteNodes");
                         //console.log(remoteNodes);
@@ -784,7 +807,9 @@ const mutateNode = async (context, nodeType, data, type) => {
                         pbotID, 
                         cascade ? 
                             schemaDeleteMap[nodeType].blockingRelationships : 
-                            [...schemaDeleteMap[nodeType].blockingRelationships, ...schemaDeleteMap[nodeType].cascadeRelationships]
+                            [...schemaDeleteMap[nodeType].blockingRelationships, ...schemaDeleteMap[nodeType].cascadeRelationships],
+                            enteredByPersonID,
+                            nodeType
                     );
                     if (blockingRelationships.length > 0) {
                         console.log("cannot delete");
@@ -806,13 +831,18 @@ const mutateNode = async (context, nodeType, data, type) => {
                                 throw new ValidationError(`Unable to cascade delete ${nodeType}`);
                             });
                         }
-                            
+                        
+                        //If this is a Group node, pass both blocking and nonblocking, since
+                        //we want to ignore the last ELEMENT_OF and MEMBER_OF
                         result = await handleDelete(
                             tx, 
                             nodeType, 
                             pbotID, 
                             enteredByPersonID, 
-                            schemaDeleteMap[nodeType].nonblockingRelationships        
+                            "Group" === nodeType ? 
+                                [...schemaDeleteMap[nodeType].nonblockingRelationships, 
+                                 ...schemaDeleteMap[nodeType].blockingRelationships] :
+                                schemaDeleteMap[nodeType].nonblockingRelationships        
                         );
                     }
                     break;
