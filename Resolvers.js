@@ -62,7 +62,7 @@ const getPerson = async (session, email) => {
 }
 
 const getGroups = async (session, data) => {
-    const rootID = data.schemaID || data.descriptionID || data.collection || null;
+    const rootID = data.schemaID || data.descriptionID || data.collection || data.imageOf || null;
     
     if (rootID !== null) {
         const queryStr = `
@@ -693,7 +693,7 @@ const mutateNode = async (context, nodeType, data, type) => {
                         if (await isSynonym(tx, data.otus)) {
                             throw new ValidationError(`${nodeType} already exists`);
                         }
-                    } else if ("Character" === nodeType || "State" === nodeType || "CharacterInstance" === nodeType || "Specimen" === nodeType) {
+                    } else if ("Character" === nodeType || "State" === nodeType || "CharacterInstance" === nodeType || "Specimen" === nodeType || "Image" === nodeType) {
                         console.log("++++++++++++++++++++++fetching groups++++++++++++++++++");
                         //fetch groups from root and put in data
                         const groups = await getGroups(tx, data);
@@ -744,7 +744,7 @@ const mutateNode = async (context, nodeType, data, type) => {
                                 throw new ValidationError(`${nodeType} with that email already exists`);
                             }
                         }
-                    } else if (("Character" === nodeType || "State" === nodeType || "Specimen" === nodeType) && !data.groupCascade) {
+                    } else if (("Character" === nodeType || "State" === nodeType || "Specimen" === nodeType || "Image" === nodeType) && !data.groupCascade) {
                         console.log("++++++++++++++++++++++fetching groups++++++++++++++++++");
                         //fetch groups from Schema and put in data
                         const groups = await getGroups(tx, data);
