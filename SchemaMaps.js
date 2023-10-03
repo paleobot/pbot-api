@@ -504,6 +504,7 @@ export const schemaMap = {
     Description: {
         properties: [
 			"name",
+            "writtenDescription",
             "notes",
         ],
         relationships: [
