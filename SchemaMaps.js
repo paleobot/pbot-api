@@ -568,7 +568,7 @@ export const schemaMap = {
                 type: "HOLOTYPE_OF",
                 direction: "in",
                 graphqlName: "holotypeSpecimen",
-                required: true,
+                required: false,
                 updatable: true
             }, {
                 type: "HAS_PART",

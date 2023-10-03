@@ -199,7 +199,7 @@ type OTU {
     additionalClades: String
     identifiedSpecimens: [IdentifiedSpecimenOf!]!
     typeSpecimens: [TypeSpecimenOf!]!
-    holotypeSpecimen: HolotypeSpecimenOf!
+    holotypeSpecimen: HolotypeSpecimenOf
     synonyms: [Synonym] @relation(name: "SAME_AS", direction: OUT)
     references: [OTUCitedBy]
     partsPreserved: [Organ] @relation(name: "HAS_PART", direction: OUT)
@@ -736,7 +736,7 @@ input OTUInput {
     additionalClades: String
     identifiedSpecimens: [String]
     typeSpecimens: [String]
-    holotypeSpecimen: String!
+    holotypeSpecimen: String
     synonyms: [String]
 	references: [CitedByInput!]!
     partsPreservedIDs: [String!]!

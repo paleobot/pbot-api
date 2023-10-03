@@ -654,13 +654,15 @@ const mutateNode = async (context, nodeType, data, type) => {
                     throw new ValidationError(`Type specimens must also be identified specimens`);
                 }
             })
-            if (!data.typeSpecimens.includes(data.holotypeSpecimen)) {
-                throw new ValidationError(`Holotype must also be a type specimen`);
-            }
-            if (data.groups.includes(publicGroupID)) {
-                const pubHolo = await isPublic(session, data.holotypeSpecimen);
-                if (!pubHolo) {
-                    throw new ValidationError(`A holotype specimen for a public OTU must also be public`);
+            if (data.holotypeSpecimen) {
+                if (!data.typeSpecimens.includes(data.holotypeSpecimen)) {
+                    throw new ValidationError(`Holotype must also be a type specimen`);
+                }
+                if (data.groups.includes(publicGroupID)) {
+                    const pubHolo = await isPublic(session, data.holotypeSpecimen);
+                    if (!pubHolo) {
+                        throw new ValidationError(`A holotype specimen for a public OTU must also be public`);
+                    }
                 }
             }
         }
