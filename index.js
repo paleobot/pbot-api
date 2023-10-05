@@ -199,9 +199,9 @@ const host = process.env.GRAPHQL_SERVER_HOST || '0.0.0.0'
  */
 server.applyMiddleware({ app, pth })
 
-app.post('/login', async (req, res) => {handleLogin(req, res, driver)});
+app.post('/user/login', async (req, res) => {handleLogin(req, res, driver)});
 
-app.post('/register', async (req, res) => {handleRegistration(req, res, driver)});
+app.post('/user/register', async (req, res) => {handleRegistration(req, res, driver)});
 
 app.post('/reset', async (req, res) => {handleReset(req, res, driver)});
 app.get('/reset', async (req, res) => {handleReset(req, res, driver)});
