@@ -89,6 +89,8 @@ const createUser = async (driver, user) => {
                 person.password = $password
             ON MATCH SET
                 person.password = $password
+        CREATE
+            (person)<-[:ENTERED_BY {timestamp: datetime(), type:"REGISTER"}]-(person)
         MERGE
             (person)-[:HAS_ROLE]->(user) 	
         MERGE
@@ -189,6 +191,8 @@ const resetUser = async (driver, email, token) => {
         REMOVE
             person.resetToken,
             person.password
+        CREATE
+            (person)<-[:ENTERED_BY {timestamp: datetime(), type:"RESET"}]-(person)
         RETURN 
             person{
                 .given, 
