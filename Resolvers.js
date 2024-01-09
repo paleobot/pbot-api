@@ -543,7 +543,7 @@ const handleCreate = async (session, nodeType, data) => {
 const isDuplicate = async (session, actionType, nodeType, data) => {
     console.log("checkDuplicate")
 
-    if ("delete" === actionType) {
+    if ("delete" === actionType || "CharacterInstance" === nodeType) {
         return { value: false };
     } 
 
@@ -580,7 +580,7 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
             MATCH 
                 (s:State {pbotID: "${data.stateID}"})<-[:HAS_STATE]-(n:${nodeType})-[:INSTANCE_OF]->(c:Character {pbotID: "${data.characterID}"})
             `;
-        error = `${nodeType} with same name and parent found`
+        error = `${nodeType} with same character and state found`
     */
     } else if ("Synonym" === nodeType) {
         query = `
