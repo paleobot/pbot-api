@@ -549,7 +549,9 @@ export const schemaMap = {
             "pbdbParentTaxon",
             "family",
 			"genus",
+			"pfnGenusLink",
 			"species",
+			"pfnSpeciesLink",
             "additionalClades",
             "notes"
         ],
