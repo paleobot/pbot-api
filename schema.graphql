@@ -196,7 +196,9 @@ type OTU {
     pbdbParentTaxon: String
 	family: String
 	genus: String
+	pfnGenusLink: String
 	species: String
+	pfnSpeciesLink: String
     additionalClades: String
     identifiedSpecimens: [IdentifiedSpecimenOf!]!
     typeSpecimens: [TypeSpecimenOf!]!
@@ -734,7 +736,9 @@ input OTUInput {
     pbdbParentTaxon: String!
 	family: String
 	genus: String
+	pfnGenusLink: String
 	species: String
+	pfnSpeciesLink: String
     additionalClades: String
     identifiedSpecimens: [String]
     typeSpecimens: [String]
