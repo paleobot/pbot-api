@@ -229,7 +229,7 @@ const handleUpdate = async (session, nodeType, data) => {
                     CALL apoc.do.case([
                         baseNode.${property} IS NULL,
                         "SET eb.${property} = 'not present' RETURN eb",
-                        baseNode.${property} <> "${data[property]}",
+                        baseNode.${property} <> ${JSON.stringify(data[property])},
                         "SET eb.${property} = baseNode.${property} RETURN eb"],
                         "RETURN eb",
                         {baseNode: baseNode, eb:eb}
