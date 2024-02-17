@@ -229,7 +229,7 @@ const handleUpdate = async (session, nodeType, data) => {
                     CALL apoc.do.case([
                         baseNode.${property} IS NULL,
                         "SET eb.${property} = 'not present' RETURN eb",
-                        baseNode.${property} <> "${data[property]}",
+                        baseNode.${property} <> ${JSON.stringify(data[property])},
                         "SET eb.${property} = baseNode.${property} RETURN eb"],
                         "RETURN eb",
                         {baseNode: baseNode, eb:eb}
@@ -553,7 +553,7 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
         query = `MATCH (n:${nodeType} {title: "${data.title}"})`;
         error = `${nodeType} with same title found`
     } else if (["OTU", "Specimen", "Description", "Collection", "Group"].includes(nodeType)) {
-        query = `MATCH (n:${nodeType} {name: "${data.name}"})`;
+        query = `MATCH (n:${nodeType} {name: ${JSON.stringify(data.name)}})`;
         error = `${nodeType} with same name found`
     } else if ("Person" === nodeType) {
         query = `MATCH (n:${nodeType} {surname: "${data.surname}", given: "${data.given}" ${data.middle ? `, middle: "${data.middle}"` : '' }})`;
