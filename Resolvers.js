@@ -553,7 +553,7 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
         query = `MATCH (n:${nodeType} {title: "${data.title}"})`;
         error = `${nodeType} with same title found`
     } else if (["OTU", "Specimen", "Description", "Collection", "Group"].includes(nodeType)) {
-        query = `MATCH (n:${nodeType} {name: "${data.name}"})`;
+        query = `MATCH (n:${nodeType} {name: ${JSON.stringify(data.name)}})`;
         error = `${nodeType} with same name found`
     } else if ("Person" === nodeType) {
         query = `MATCH (n:${nodeType} {surname: "${data.surname}", given: "${data.given}" ${data.middle ? `, middle: "${data.middle}"` : '' }})`;
