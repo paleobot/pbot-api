@@ -168,7 +168,7 @@ const server = new ApolloServer({
                 cypherParams: {
                     user: user,
                     cypherMatchPrefix: `(p:Person {pbotID:"${user.pbotID}"})-[:MEMBER_OF]->(g:Group)<-[:ELEMENT_OF|:MEMBER_OF]-`,
-                    cypherMatchPostfix: `-[:ELEMENT_OF|:MEMBER_OF]->()<-[:MEMBER_OF]-(p)`,
+                    whereClause: ` exists(($<>)-[:ELEMENT_OF|:MEMBER_OF]->(:Group)<-[:MEMBER_OF]-(p))`,
                     skipPrefixNodeTypes: ["Person", "_SchemaAuthoredBy", "_ReferenceAuthoredBy", "Comment", "_CommentEnteredBy"]
                 },
             };
