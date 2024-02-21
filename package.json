@@ -21,7 +21,7 @@
         "graphql-upload": "^16.0.2",
         "jsonwebtoken": "^8.5.1",
         "neo4j-driver": "^4.4.1",
-        "neo4j-graphql-js": "https://github.com/paleobot/neo4j-graphql-js.git",
+        "neo4j-graphql-js": "git+https://github.com/paleobot/neo4j-graphql-js.git",
         "nodemailer": "^6.6.5"
     },
     "overrides": {
