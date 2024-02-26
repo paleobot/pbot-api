@@ -137,7 +137,7 @@ const getRelationships = async (session, pbotID, relationships, enteredByPersonI
     console.log("------result----------");
     console.log(result);
     console.log("records returned: " + result.records.length)
-    const res = result.records.map((rec) => ({pbotID: rec.get(0).properties.pbotID, nodeType: rec.get(0).labels[0]}));
+    const res = result.records.map((rec) => ({...rec.get(0).properties, nodeType: rec.get(0).labels[0]}));
     console.log("res");
     console.log(res);
     return res;
