@@ -296,6 +296,7 @@ type Image {
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
 }
 
+"""Note: lat and lon have been replaced by location. Keeping them here with @cyphers for api consistency. """
 type Collection {
     pbotID: ID!
     name: String!
@@ -317,8 +318,9 @@ type Collection {
     collectors: String
     collectionMethods: [String]
     collectingComments: String
-    lat: Latitude
-    lon: Longitude
+    lat: Latitude @cypher(statement: "match (this) return this.location.latitude")
+    lon: Longitude @cypher(statement: "match (this) return this.location.longitude")
+    location: Point
     gpsCoordinateUncertainty: Float
     geographicResolution: String
     geographicComments: String
@@ -833,6 +835,7 @@ input PreservationModeInput {
 	enteredByPersonID: String
 }
 
+"""Note: location is required, but it shown optional here for api consistency. This is caught in resolver."""
 input CollectionInput {
     pbotID: String
     name: String!
@@ -854,8 +857,9 @@ input CollectionInput {
     collectors: String
     collectionMethods: [String]
     collectingComments: String
-    lat: Latitude!
-    lon: Longitude!
+    lat: Latitude
+    lon: Longitude
+    location: Point
     gpsCoordinateUncertainty: Float!
     geographicResolution: String
     geographicComments: String

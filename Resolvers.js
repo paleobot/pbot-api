@@ -354,9 +354,14 @@ const handleUpdate = async (session, nodeType, data) => {
     queryStr += `
         SET
     `;
+    //location prop needs special handling
     queryStr = properties.reduce((str, property) => `
         ${str}
-            baseNode.${property} = ${JSON.stringify(data[property])},
+            baseNode.${property} = ${"location" === property ?
+                `Point({latitude: ${data[property].latitude}, longitude: ${data[property].longitude}}),`
+                :
+                `${JSON.stringify(data[property])},`
+            }
     `, queryStr);
     queryStr = `
         ${queryStr.slice(0, queryStr.lastIndexOf(','))}
@@ -465,9 +470,14 @@ const handleCreate = async (session, nodeType, data) => {
         WITH baseNode, ePerson	
         SET
     `;
+    //location prop needs special handling
     queryStr = properties.reduce((str, property) => `
         ${str}
-            baseNode.${property} = ${JSON.stringify(data[property])},
+            baseNode.${property} = ${"location" === property ?
+                `Point({latitude: ${data[property].latitude}, longitude: ${data[property].longitude}}),`
+                :
+                `${JSON.stringify(data[property])},`
+            }
     `, queryStr);
     queryStr = `
         ${queryStr.slice(0, queryStr.lastIndexOf(','))}
@@ -691,6 +701,20 @@ const mutateNode = async (context, nodeType, data, type) => {
                             console.log("person already exists");
                             throw new ValidationError(`${nodeType} with that email already exists`);
                         }
+                    } else if ("Collection" === nodeType) {
+                        if (!data.location) {
+                            if (data.lat && data.lon) {
+                                data.location = {
+                                    latitude: data.lat,
+                                    longitude: data.lon
+                                }
+                            } else {
+                                throw new ValidationError(`${nodeType} mutation must have either location or lat/lon`);
+
+                            }
+                        }
+                        data.lon = null;
+                        data.lat = null;
                     } else if ("Synonym" === nodeType) {
                         if (await isSynonym(tx, data.otus)) {
                             throw new ValidationError(`${nodeType} already exists`);
@@ -746,6 +770,20 @@ const mutateNode = async (context, nodeType, data, type) => {
                                 throw new ValidationError(`${nodeType} with that email already exists`);
                             }
                         }
+                    } else if ("Collection" === nodeType) {
+                        if (!data.location) {
+                            if (data.lat && data.lon) {
+                                data.location = {
+                                    latitude: data.lat,
+                                    longitude: data.lon
+                                }
+                            }
+                        } else {
+                            throw new ValidationError(`${nodeType} mutation must have either location or lat/lon`);
+
+                        }
+                        data.lon = null;
+                        data.lat = null;
                     } else if (("Character" === nodeType || "State" === nodeType || "Specimen" === nodeType || "Image" === nodeType) && !data.groupCascade) {
                         console.log("++++++++++++++++++++++fetching groups++++++++++++++++++");
                         //fetch groups from Schema and put in data
