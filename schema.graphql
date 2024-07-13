@@ -606,6 +606,18 @@ type Query {
             """
         )
 
+    GetNodeCount(nodeType: String!): Int
+        @cypher(
+            statement: """
+                match 
+                    (n)
+                where
+                    $nodeType in labels(n) 
+                return 
+                    count(n)     
+            """
+        )
+
 }
 
 
