@@ -609,12 +609,13 @@ type Query {
     GetNodeCount(nodeType: String!): Int
         @cypher(
             statement: """
-                match 
-                    (n)
-                where
-                    $nodeType in labels(n) 
-                return 
-                    count(n)     
+                CALL apoc.when(
+                    'Contributor' = $nodeType, 
+                    'match (n:Person) where n.password is not null return count(n)', 
+                    'match (n) where $nodeType in labels(n) return count(n)',
+                    {nodeType:$nodeType}
+                ) yield value 
+                return value.`count(n)`           
             """
         )
 
