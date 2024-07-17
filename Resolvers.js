@@ -224,18 +224,33 @@ const handleUpdate = async (session, nodeType, data) => {
     //Copy old property values into ENTERED_BY
     queryStr = properties.reduce((str, property) => {
         if (data[property]) {
-            return `
-                ${str}
-                    CALL apoc.do.case([
-                        baseNode.${property} IS NULL,
-                        "SET eb.${property} = 'not present' RETURN eb",
-                        baseNode.${property} <> ${JSON.stringify(data[property])},
-                        "SET eb.${property} = baseNode.${property} RETURN eb"],
-                        "RETURN eb",
-                        {baseNode: baseNode, eb:eb}
-                    ) YIELD value
-                    WITH baseNode, eb
-            `
+            if ("location" === property) { //More special handling for location
+                return `
+                    ${str}
+                        CALL apoc.do.case([
+                            baseNode.${property} IS NULL,
+                            "SET eb.${property} = 'not present' RETURN eb",
+                            baseNode.${property}.latitude <> ${JSON.stringify(data[property].latitude)} or baseNode.${property}.longitude <> ${JSON.stringify(data[property].longitude)},
+                            "SET eb.${property} = baseNode.${property} RETURN eb"],
+                            "RETURN eb",
+                            {baseNode: baseNode, eb:eb}
+                        ) YIELD value
+                        WITH baseNode, eb
+                `
+            } else {
+                return `
+                    ${str}
+                        CALL apoc.do.case([
+                            baseNode.${property} IS NULL,
+                            "SET eb.${property} = 'not present' RETURN eb",
+                            baseNode.${property} <> ${JSON.stringify(data[property])},
+                            "SET eb.${property} = baseNode.${property} RETURN eb"],
+                            "RETURN eb",
+                            {baseNode: baseNode, eb:eb}
+                        ) YIELD value
+                        WITH baseNode, eb
+                `
+            }
         } else {
             return `
                 ${str}
@@ -777,10 +792,10 @@ const mutateNode = async (context, nodeType, data, type) => {
                                     latitude: data.lat,
                                     longitude: data.lon
                                 }
-                            }
-                        } else {
-                            throw new ValidationError(`${nodeType} mutation must have either location or lat/lon`);
+                            } else {
+                                throw new ValidationError(`${nodeType} mutation must have either location or lat/lon`);
 
+                            }
                         }
                         data.lon = null;
                         data.lat = null;
