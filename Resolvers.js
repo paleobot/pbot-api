@@ -614,6 +614,14 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
                 (n)-[:SAME_AS]->(o2:OTU)
         `;
         error = `${nodeType} with same OTUs found`
+    } else if ("Comment" === nodeType) {
+        query = `
+            MATCH 
+            (n:${nodeType} {content: "${data.content}"})-[:REFERS_TO]->(m {pbotID:"${data.subjectID}"})             
+        `;
+        error = `${nodeType} with same content found`
+    } else {
+        error = `Unrecognized node type: ${nodeType}`
     }
 
     if ("update" === actionType) {
