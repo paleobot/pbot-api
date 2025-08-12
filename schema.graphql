@@ -99,6 +99,16 @@ type Character {
     name: String
     definition: String
     order: String
+    deepOrder: String @cypher(
+      statement: """
+        MATCH path = (this)-[:CHARACTER_OF*0..]->(root:Character)
+        WITH nodes(path) AS ns
+        ORDER BY length(path) DESC
+        LIMIT 1
+        WITH [n IN reverse(ns) | n.order] AS orders
+        RETURN apoc.text.join(orders, ".")
+      """
+    )
     characterOf: Characterable! @cypher(
       statement: "match (this)-[:CHARACTER_OF]->(n) return n limit 1"
     )
@@ -148,7 +158,7 @@ type PreservationMode {
 """Note: schema should be non null, but isn't right now due to missing data"""
 type Description {
     pbotID: ID!
-	name: String
+    name: String
     writtenDescription: String
     notes: String
     characterInstances: [CharacterInstance!]! @relation(name: "DEFINED_BY", direction: OUT)
@@ -188,17 +198,17 @@ type PseudoDescription {
 
 type OTU {
     pbotID: ID!
-	name: String
+    name: String
     authority: String
     diagnosis: String
     qualityIndex: String
     majorTaxonGroup: String
     pbdbParentTaxon: String
-	family: String
-	genus: String
-	pfnGenusLink: String
-	species: String
-	pfnSpeciesLink: String
+    family: String
+    genus: String
+    pfnGenusLink: String
+    species: String
+    pfnSpeciesLink: String
     additionalClades: String
     identifiedSpecimens: [IdentifiedSpecimenOf!]!
     typeSpecimens: [TypeSpecimenOf!]!
@@ -239,7 +249,7 @@ type OTU {
 
 type Synonym {
     pbotID: ID!
-	explanation: String
+    explanation: String
     comments: [Comment!] @relation(name: "REFERS_TO", direction: IN)
     references: [SynonymCitedBy]
     otus: [OTU!]! @relation(name: "SAME_AS", direction: IN)
@@ -635,7 +645,7 @@ input GroupInput {
     purpose: String
     members: [String]
     elements: [String]
-	groups: [String]
+    groups: [String]
     enteredByPersonID: String
 }
 
@@ -643,12 +653,12 @@ input PersonInput {
     pbotID: String
     given: String
     middle: String
-	surname: String
-	email: String
-	orcid: String
+    surname: String
+    email: String
+    orcid: String
     reason: String
     bio: String
-	enteredByPersonID: String
+    enteredByPersonID: String
 } 
 
 input AuthoredBy {
@@ -659,7 +669,7 @@ input AuthoredBy {
 input ReferenceInput {
     pbotID: String
     title: String
-	year: String
+    year: String
     publicationType: String
     firstPage: String
     lastPage: String
@@ -672,11 +682,11 @@ input ReferenceInput {
     bookType: String
     editors: String
     notes: String
-	doi: String
+    doi: String
     pbdbid: String
-	authors: [AuthoredBy!]!
-	groups: [String]
-	enteredByPersonID: String
+    authors: [AuthoredBy!]!
+    groups: [String]
+    enteredByPersonID: String
 } 
 
 input CitedByInput {
@@ -687,16 +697,16 @@ input CitedByInput {
 input SchemaInput {
     pbotID: String
     title: String!
-	year: String
+    year: String
     acknowledgments: String
     purpose: String!
     partsPreservedIDs: [String!]!
     notableFeaturesIDs: [String]
-	references: [CitedByInput!]!
-	authors: [AuthoredBy]
-	groups: [String]
-	enteredByPersonID: String
-	cascade: Boolean
+    references: [CitedByInput!]!
+    authors: [AuthoredBy]
+    groups: [String]
+    enteredByPersonID: String
+    cascade: Boolean
 }
 
 input CharacterInput {
@@ -706,8 +716,8 @@ input CharacterInput {
     order: String
     parentID: String
     schemaID: String
-	enteredByPersonID: String
-	cascade: Boolean
+    enteredByPersonID: String
+    cascade: Boolean
 }
 
 input StateInput {
@@ -717,21 +727,21 @@ input StateInput {
     order: String
     parentID: String
     schemaID: String
-	enteredByPersonID: String
-	cascade: Boolean
+    enteredByPersonID: String
+    cascade: Boolean
 }
 
 input DescriptionInput {
     pbotID: String
     specimenIDs: [String]
-	name: String!
+    name: String!
     writtenDescription: String
     notes: String
-	schemaID: String!
+    schemaID: String!
     references: [CitedByInput]
-	groups: [String]
-	enteredByPersonID: String
-	cascade: Boolean
+    groups: [String]
+    enteredByPersonID: String
+    cascade: Boolean
 }
 
 input CharacterInstanceInput {
@@ -741,40 +751,40 @@ input CharacterInstanceInput {
     stateID: String!
     quantity: String
     order: String
-	enteredByPersonID: String
+    enteredByPersonID: String
 }
 
 input OTUInput {
     pbotID: String
-	name: String!
+    name: String!
     authority: String!
     diagnosis: String!
     qualityIndex: String!
     majorTaxonGroup: String!
     pbdbParentTaxon: String!
-	family: String
-	genus: String
-	pfnGenusLink: String
-	species: String
-	pfnSpeciesLink: String
+    family: String
+    genus: String
+    pfnGenusLink: String
+    species: String
+    pfnSpeciesLink: String
     additionalClades: String
     identifiedSpecimens: [String]
     typeSpecimens: [String]
     holotypeSpecimen: String
     synonyms: [String]
-	references: [CitedByInput!]!
+    references: [CitedByInput!]!
     partsPreservedIDs: [String!]!
     notableFeaturesIDs: [String]
     notes: String
-	groups: [String!]!
+    groups: [String!]!
 }
 
 input SynonymInput {
     pbotID: String
-	explanation: String
+    explanation: String
     references: [CitedByInput]
     otus: [String!]!
-	groups: [String]
+    groups: [String]
 }
 
 input CommentInput {
@@ -816,9 +826,9 @@ input SpecimenInput {
     references: [CitedByInput]
     collection: String!
     uploadImages: [ImageUpload]
-	groups: [String]
-	enteredByPersonID: String
-	cascade: Boolean
+    groups: [String]
+    enteredByPersonID: String
+    cascade: Boolean
 }
 
 input ImageInput {
@@ -829,26 +839,26 @@ input ImageInput {
     citation: String
     caption: String
     type: String
-	groups: [String]
+    groups: [String]
     imageOf: String
 }
 
 input OrganInput {
     pbotID: String
     type: String!
-	enteredByPersonID: String
+    enteredByPersonID: String
 }
 
 input FeatureInput {
     pbotID: String
     name: String!
-	enteredByPersonID: String
+    enteredByPersonID: String
 }
 
 input PreservationModeInput {
     pbotID: String
     name: String!
-	enteredByPersonID: String
+    enteredByPersonID: String
 }
 
 """Note: location is required, but it shown optional here for api consistency. This is caught in resolver."""
@@ -893,10 +903,10 @@ input CollectionInput {
     country: String!
     state: String
     pbdbid: String
-	references: [CitedByInput]
-	groups: [String]
+    references: [CitedByInput]
+    groups: [String]
     enteredByPersonID: String
-	cascade: Boolean
+    cascade: Boolean
 }
 
   type File {
@@ -960,21 +970,21 @@ type Mutation {
             statement: """
                 MATCH 
                     (description:Description {pbotID: $data.descriptionID}),
-					(description)-[:ELEMENT_OF]->(group:Group),
+                    (description)-[:ELEMENT_OF]->(group:Group),
                     (character:Character {pbotID: $data.characterID})<-[:CHARACTER_OF*0..]-()<-[:STATE_OF*1..]-(state:State {pbotID: $data.stateID}),
                     (person:Person {pbotID: $data.enteredByPersonID})
-				WITH
-					collect(group) AS groups, description, character, state, person
+                WITH
+                    collect(group) AS groups, description, character, state, person
                 CREATE 
                     (description)-[:DEFINED_BY]->(characterInstance:CharacterInstance {
                         pbotID: apoc.create.uuid()
                     })-[:ENTERED_BY {timestamp: datetime(), type:"CREATE"}]->(person),
                     (character)<-[:INSTANCE_OF]-(characterInstance),
                     (state)<-[:HAS_STATE {value: $data.quantity, order: $data.order}]-(characterInstance) 
-				WITH groups, characterInstance
-				FOREACH (group IN groups |
-					CREATE	
-						(characterInstance)-[:ELEMENT_OF]->(group)
+                WITH groups, characterInstance
+                FOREACH (group IN groups |
+                    CREATE	
+                        (characterInstance)-[:ELEMENT_OF]->(group)
                 )
                 RETURN characterInstance
             """
@@ -986,12 +996,12 @@ type Mutation {
                     (characterInstance:CharacterInstance {pbotID: $data.pbotID}),
                     (ePerson:Person {pbotID: $data.enteredByPersonID})
                 WITH characterInstance, ePerson					
-				CREATE
-					(characterInstance)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
-				WITH characterInstance, eb
+                CREATE
+                    (characterInstance)-[eb:ENTERED_BY {timestamp: datetime(), type:"EDIT"}]->(ePerson)
+                WITH characterInstance, eb
                 OPTIONAL MATCH
-					(oldCharacter:Character)<-[oldCharacterRelationship:INSTANCE_OF]-(characterInstance)
-				DELETE oldCharacterRelationship
+                    (oldCharacter:Character)<-[oldCharacterRelationship:INSTANCE_OF]-(characterInstance)
+                DELETE oldCharacterRelationship
                 WITH characterInstance, eb, oldCharacter					
                     CALL apoc.do.case([
                             oldCharacter IS NULL AND $data.characterID IS NOT NULL,
@@ -1003,7 +1013,7 @@ type Mutation {
                         ) YIELD value
                 WITH characterInstance, eb					
                 OPTIONAL MATCH
-					(oldState:State)<-[oldStateRelationship:HAS_STATE]-(characterInstance)
+                    (oldState:State)<-[oldStateRelationship:HAS_STATE]-(characterInstance)
                 WITH characterInstance, eb, oldState, oldStateRelationship				
                     CALL apoc.do.case([
                             oldState IS NULL AND $data.stateID IS NOT NULL,
@@ -1014,8 +1024,8 @@ type Mutation {
                             {oldState: oldState, oldStateRelationship: oldStateRelationship, eb: eb}
                         ) YIELD value
                         DELETE oldStateRelationship
-				WITH characterInstance
-				MATCH
+                WITH characterInstance
+                MATCH
                     (character:Character {pbotID: $data.characterID})<-[:CHARACTER_OF*0..]-()<-[:STATE_OF*1..]-(state:State {pbotID: $data.stateID})
                 CREATE 
                     (character)<-[:INSTANCE_OF]-(characterInstance),
