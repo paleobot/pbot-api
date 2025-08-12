@@ -261,6 +261,9 @@ type Comment {
 type Specimen {
     pbotID: ID!
     name: String
+    specimenNumber: String @cypher(
+      statement: "return this.name"
+    )
     preservationModes: [PreservationMode] @relation(name: "PRESERVED_BY", direction: OUT)
     repository: String
     otherRepositoryLink: String
