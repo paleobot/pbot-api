@@ -123,6 +123,16 @@ type State {
     name: String
     definition: String
     order: String
+    deepOrder: String @cypher(
+      statement: """
+        MATCH path = (this)-[:STATE_OF*0..]->(root:State)
+        WITH nodes(path) AS ns
+        ORDER BY length(path) DESC
+        LIMIT 1
+        WITH [n IN reverse(ns) | n.order] AS orders
+        RETURN apoc.text.join(orders, ".")
+      """
+    )
     stateOf:  Statable! @cypher(
       statement: "match (this)-[:STATE_OF]->(n) return n limit 1"
     )
