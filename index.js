@@ -28,6 +28,7 @@ dotenv.config();
 const app = express()
 
 app.use(express.json());
+app.use('/files', express.static('files'))  ;
 
 const typeDefs = fs
   .readFileSync(
