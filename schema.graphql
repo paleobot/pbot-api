@@ -192,12 +192,12 @@ type PseudoCharacterInstance {
     schema: String
     characterName: String
     characterID: String
+    characterDeepOrder: String
     stateName: String
     stateID: String
     stateOrder: String
     stateValue: String
 }
-
 
 """Note: Ideally, we'd return this for mergedDescription, but neo4j-graphql-js seems to choke when
 types are nested more than one level. Keeping it here as a reminder down the line."""
@@ -234,23 +234,37 @@ type OTU {
                 (otu:OTU {pbotID:this.pbotID})<-[:TYPE_OF|:HOLOTYPE_OF]-(specimen:Specimen)-[:DESCRIBED_BY]->(d:Description)
             WITH
                 DISTINCT d //This gets rid of possible TYPE_OF/HOLOTYPE_OF duplicates
-                MATCH   
-                    (d)-[:DEFINED_BY]->(ci:CharacterInstance),
-                    (ci)-[:INSTANCE_OF]->(c:Character),
-                    (ci)-[hs:HAS_STATE]->(s:State),
-                    (d)-[:APPLICATION_OF]->(schema:Schema) 
-                    WITH
-                        DISTINCT c, schema, s{.*, value: hs.value, order:avg(toInteger(hs.order))} //Tuck the order and value relationship properties in temp object with state for use later. For order, we want to save the average value for this state. By aggregating on order, we also limit s to distinct states, so we don't need to specify DISTINCT. 
-                        RETURN
-                            { 
-                                schema: schema.title,
-                                characterName: c.name,
-                                characterID: c.pbotID,
-                                stateName: s.name,
-                                stateID: s.pbotID,
-                                stateOrder: s.order,
-                                stateValue: s.value
-                            } AS md
+            MATCH   
+                (d)-[:DEFINED_BY]->(ci:CharacterInstance),
+                (ci)-[:INSTANCE_OF]->(c:Character),
+                (ci)-[hs:HAS_STATE]->(s:State),
+                (d)-[:APPLICATION_OF]->(schema:Schema) 
+            WITH
+                DISTINCT c, schema, s{.*, value: hs.value, order:avg(toInteger(hs.order))} AS s //Tuck the order and value relationship properties in temp object with state for use later. For order, we want to save the average value for this state.
+                
+            // Calculate Character deepOrder using a subquery that doesn't affect row count
+            CALL {
+                WITH c
+                MATCH path = (c)-[:CHARACTER_OF*0..]->(root:Character)
+                WITH c, path
+                ORDER BY length(path) DESC
+                LIMIT 1
+                RETURN 
+                    c.pbotID AS charID, 
+                    apoc.text.join([n IN reverse(nodes(path)) | n.order], ".") AS deepOrder
+            }
+                
+            RETURN
+                { 
+                    schema: schema.title,
+                    characterName: c.name,
+                    characterID: c.pbotID,
+                    characterDeepOrder: deepOrder,
+                    stateName: s.name,
+                    stateID: s.pbotID,
+                    stateOrder: s.order,
+                    stateValue: s.value
+                } AS md
         """
     )
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
