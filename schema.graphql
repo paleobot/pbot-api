@@ -193,6 +193,7 @@ type PseudoCharacterInstance {
     characterName: String
     characterID: String
     characterDeepOrder: String
+    stateDeepOrder: String
     stateName: String
     stateID: String
     stateOrder: String
@@ -240,18 +241,28 @@ type OTU {
                 (ci)-[hs:HAS_STATE]->(s:State),
                 (d)-[:APPLICATION_OF]->(schema:Schema) 
             WITH
-                DISTINCT c, schema, s{.*, value: hs.value, order:avg(toInteger(hs.order))} AS s //Tuck the order and value relationship properties in temp object with state for use later. For order, we want to save the average value for this state.
+                DISTINCT c, schema, s, hs.value AS stateValue, hs.order AS stateOrder
                 
-            // Calculate Character deepOrder using a subquery that doesn't affect row count
+            // Combined subquery for both Character and State deepOrder
             CALL {
-                WITH c
-                MATCH path = (c)-[:CHARACTER_OF*0..]->(root:Character)
-                WITH c, path
-                ORDER BY length(path) DESC
+                WITH c, s
+                // Calculate Character deepOrder
+                MATCH path1 = (c)-[:CHARACTER_OF*0..]->(rootChar:Character)
+                WITH c, s, path1
+                ORDER BY length(path1) DESC
                 LIMIT 1
+                
+                // Calculate State deepOrder
+                MATCH path2 = (s)-[:STATE_OF*0..]->(rootState:State)
+                WITH c, s, path1, path2
+                ORDER BY length(path2) DESC
+                LIMIT 1
+                
                 RETURN 
-                    c.pbotID AS charID, 
-                    apoc.text.join([n IN reverse(nodes(path)) | n.order], ".") AS deepOrder
+                    c.pbotID AS charID,
+                    s.pbotID AS stateID, 
+                    apoc.text.join([n IN reverse(nodes(path1)) | n.order], ".") AS charDeepOrder,
+                    apoc.text.join([n IN reverse(nodes(path2)) | n.order], ".") AS stateDeepOrder
             }
                 
             RETURN
@@ -259,14 +270,15 @@ type OTU {
                     schema: schema.title,
                     characterName: c.name,
                     characterID: c.pbotID,
-                    characterDeepOrder: deepOrder,
+                    characterDeepOrder: charDeepOrder,
                     stateName: s.name,
                     stateID: s.pbotID,
-                    stateOrder: s.order,
-                    stateValue: s.value
+                    stateOrder: stateOrder,
+                    stateDeepOrder: stateDeepOrder,
+                    stateValue: stateValue
                 } AS md
         """
-    )
+    )    
     elementOf: [Group!]! @relation(name: "ELEMENT_OF", direction: OUT)
     enteredBy: [OTUEnteredBy]
 }
