@@ -590,7 +590,7 @@ export const schemaMap = {
                 direction: "out",
                 graphqlName: "synonyms",
                 required: false,
-                updatable: true
+                updatable: false
             }, {
                 type: "CITED_BY",
                 direction: "in",
