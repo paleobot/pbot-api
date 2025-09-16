@@ -109,8 +109,7 @@ export const uploadFile = async ( file, imagedID ) => {
         //TODO: build this from stuff
         return {
             path: filePath,
-            link: imageLinkPre + "/" + imagedID + "/" + newFilename
-        
+            link: imageLinkPre + "/" + imagedID + "/" + encodeURIComponent(newFilename)
         };
     } catch (error) {
         throw new Error(`Unable to upload file: ${error.message}`);
