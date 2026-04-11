@@ -610,8 +610,45 @@ type DescribedBy @relation(name: "DESCRIBED_BY") {
 
 
 
-type Query {        
-    
+type Query {
+
+    """
+    Note: This is a custom query that uses a composite fulltext index to perform a fuzzy search across multiple name fields. You have to create that index in the Neo4j database with the following command: 
+        CALL db.index.fulltext.createNodeIndex('fuzzyPersonNameIndex', ['Person'], ['given', 'middle', 'surname'])
+    """
+    fuzzyPersonSearch(pbotID: ID = "", surname: String = "", given: String = "", middle: String = "", email: String = "", orcid: String = "", excludeList: [ID!] = [], groups: [ID!] = []): [Person]
+    @cypher(
+      statement: """
+        WITH 
+        CASE 
+            WHEN $surname IS NOT NULL AND $surname <> '' THEN "surname:" + $surname + "~"
+            ELSE "" 
+        END +
+        CASE 
+            WHEN $given IS NOT NULL AND $given <> '' THEN " given:" + $given + "~"
+            ELSE ""
+        END +
+        CASE
+            WHEN $middle IS NOT NULL AND $middle <> '' THEN " middle:" + $middle + "~"
+            ELSE ""
+        END AS fullname
+
+        CALL db.index.fulltext.queryNodes( 'fuzzyPersonNameIndex', CASE WHEN fullname = '' THEN '*' ELSE fullname END)
+        YIELD node 
+        WHERE
+            ($pbotID = '' OR node.pbotID = $pbotID) AND
+            ($email = '' OR node.email = $email) AND
+            ($orcid = '' OR node.orcid = $orcid) AND
+            (size($excludeList) = 0 OR NOT node.pbotID IN $excludeList) AND
+            (size($groups) = 0 OR EXISTS {
+                MATCH (node)-[:MEMBER_OF]->(g:Group)
+                WHERE g.pbotID IN $groups
+            })
+
+        RETURN node;
+      """
+    )
+
     echoLat(lat: Latitude!): Latitude!
     echoLon(lon: Longitude!): Longitude!
  
