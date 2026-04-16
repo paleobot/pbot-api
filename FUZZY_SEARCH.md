@@ -1,102 +1,62 @@
-# Fuzzy Person Search
+# Fuzzy Search
 
 ## Overview
 
-Fuzzy search for Person records allows users to find people by approximate surname matching, using Neo4j's fulltext index capabilities. This is useful when the exact spelling of a surname is unknown.
+Fuzzy search allows users to find records by approximate text matching, using Neo4j fulltext indexes with Lucene fuzzy matching (`~` operator, Damerau-Levenshtein edit distance).
 
-## Architecture
+Five fuzzy search queries are available:
 
-### Server Side
+| Query | Index | Indexed Fields |
+|-------|-------|----------------|
+| `fuzzyPerson` | `fuzzyPersonNameIndex` | `given`, `middle`, `surname` |
+| `fuzzySchema` | `fuzzySchemaTitleIndex` | `title` |
+| `fuzzyReference` | `fuzzyReferenceTitleIndex` | `title` |
+| `fuzzyCollection` | `fuzzyCollectionNameIndex` | `name` |
+| `fuzzyOTU` | `fuzzyOTUNameIndex` | `name` |
 
-The fuzzy search relies on a Neo4j fulltext index and a `@cypher` directive query defined in `schema.graphql`:
+All indexes can be created (or re-created idempotently) via `cypher/setup-fuzzy-indexes.cypher`.
 
-```graphql
-fuzzySurname(searchString: String): [Person]
-  @cypher(
-    statement: """
-      CALL db.index.fulltext.queryNodes('fuzzySurnameIndex', $searchString+'~')
-      YIELD node RETURN node;
-    """
-  )
-```
+## Architecture: Pattern D (delegation)
 
-This calls Neo4j's built-in fulltext search with the `~` (tilde) operator, which enables Lucene fuzzy matching based on edit distance (Damerau-Levenshtein). The `fuzzySurnameIndex` must exist in the database as a fulltext index on the `Person.surname` property.
+Each fuzzy query uses a two-step resolver pattern:
 
-### Client Side
+1. **Fulltext lookup** — A custom resolver runs `CALL db.index.fulltext.queryNodes(...)` via `session.run()` to get score-ordered candidate `pbotID`s.
+2. **Delegation** — The resolver injects those IDs as `filter: { pbotID_in: [...] }` and calls `neo4jgraphql()`, which generates the standard auto-generated node query. This inherits all standard filters, projection, ordering, pagination, and group scoping (via `cypherParams`).
 
-#### PersonQueryForm.js
+Results are ordered by fuzzy score by default. Supplying `orderBy` overrides score ordering.
 
-- Added a `fuzzy` boolean (default `false`) to `initialValues`
-- Added a "Fuzzy search" checkbox (`CheckboxWithLabel` with `disabled={false}` to prevent Formik's `isSubmitting` from disabling it after submit)
+`fuzzyLimit` (default 200) caps the candidate set from step 1. This prevents multi-thousand-element `pbotID_in` arrays from degrading query performance.
 
-#### PersonQueryResults.js
+### Lucene query construction
 
-- `PersonQueryResults` passes `fuzzy` and raw (non-regex-wrapped) filter values when fuzzy is enabled
-- The `Persons` component selects between two GraphQL queries based on the `fuzzy` prop:
-  - **Fuzzy mode**: Uses `fuzzySurname` query, passing the raw surname as `searchString`. Also requests `memberOf { pbotID }` for client-side group filtering.
-  - **Normal mode**: Uses the standard `Person` query with `surname_regexp`, `given_regexp`, `memberOf_some`, and `pbotID_not_in` filters (unchanged from original)
+The search string must be tokenized to match how Neo4j's standard analyzer indexes text. The `buildLuceneQuery()` helper splits on non-alphanumeric characters and appends `~` to each token:
 
-#### Client-Side Post-Filtering (Fuzzy Mode Only)
+- `"Manual"` → `"Manual~"`
+- `"Ref-ddm-08-25a"` → `"Ref~ ddm~ 08~ 25a~"`
+- `"García-López"` → `"Garc~ a~ L~ pez~"`
 
-Since `fuzzySurname` only accepts a single `searchString` parameter, additional filtering is applied client-side after the query returns:
+Without this tokenization, characters like `-` are interpreted as Lucene's NOT operator, causing searches for hyphenated terms to silently return no results.
 
-| Filter        | Method                                          |
-|---------------|-------------------------------------------------|
-| Given name    | Case-insensitive regex match                    |
-| Email         | Case-insensitive exact match                    |
-| ORCID         | Exact match                                     |
-| PBot ID       | Exact match                                     |
-| Exclude list  | Filter out IDs already in an author list, etc.  |
-| Groups        | Match against `memberOf` pbotIDs                |
+For `fuzzyPerson`, each name field gets a Lucene field qualifier: `surname:Smith~ given:John~`.
 
-## Limitations
+### Key files
 
-- **Fuzzy matching is surname-only.** The `fuzzySurnameIndex` fulltext index is built on the `surname` property. Given name, email, etc. are not fuzzy-matched.
-- **Non-surname filters are applied client-side.** This means the server returns more data than strictly needed, violating the GraphQL principle of requesting only what you need. For the Person dataset this is unlikely to be a performance concern.
+| File | Role |
+|------|------|
+| `schema.graphql` | Query declarations (no `@cypher` — these are resolver-backed) |
+| `Resolvers.js` | `buildLuceneQuery()`, `fuzzyDelegate()`, and per-query resolvers |
+| `cypher/setup-fuzzy-indexes.cypher` | Idempotent index creation for all five indexes |
 
-## Future Improvement: Server-Side Filtering
+## Legacy: `fuzzyPersonSearch`
 
-To move all filtering back to the server, the `fuzzySurname` query (or a new `fuzzyPerson` query) could be extended with additional parameters and `WHERE` clauses in the Cypher:
+The original `fuzzyPersonSearch` query in `schema.graphql` uses a `@cypher` directive with hand-rolled WHERE clauses. It is **deprecated** in favor of `fuzzyPerson`, which inherits all standard filters and group scoping automatically. `fuzzyPersonSearch` will be removed after pbot-client migrates to `fuzzyPerson` (tracked separately in that repo).
 
-```graphql
-fuzzyPerson(
-    searchString: String,
-    given: String,
-    email: String,
-    orcid: String,
-    groups: [ID!],
-    excludeList: [ID!]
-): [Person]
-  @cypher(
-    statement: """
-      CALL db.index.fulltext.queryNodes('fuzzySurnameIndex', $searchString+'~')
-      YIELD node
-      WHERE
-        ($given IS NULL OR node.given =~ $given) AND
-        ($email IS NULL OR node.email = $email) AND
-        ($orcid IS NULL OR node.orcid = $orcid) AND
-        ($excludeList IS NULL OR NOT node.pbotID IN $excludeList) AND
-        ($groups IS NULL OR EXISTS {
-          MATCH (node)-[:MEMBER_OF]->(g:Group)
-          WHERE g.pbotID IN $groups
-        })
-      RETURN node
-    """
-  )
-```
+### Differences from the legacy approach
 
-### Considerations
-
-- **Neo4j version compatibility**: `IS NULL` parameter checks and `EXISTS {}` subqueries require Neo4j 5+. For Neo4j 4.x, workarounds using `apoc.when` or `CASE` would be needed.
-- **Fulltext index expansion**: To support fuzzy matching on given name as well, a composite fulltext index could be created:
-  ```cypher
-  CALL db.index.fulltext.createNodeIndex('fuzzyPersonIndex', ['Person'], ['given', 'surname'])
-  ```
-  This would allow fuzzy matching across both fields simultaneously, but would lose the ability to distinguish which field the match came from.
-- **Client-side changes**: Switching to the server-side approach would require updating the GraphQL query in `PersonQueryResults.js` to pass additional variables and removing the client-side post-filter block. The `PersonQueryResults` component would pass filters as query variables instead of post-processing.
-
-## Files Modified
-
-- `schema.graphql` — `fuzzySurname` query (pre-existing, unchanged)
-- `client/src/components/Person/PersonQueryForm.js` — Added `fuzzy` field and checkbox
-- `client/src/components/Person/PersonQueryResults.js` — Dual query selection, client-side post-filtering, group filtering via `memberOf`
+| | `fuzzyPersonSearch` (legacy) | `fuzzyPerson` (new) |
+|---|---|---|
+| Implementation | `@cypher` directive | Custom resolver + `neo4jgraphql()` delegation |
+| Filters | Hand-rolled WHERE clauses | Inherits full `_PersonFilter` |
+| Group scoping | Hand-rolled EXISTS subquery | Automatic via `cypherParams` |
+| Ordering | None (index order) | Score order by default, `orderBy` override |
+| Pagination | None | `first` / `offset` |

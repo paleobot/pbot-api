@@ -613,7 +613,10 @@ type DescribedBy @relation(name: "DESCRIBED_BY") {
 type Query {
 
     """
-    Note: This is a custom query that uses a composite fulltext index to perform a fuzzy search across multiple name fields. You have to create that index in the Neo4j database with the following command: 
+    @deprecated Use fuzzyPerson instead — it inherits all standard filters,
+    ordering, pagination, and group scoping via Pattern D delegation.
+
+    Note: This is a custom query that uses a composite fulltext index to perform a fuzzy search across multiple name fields. You have to create that index in the Neo4j database with the following command:
         CALL db.index.fulltext.createNodeIndex('fuzzyPersonNameIndex', ['Person'], ['given', 'middle', 'surname'])
     """
     fuzzyPersonSearch(pbotID: ID = "", surname: String = "", given: String = "", middle: String = "", email: String = "", orcid: String = "", excludeList: [ID!] = [], groups: [ID!] = []): [Person]
@@ -648,6 +651,93 @@ type Query {
         RETURN node;
       """
     )
+
+    """
+    Fuzzy search for References by title. Uses Pattern D: a custom resolver
+    in Resolvers.js performs the fulltext lookup, then delegates to the
+    auto-generated Reference query so all standard filters, projection,
+    ordering, pagination, and group-scoping (via cypherParams) apply.
+
+    Requires fulltext index — create with:
+        CALL db.index.fulltext.createNodeIndex('fuzzyReferenceTitleIndex', ['Reference'], ['title'])
+
+    Results are ordered by descending fuzzy score by default. Supplying
+    orderBy overrides the score ordering.
+
+    fuzzyLimit (default 200) caps how many candidate IDs the fulltext
+    index returns before downstream filters apply.
+    """
+    fuzzyReference(
+        searchString: String!,
+        fuzzyLimit: Int = 200,
+        filter: _ReferenceFilter,
+        first: Int,
+        offset: Int,
+        orderBy: [_ReferenceOrdering]
+    ): [Reference]
+
+    """
+    Fuzzy search for Schemas by title. Uses Pattern D (see fuzzyReference).
+
+    Requires fulltext index — create with:
+        CALL db.index.fulltext.createNodeIndex('fuzzySchemaTitleIndex', ['Schema'], ['title'])
+    """
+    fuzzySchema(
+        searchString: String!,
+        fuzzyLimit: Int = 200,
+        filter: _SchemaFilter,
+        first: Int,
+        offset: Int,
+        orderBy: [_SchemaOrdering]
+    ): [Schema]
+
+    """
+    Fuzzy search for Collections by name. Uses Pattern D (see fuzzyReference).
+
+    Requires fulltext index — create with:
+        CALL db.index.fulltext.createNodeIndex('fuzzyCollectionNameIndex', ['Collection'], ['name'])
+    """
+    fuzzyCollection(
+        searchString: String!,
+        fuzzyLimit: Int = 200,
+        filter: _CollectionFilter,
+        first: Int,
+        offset: Int,
+        orderBy: [_CollectionOrdering]
+    ): [Collection]
+
+    """
+    Fuzzy search for OTUs by name. Uses Pattern D (see fuzzyReference).
+
+    Requires fulltext index — create with:
+        CALL db.index.fulltext.createNodeIndex('fuzzyOTUNameIndex', ['OTU'], ['name'])
+    """
+    fuzzyOTU(
+        searchString: String!,
+        fuzzyLimit: Int = 200,
+        filter: _OTUFilter,
+        first: Int,
+        offset: Int,
+        orderBy: [_OTUOrdering]
+    ): [OTU]
+
+    """
+    Fuzzy search for Persons by name fields. Uses Pattern D (see fuzzyReference).
+    Reuses the existing composite fulltext index across given, middle, surname.
+
+    Requires fulltext index — create with:
+        CALL db.index.fulltext.createNodeIndex('fuzzyPersonNameIndex', ['Person'], ['given', 'middle', 'surname'])
+    """
+    fuzzyPerson(
+        surname: String = "",
+        given: String = "",
+        middle: String = "",
+        fuzzyLimit: Int = 200,
+        filter: _PersonFilter,
+        first: Int,
+        offset: Int,
+        orderBy: [_PersonOrdering]
+    ): [Person]
 
     echoLat(lat: Latitude!): Latitude!
     echoLon(lon: Longitude!): Longitude!

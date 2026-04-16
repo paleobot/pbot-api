@@ -1,6 +1,6 @@
-//import * as neo4j from 'neo4j-driver';
+import neo4j from 'neo4j-driver';
 import {ValidationError} from 'apollo-server';
-import {cypherQuery} from 'neo4j-graphql-js';
+import {neo4jgraphql} from 'neo4j-graphql-js';
 import  GraphQLUpload  from 'graphql-upload/GraphQLUpload.mjs';
 import fs from 'fs'
 import path from 'path'
@@ -60,6 +60,61 @@ const getPerson = async (session, email) => {
     )
     return result.records.length > 0 ? result.records[0].get(0) : null;
 }
+
+// Shared helper for fuzzy<Type> resolvers (Pattern D).
+// 1. Calls the named fulltext index with the supplied Lucene query string,
+//    returning candidate pbotIDs in score order, capped by args.fuzzyLimit.
+// 2. Injects pbotID_in into args.filter and delegates to neo4jgraphql() so
+//    the auto-generated node query handles all standard filter, projection,
+//    ordering, pagination, and cypherParams group-scoping logic.
+// 3. Re-sorts the result by fuzzy score in JS, unless the caller supplied
+//    an explicit args.orderBy (in which case orderBy wins).
+// Build a Lucene query from a raw search string. The fulltext index's standard
+// analyzer tokenizes on non-alphanumeric characters (hyphens, punctuation, etc.),
+// so we must split the same way and apply the fuzzy operator to each token
+// individually. Without this, characters like "-" are interpreted as Lucene's
+// NOT operator and exclude the very documents the user is searching for.
+const buildLuceneQuery = (searchString) => {
+    const tokens = searchString.split(/[^a-zA-Z0-9]+/).filter(t => t.length > 0);
+    return tokens.map(t => t + '~').join(' ');
+};
+
+const fuzzyDelegate = async ({obj, args, context, info, indexName, luceneQuery, stripArgs}) => {
+    if (!luceneQuery) luceneQuery = buildLuceneQuery(args.searchString);
+    const session = context.driver.session();
+    let ids;
+    try {
+        const result = await session.run(
+            `CALL db.index.fulltext.queryNodes('${indexName}', $q)
+             YIELD node, score
+             RETURN node.pbotID AS id ORDER BY score DESC LIMIT $limit`,
+            {q: luceneQuery, limit: neo4j.int(args.fuzzyLimit)}
+        );
+        ids = result.records.map(r => r.get('id'));
+    } finally {
+        await session.close();
+    }
+
+    if (ids.length === 0) return [];
+
+    // Strip fuzzy-only args; they're not valid for the delegated query
+    // and would be interpreted as scalar filters (matching nothing).
+    const keysToStrip = stripArgs || ['searchString', 'fuzzyLimit'];
+    const delegatedArgs = Object.fromEntries(
+        Object.entries(args).filter(([k]) => !keysToStrip.includes(k))
+    );
+    const augmentedArgs = {
+        ...delegatedArgs,
+        filter: {...(args.filter || {}), pbotID_in: ids},
+    };
+
+    const results = await neo4jgraphql(obj, augmentedArgs, context, info);
+
+    if (args.orderBy) return results;
+
+    const rank = new Map(ids.map((id, i) => [id, i]));
+    return [...results].sort((a, b) => rank.get(a.pbotID) - rank.get(b.pbotID));
+};
 
 const getGroups = async (session, data) => {
     const rootID = data.schemaID || data.descriptionID || data.collection || data.imageOf || null;
@@ -989,6 +1044,46 @@ export const Resolvers = {
     Query: {
         echoLon(_, { lon }) {
             return lon;
+        },
+
+        fuzzyReference: async (obj, args, context, info) => {
+            return fuzzyDelegate({
+                obj, args, context, info,
+                indexName: 'fuzzyReferenceTitleIndex',
+            });
+        },
+        fuzzySchema: async (obj, args, context, info) => {
+            return fuzzyDelegate({
+                obj, args, context, info,
+                indexName: 'fuzzySchemaTitleIndex',
+            });
+        },
+        fuzzyCollection: async (obj, args, context, info) => {
+            return fuzzyDelegate({
+                obj, args, context, info,
+                indexName: 'fuzzyCollectionNameIndex',
+            });
+        },
+        fuzzyOTU: async (obj, args, context, info) => {
+            return fuzzyDelegate({
+                obj, args, context, info,
+                indexName: 'fuzzyOTUNameIndex',
+            });
+        },
+        fuzzyPerson: async (obj, args, context, info) => {
+            // Build per-field Lucene query for the composite index.
+            // Each non-empty name field gets a field-qualified fuzzy term.
+            const parts = [];
+            if (args.surname) parts.push('surname:' + buildLuceneQuery(args.surname));
+            if (args.given) parts.push('given:' + buildLuceneQuery(args.given));
+            if (args.middle) parts.push('middle:' + buildLuceneQuery(args.middle));
+            const luceneQuery = parts.length > 0 ? parts.join(' ') : '*';
+            return fuzzyDelegate({
+                obj, args, context, info,
+                indexName: 'fuzzyPersonNameIndex',
+                luceneQuery,
+                stripArgs: ['surname', 'given', 'middle', 'fuzzyLimit'],
+            });
         },
     },
     
