@@ -15,7 +15,7 @@ node index.js
 For full debug output:
 
 ```bash
-node index.js -l silly -s dev
+DEBUG=pbot-api,neo4j-graphql-js node index.js
 ```
 
 The server defaults to port `4001` and path `/graphql`. All configuration is via a `.env` file — copy `env.template` and fill in values:
