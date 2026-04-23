@@ -170,7 +170,8 @@ const server = new ApolloServer({
                     user: user,
                     cypherMatchPrefix: `(p:Person {pbotID:"${user.pbotID}"})-[:MEMBER_OF]->(g:Group)<-[:ELEMENT_OF|:MEMBER_OF]-`,
                     whereClause: ` exists(($<>)-[:ELEMENT_OF|:MEMBER_OF]->(:Group)<-[:MEMBER_OF]-(p))`,
-                    skipPrefixNodeTypes: ["Person", "_SchemaAuthoredBy", "_ReferenceAuthoredBy", "Comment", "_CommentEnteredBy"]
+                    //synthesized _<Parent><FieldName> entries are workarounds for a bug in the neo4j-graphql-js fork's relationTypeFieldOnNodeType; see openspec/changes/fix-relation-payload-nested-where-clause
+                    skipPrefixNodeTypes: ["Person", "_SchemaAuthoredBy", "_ReferenceAuthoredBy", "Comment", "_CommentEnteredBy", "_CommentReferences"]
                 },
             };
         },   
