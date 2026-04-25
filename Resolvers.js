@@ -665,8 +665,8 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
     } else if ("Synonym" === nodeType) {
         query = `
             MATCH 
-            (:OTU {pbotID: "${data.otus[0]}"})<-[:SAME_AS]-(n:${nodeType})-[:SAME_AS]->(:OTU {pbotID: "${data.otus[1]}"}),
-                (n)-[:SAME_AS]->(o2:OTU)
+            (:OTU {pbotID: "${data.otus[0]}"})-[:SAME_AS]->(n:${nodeType})<-[:SAME_AS]-(:OTU {pbotID: "${data.otus[1]}"}),
+                (n)<-[:SAME_AS]-(o2:OTU)
         `;
         error = `${nodeType} with same OTUs found`
     } else if ("Comment" === nodeType) {
