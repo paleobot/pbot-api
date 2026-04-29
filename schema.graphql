@@ -46,7 +46,7 @@ type Person {
       statement: "return this.password is not null"
     )
     entered:   [Enterable] @cypher(
-      statement: "match (n)-[:ENTERED_BY]->(this) return n"
+      statement: "match (n)-[:ENTERED_BY]->(this) where exists { (n)-[:ELEMENT_OF]->(:Group)<-[:MEMBER_OF]-(:Person {pbotID: $cypherParams.user.pbotID}) } return n"
     )
     authored: [Authorable!]! @relation(name: "AUTHORED_BY", direction: IN)
     identified: [Specimen] @relation(name: "HAS_IDENTIFIED", direction: OUT)
@@ -233,6 +233,9 @@ type OTU {
         statement: """
             MATCH
                 (otu:OTU {pbotID:this.pbotID})<-[:TYPE_OF|:HOLOTYPE_OF]-(specimen:Specimen)-[:DESCRIBED_BY]->(d:Description)
+            WHERE
+                exists { (specimen)-[:ELEMENT_OF]->(:Group)<-[:MEMBER_OF]-(:Person {pbotID: $cypherParams.user.pbotID}) }
+                AND exists { (d)-[:ELEMENT_OF]->(:Group)<-[:MEMBER_OF]-(:Person {pbotID: $cypherParams.user.pbotID}) }
             WITH
                 DISTINCT d //This gets rid of possible TYPE_OF/HOLOTYPE_OF duplicates
             MATCH   
