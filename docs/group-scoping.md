@@ -73,11 +73,42 @@ When standing up a new pbot-api instance, ensure:
 ## Open Questions
 
 - **Comment visibility model.** Comments are not directly group-scoped and are excluded from the auto-injection (`skipPrefixNodeTypes`). They presumably inherit visibility from the root entity of their REFERS_TO chain, but this is not yet verified end-to-end (especially against the auto-generated top-level `Comment(filter: …)` query). See `audit-comment-group-inheritance`.
-- **Mutation authorization — two confirmed gaps.** `permissions.js` does not enforce caller-vs-supplied group membership in two places:
-  - **Top-level entity creation** (`Resolvers.js` → `mutateNode`): mutations like `CreateOTU`, `CreateSpecimen`, `CreateDescription`, etc. accept a caller-supplied `groups: [String]` input and write `ELEMENT_OF` edges to those groups without checking that the caller is `MEMBER_OF` them. A caller can create content in a group they don't belong to.
-  - **`groupCascade` updates** (`Resolvers.js` → `handleUpdate`, around line 249): with `groupCascade: true`, the mutation rewrites an existing entity's `ELEMENT_OF` set without checking that the caller is a member of either the source or target groups. A caller can move content between groups they don't belong to.
-  - The `CharacterInstance` write path (`schema.graphql:1131` `CreateCharacterInstance`) inherits its parent Description's full group set without a caller-membership check, but this is intentional and correct: CharacterInstances are inseparable components of a Description, so members of every group the Description is in are entitled to see all its components, and edit access to the Description implies edit access to its components.
-  - See `audit-mutation-group-authorization` for the proposal scoping a fix.
+
+## Known Mutation-Side Gaps
+
+`permissions.js` enforces only `isAuthenticated && isAdmin` on every mutation. "Admin" is a global role, not per-group, so the shield layer alone does not prevent an authenticated admin from writing into groups they are not a member of. Two write paths in `Resolvers.js` rely on caller-supplied group sets and currently lack a `MEMBER_OF` check:
+
+### Gap 1: Top-level entity creation accepts unverified `groups` input
+
+Affected mutations: `CreateOTU`, `CreateDescription`, `CreateReference`, `CreateSchema`, `CreateCollection`, `CreateSynonym`, `CreateComment`. These flow through `mutateNode` (`Resolvers.js:698`) → `handleCreate` (`Resolvers.js:521`), which writes one `ELEMENT_OF` edge per ID in the caller-supplied `data.groups: [String]`. There is no verification that the caller is `MEMBER_OF` those groups. A caller can place content in a group they do not belong to. The `enteredBy` audit edge correctly records the caller, so the action is traceable, but it is not prevented.
+
+### Gap 2: `groupCascade` updates rewrite `ELEMENT_OF` without membership checks
+
+Affected mutations: update mutations on the same node-type set as Gap 1. `handleUpdate` (`Resolvers.js:241`) checks `data.groupCascade` and, when truthy, short-circuits to a pure `ELEMENT_OF` rewrite from `data.groups`. The parent update path that triggers the cascade (`Resolvers.js:884-907`) takes caller-supplied `data.groups` directly. There is no verification that the caller is a member of either the groups being added or the groups being removed. A caller can move content into groups they don't belong to, or "rescue" content out of groups they don't belong to.
+
+### Node types NOT affected (and why)
+
+| nodeType | Why immune |
+|---|---|
+| `Person` | `mutateNode` forces `data.groups = [publicGroupID]` on create (`Resolvers.js:768`) and ensures public is included on update (`Resolvers.js:828-834`). |
+| `Group` | New group is its own `ELEMENT_OF`; creator becomes `MEMBER_OF` automatically via special cypher (`Resolvers.js:600-606`). The caller cannot join a group they aren't already creating. |
+| `Character`, `State`, `CharacterInstance`, `Specimen`, `Image` | `mutateNode` calls `getGroups(tx, data)` to fetch the parent's group set and overwrites `data.groups` server-side on both create (`Resolvers.js:800-806`) and update (`Resolvers.js:865-874`). The `getGroups` helper resolves the parent via `data.schemaID || data.descriptionID || data.collection || data.imageOf`. |
+
+`CreateCharacterInstance` is explicitly NOT a gap: CharacterInstances are inseparable components of a Description, so inheriting the Description's full group set is correct — members of every group the Description belongs to are entitled to see all its components, and edit access to the Description implies edit access to its components.
+
+### Tracking
+
+See `openspec/changes/audit-mutation-group-authorization/` for the proposal, design, capability spec, and task list scoping the fix.
+
+### Implemented mitigations
+
+`mutateNode` (`Resolvers.js`) now applies caller-membership checks against the same write transaction as the mutation itself, via the `CALLER_CONTROLLED_GROUP_TYPES` set and the `assertCallerCanWriteGroups` / `fetchCurrentGroupIDs` helpers. Coverage:
+
+- **Create**: for `OTU`, `Description`, `Reference`, `Schema`, `Collection`, `Synonym`, `Comment`, the caller must be `MEMBER_OF` every group in `data.groups`. Otherwise the mutation fails with a `ValidationError` listing the unauthorized group IDs and no node is written.
+- **Update**: for the same node-type set, the caller must be `MEMBER_OF` every group in the symmetric difference between the entity's current `ELEMENT_OF` set and the requested `data.groups`. This closes both addition (writing into a group the caller doesn't belong to) and removal (rescuing content out of a group the caller doesn't belong to).
+- The check is skipped when `data.groupCascade === true`. That flag is set only by `mutateNode`'s internal recursive cascade loop (it is not part of any mutation input in `schema.graphql`); the parent's caller-supplied groups have already been validated one frame up, and re-checking each cascaded child would force every cascade write to re-fetch the same caller membership and could spuriously fail when a child currently lives in groups wider than the caller's `MEMBER_OF` set.
+
+The privatization guard (`Resolvers.js`, blocking removal of `publicGroupID` from a node currently in the public Group) is independent of these checks and remains in force.
 
 ## When Adding a New `@cypher` Field
 

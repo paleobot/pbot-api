@@ -1,6 +1,6 @@
 ## Why
 
-This is a stub / placeholder change to track two confirmed write-side authorization gaps. It is intentionally proposal-only at this point — design, specs, and tasks are deferred until someone is ready to address the gaps.
+This change tracks two confirmed write-side authorization gaps. Both have been re-verified by direct re-reading of `Resolvers.js` (see `design.md` for the path-by-path walk).
 
 The gaps were originally surfaced as part of the broader read-side group-scoping audit (see archived changes `fix-cypher-group-scope-leaks-high` and `fix-cypher-group-scope-leaks-medium-dropped`). The earlier framing of this proposal centered on `Mutation.CreateCharacterInstance` inheriting all of its parent Description's groups without checking caller membership; that concern has been resolved without code change because CharacterInstances exist solely as components of a Description, so inheriting the Description's full group set is the correct behavior — members of every group the Description belongs to are entitled to see all its components, and authorization to edit the Description implies authorization to add or remove components on it.
 
@@ -50,4 +50,4 @@ None known. `permissions.js` does not currently cover either gap, so this is net
 
 ## Status
 
-**Proposal stub only.** The CharacterInstance trigger that originally motivated this change has been resolved by reasoning, not implementation. The two remaining gaps are confirmed but parked. Advance to design / specs / tasks when ready to address them.
+**Design and specs complete; not scheduled.** The CharacterInstance trigger that originally motivated this change has been resolved by reasoning, not implementation. The two remaining gaps are confirmed and now have a documented fix shape (`design.md`), capability spec (`specs/mutation-group-authorization/spec.md`), and a phased task list (`tasks.md`). Schedule Phase 1 (documentation) and Phase 2 (fix) when ready.

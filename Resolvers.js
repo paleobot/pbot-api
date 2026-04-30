@@ -11,6 +11,45 @@ import {schemaDeleteMap, schemaMap} from './SchemaMaps.js';
 import {uploadFile, renameFile, deleteFile} from './ImageManagement.js';
 
 
+//Node types whose `data.groups` is taken from caller input rather than overwritten server-side.
+//Excluded types: Person, Group (server-controlled groups; creator auto-becomes member);
+//Character, State, CharacterInstance, Specimen, Image (groups inherited from parent via getGroups).
+const CALLER_CONTROLLED_GROUP_TYPES = new Set([
+    "OTU", "Description", "Reference", "Schema",
+    "Collection", "Synonym", "Comment"
+]);
+
+const fetchCallerGroupIDs = async (session, callerPbotID) => {
+    const result = await session.run(
+        `MATCH (p:Person {pbotID: $callerPbotID})-[:MEMBER_OF]->(g:Group)
+         RETURN collect(g.pbotID) AS memberGroupIDs`,
+        {callerPbotID}
+    );
+    return result.records.length > 0 ? result.records[0].get("memberGroupIDs") : [];
+};
+
+const assertCallerCanWriteGroups = async (session, callerPbotID, requestedGroupIDs) => {
+    if (!requestedGroupIDs || requestedGroupIDs.length === 0) return;
+    const memberGroupIDs = await fetchCallerGroupIDs(session, callerPbotID);
+    const memberSet = new Set(memberGroupIDs);
+    const unauthorized = requestedGroupIDs.filter(id => !memberSet.has(id));
+    if (unauthorized.length > 0) {
+        throw new ValidationError(
+            `Caller is not a member of group(s): ${unauthorized.join(", ")}`
+        );
+    }
+};
+
+const fetchCurrentGroupIDs = async (session, pbotID) => {
+    const result = await session.run(
+        `MATCH (n {pbotID: $pbotID})-[:ELEMENT_OF]->(g:Group)
+         RETURN collect(g.pbotID) AS groupIDs`,
+        {pbotID}
+    );
+    return result.records.length > 0 ? result.records[0].get("groupIDs") : [];
+};
+
+
 const isPublic = async (session, pbotID) => {
     const queryStr = `
         MATCH
@@ -805,10 +844,18 @@ const mutateNode = async (context, nodeType, data, type) => {
                         console.log(groups);
                         data["groups"] = groups;
                     }
+
+                    //Verify the caller is a member of every group they are writing into.
+                    //Skip when groupCascade is set (server-internal recursive call whose
+                    //group set was already validated on the parent one frame up).
+                    if (!data.groupCascade && CALLER_CONTROLLED_GROUP_TYPES.has(nodeType)) {
+                        await assertCallerCanWriteGroups(tx, context.user.pbotID, data.groups || []);
+                    }
+
                     result = await handleCreate(
-                        tx, 
-                        nodeType, 
-                        data       
+                        tx,
+                        nodeType,
+                        data
                     );
                     break;
                 case "update":
@@ -878,9 +925,25 @@ const mutateNode = async (context, nodeType, data, type) => {
                     if (await isPublic(tx, data.pbotID) && !data.groups.includes(publicGroupID)) {
                         throw new ValidationError(`This ${nodeType} is public. Cannot change groups`);
                     }
-                    
+
+                    //Verify the caller is a member of every group in the symmetric difference
+                    //between the entity's current ELEMENT_OF set and the requested data.groups.
+                    //Closes both addition (placing content where caller doesn't belong) and
+                    //removal (rescuing content out of a group caller doesn't belong to).
+                    //Skip when groupCascade is set (server-internal recursive call whose
+                    //group set was already validated on the parent one frame up).
+                    if (!data.groupCascade && CALLER_CONTROLLED_GROUP_TYPES.has(nodeType)) {
+                        const existing = await fetchCurrentGroupIDs(tx, data.pbotID);
+                        const requested = data.groups || [];
+                        const symmetricDiff = [
+                            ...existing.filter(id => !requested.includes(id)),
+                            ...requested.filter(id => !existing.includes(id)),
+                        ];
+                        await assertCallerCanWriteGroups(tx, context.user.pbotID, symmetricDiff);
+                    }
+
                     //TODO: If setting to newly public, clean out old DELETE data
-                        
+
                     if (doGroupCascade) {
                         const groupCascadeRelationships = schemaDeleteMap[nodeType].cascadeRelationships || [];
                         const remoteNodes = await getRelationships(
