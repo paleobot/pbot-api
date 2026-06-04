@@ -600,6 +600,7 @@ export const schemaMap = {
                 properties: [
                     "pbotID",
                     "order",
+                    "publishedInReference",
                 ]
             }, {
                 type: "ELEMENT_OF",

@@ -555,6 +555,7 @@ type OTUCitedBy @relation(name: "CITED_BY") {
   from: Reference
   to: OTU
   order: String
+  publishedInReference: Boolean
 }
 
 type SynonymCitedBy @relation(name: "CITED_BY") {
@@ -858,6 +859,7 @@ input ReferenceInput {
 input CitedByInput {
     pbotID: String
     order: String
+    publishedInReference: Boolean
 }
 
 input SchemaInput {

@@ -513,9 +513,15 @@ const handleUpdate = async (session, nodeType, data) => {
                     console.log("relationship.properties");
                     remoteID = relInstance.pbotID;
                     relProps = relationship.properties.reduce((str, prop) => { //iterate each property to build string for create
-                            return (prop !== "pbotID" && relInstance[prop]) ?
-                                `${str}${prop}: "${relInstance[prop]}",` :
-                                `${str}`;
+                            if (prop === "pbotID") return str;
+                            const val = relInstance[prop];
+                            if (val === undefined || val === null) return str;
+                            // Emit Boolean and Number as native Cypher literals; everything else stays string-quoted.
+                            // Long-term: replace this string interpolation with parameterized Cypher.
+                            const literal = (typeof val === "boolean" || typeof val === "number")
+                                ? String(val)
+                                : `"${val}"`;
+                            return `${str}${prop}: ${literal},`;
                         }, '');
                 } else {
                     remoteID = relInstance; //For relationships without properties, only the pbotID string is passed
@@ -607,9 +613,15 @@ const handleCreate = async (session, nodeType, data) => {
                     console.log("relationship.properties");
                     remoteID = relInstance.pbotID;
                     relProps = relationship.properties.reduce((str, prop) => { //iterate each property to build string for create
-                            return (prop !== "pbotID" && relInstance[prop]) ?
-                                `${str}${prop}: "${relInstance[prop]}",` :
-                                `${str}`;
+                            if (prop === "pbotID") return str;
+                            const val = relInstance[prop];
+                            if (val === undefined || val === null) return str;
+                            // Emit Boolean and Number as native Cypher literals; everything else stays string-quoted.
+                            // Long-term: replace this string interpolation with parameterized Cypher.
+                            const literal = (typeof val === "boolean" || typeof val === "number")
+                                ? String(val)
+                                : `"${val}"`;
+                            return `${str}${prop}: ${literal},`;
                         }, '');
                 } else {
                     remoteID = relInstance; //For relationships without properties, only the pbotID string is passed
@@ -790,6 +802,12 @@ const mutateNode = async (context, nodeType, data, type) => {
                     if (!pubHolo) {
                         throw new ValidationError(`A holotype specimen for a public OTU must also be public`);
                     }
+                }
+            }
+            if (data.references) {
+                const flagged = data.references.filter(ref => ref.publishedInReference === true).length;
+                if (flagged > 1) {
+                    throw new ValidationError(`At most one reference may be flagged as publishedInReference`);
                 }
             }
         }
