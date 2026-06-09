@@ -901,7 +901,7 @@ input StateInput {
 
 input DescriptionInput {
     pbotID: String
-    specimenIDs: [String]
+    specimenIDs: [String!]!
     name: String!
     writtenDescription: String
     notes: String

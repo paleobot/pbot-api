@@ -518,7 +518,7 @@ export const schemaMap = {
                 type: "DESCRIBED_BY",
                 direction: "in",
                 graphqlName: "specimenIDs",
-                required: false,
+                required: true,
                 updatable: true
             }, {
                 type: "CITED_BY",
@@ -683,7 +683,7 @@ export const schemaMap = {
             {
                 type: "DESCRIBED_BY",
                 direction: "out",
-                graphqlName: "descriptionID",
+                graphqlName: "descriptionIDs",
                 required: false,
                 updatable: true,
             }, {
