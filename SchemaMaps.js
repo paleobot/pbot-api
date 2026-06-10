@@ -429,7 +429,7 @@ export const schemaMap = {
                 type: "CITED_BY",
                 direction: "in",
                 graphqlName: "references",
-                required: false,
+                required: true,
                 updatable: true,
                 properties: [
                     "pbotID",
@@ -524,7 +524,7 @@ export const schemaMap = {
                 type: "CITED_BY",
                 direction: "in",
                 graphqlName: "references",
-                required: false,
+                required: true,
                 updatable: true,
                 properties: [
                     "pbotID",
@@ -595,7 +595,7 @@ export const schemaMap = {
                 type: "CITED_BY",
                 direction: "in",
                 graphqlName: "references",
-                required: false,
+                required: true,
                 updatable: true,
                 properties: [
                     "pbotID",
@@ -626,7 +626,7 @@ export const schemaMap = {
                 type: "CITED_BY",
                 direction: "in",
                 graphqlName: "references",
-                required: false,
+                required: true,
                 updatable: true,
                 properties: [
                     "pbotID",
@@ -797,7 +797,7 @@ export const schemaMap = {
                 type: "CITED_BY",
                 direction: "in",
                 graphqlName: "references",
-                required: false,
+                required: true,
                 updatable: true,
                 properties: [
                     "pbotID",

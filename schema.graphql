@@ -906,7 +906,7 @@ input DescriptionInput {
     writtenDescription: String
     notes: String
     schemaID: String!
-    references: [CitedByInput]
+    references: [CitedByInput!]!
     groups: [String]
     enteredByPersonID: String
     cascade: Boolean
@@ -950,7 +950,7 @@ input OTUInput {
 input SynonymInput {
     pbotID: String
     explanation: String
-    references: [CitedByInput]
+    references: [CitedByInput!]!
     otus: [String!]!
     groups: [String]
 }
@@ -1071,7 +1071,7 @@ input CollectionInput {
     country: String!
     state: String
     pbdbid: String
-    references: [CitedByInput]
+    references: [CitedByInput!]!
     groups: [String]
     enteredByPersonID: String
     cascade: Boolean
