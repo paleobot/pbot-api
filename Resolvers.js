@@ -19,6 +19,39 @@ const CALLER_CONTROLLED_GROUP_TYPES = new Set([
     "Collection", "Synonym", "Comment"
 ]);
 
+//Stopgap against Cypher injection until mutation queries are fully parameterized
+//(openspec change parameterize-cypher-values). Many ID inputs are interpolated
+//into query text, so every ID-bearing field must be a UUID before any query runs.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+//ID-bearing inputs that are not schemaMap relationship fields. Relationship
+//fields (schemaMap[nodeType].relationships[].graphqlName) are added per type.
+const EXTRA_ID_FIELDS = [
+    "pbotID", "enteredByPersonID", "schemaID", "descriptionID", "characterID",
+    "stateID", "parentID", "imageOf", "subjectID", "collection", "elements",
+    "members", "groups", "otus"
+];
+
+//Values may be a string, a list of strings, or a list of objects carrying
+//pbotID (e.g. authors, references). null, absent and "" are allowed: the
+//client sends "" for unset optional IDs, and an empty string cannot inject.
+const assertMutationIDs = (nodeType, data) => {
+    if (!data) return;
+    const relationshipFields = ((schemaMap[nodeType] && schemaMap[nodeType].relationships) || [])
+        .map(relationship => relationship.graphqlName);
+    const fields = new Set([...EXTRA_ID_FIELDS, ...relationshipFields]);
+    for (const field of fields) {
+        const values = Array.isArray(data[field]) ? data[field] : [data[field]];
+        for (const value of values) {
+            const id = (value !== null && typeof value === "object") ? value.pbotID : value;
+            if (id === undefined || id === null || id === "") continue;
+            if (typeof id !== "string" || !UUID_RE.test(id)) {
+                throw new ValidationError(`Invalid ID in field "${field}"`);
+            }
+        }
+    }
+};
+
 const fetchCallerGroupIDs = async (session, callerPbotID) => {
     const result = await session.run(
         `MATCH (p:Person {pbotID: $callerPbotID})-[:MEMBER_OF]->(g:Group)
@@ -71,15 +104,15 @@ const isPublic = async (session, pbotID) => {
 const isSynonym = async (session, otus) => {
     const queryStr = `
         MATCH
-            (:OTU {pbotID: "${otus[0]}"})-[:SAME_AS]->(s:Synonym)<-[:SAME_AS]-(:OTU {pbotID: "${otus[1]}"})
+            (:OTU {pbotID: $otu0})-[:SAME_AS]->(s:Synonym)<-[:SAME_AS]-(:OTU {pbotID: $otu1})
         RETURN
-            s    
+            s
     `;
     console.log(queryStr);
-        
+
     const result = await session.run(
         queryStr,
-        {otus: otus}
+        {otu0: otus[0], otu1: otus[1]}
     );
     return result.records.length > 0;
 }
@@ -87,8 +120,8 @@ const isSynonym = async (session, otus) => {
 const getPerson = async (session, email) => {
     const queryStr = `
         MATCH
-            (p:Person {email: "${email}"})
-        RETURN 
+            (p:Person {email: $email})
+        RETURN
             p
     `;
     console.log(queryStr);
@@ -520,7 +553,7 @@ const handleUpdate = async (session, nodeType, data) => {
                             // Long-term: replace this string interpolation with parameterized Cypher.
                             const literal = (typeof val === "boolean" || typeof val === "number")
                                 ? String(val)
-                                : `"${val}"`;
+                                : JSON.stringify(String(val)); //escaped Cypher string literal (injection stopgap)
                             return `${str}${prop}: ${literal},`;
                         }, '');
                 } else {
@@ -620,7 +653,7 @@ const handleCreate = async (session, nodeType, data) => {
                             // Long-term: replace this string interpolation with parameterized Cypher.
                             const literal = (typeof val === "boolean" || typeof val === "number")
                                 ? String(val)
-                                : `"${val}"`;
+                                : JSON.stringify(String(val)); //escaped Cypher string literal (injection stopgap)
                             return `${str}${prop}: ${literal},`;
                         }, '');
                 } else {
@@ -678,30 +711,47 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
         return { value: false };
     } 
 
+    //All values are passed as driver parameters; only nodeType (server-chosen) is interpolated.
+    const params = {
+        title: data.title ?? null,
+        name: data.name ?? null,
+        surname: data.surname ?? null,
+        given: data.given ?? null,
+        middle: data.middle ?? null,
+        link: data.link ?? null,
+        imageOf: data.imageOf ?? null,
+        parentID: data.parentID ?? null,
+        otu0: data.otus ? data.otus[0] ?? null : null,
+        otu1: data.otus ? data.otus[1] ?? null : null,
+        content: data.content ?? null,
+        subjectID: data.subjectID ?? null,
+        pbotID: data.pbotID ?? null,
+    };
+
     let query = '';
     let error = '';
     if (["Reference", "Schema"].includes(nodeType)) {
-        query = `MATCH (n:${nodeType} {title: "${data.title}"})`;
+        query = `MATCH (n:${nodeType} {title: $title})`;
         error = `${nodeType} with same title found`
     } else if (["OTU", "Specimen", "Description", "Collection", "Group"].includes(nodeType)) {
-        query = `MATCH (n:${nodeType} {name: ${JSON.stringify(data.name)}})`;
+        query = `MATCH (n:${nodeType} {name: $name})`;
         error = `${nodeType} with same name found`
     } else if ("Person" === nodeType) {
-        query = `MATCH (n:${nodeType} {surname: "${data.surname}", given: "${data.given}" ${data.middle ? `, middle: "${data.middle}"` : '' }})`;
+        query = `MATCH (n:${nodeType} {surname: $surname, given: $given ${data.middle ? `, middle: $middle` : '' }})`;
         error = `${nodeType} with same name found`
     } else if ("Image" === nodeType) {
-        query = `MATCH (n:${nodeType} {link: "${data.link}"})-[:IMAGE_OF]-(m {pbotID: "${data.imageOf}"})`;
+        query = `MATCH (n:${nodeType} {link: $link})-[:IMAGE_OF]-(m {pbotID: $imageOf})`;
         error = `${nodeType} with same link found`
     } else if ("Character" === nodeType) {
         query = `
-            MATCH 
-                (n:${nodeType} {name: "${data.name}"})-[:CHARACTER_OF]->(m {pbotID:"${data.parentID}"})   
+            MATCH
+                (n:${nodeType} {name: $name})-[:CHARACTER_OF]->(m {pbotID: $parentID})
         `;
             error = `${nodeType} with same name and parent found`
     } else if ("State" === nodeType) {
         query = `
-            MATCH 
-                (n:${nodeType} {name: "${data.name}"})-[:STATE_OF]->(m {pbotID:"${data.parentID}"})             
+            MATCH
+                (n:${nodeType} {name: $name})-[:STATE_OF]->(m {pbotID: $parentID})
         `;
             error = `${nodeType} with same name and parent found`
     /*
@@ -716,14 +766,14 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
     } else if ("Synonym" === nodeType) {
         query = `
             MATCH 
-            (:OTU {pbotID: "${data.otus[0]}"})-[:SAME_AS]->(n:${nodeType})<-[:SAME_AS]-(:OTU {pbotID: "${data.otus[1]}"}),
+            (:OTU {pbotID: $otu0})-[:SAME_AS]->(n:${nodeType})<-[:SAME_AS]-(:OTU {pbotID: $otu1}),
                 (n)<-[:SAME_AS]-(o2:OTU)
         `;
         error = `${nodeType} with same OTUs found`
     } else if ("Comment" === nodeType) {
         query = `
-            MATCH 
-            (n:${nodeType} {content: "${data.content}"})-[:REFERS_TO]->(m {pbotID:"${data.subjectID}"})             
+            MATCH
+            (n:${nodeType} {content: $content})-[:REFERS_TO]->(m {pbotID: $subjectID})
         `;
         error = `${nodeType} with same content found`
     } else {
@@ -731,7 +781,7 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
     }
 
     if ("update" === actionType) {
-        query = `${query} WHERE n.pbotID <> "${data.pbotID}"`;
+        query = `${query} WHERE n.pbotID <> $pbotID`;
     }
 
     query = `${query} RETURN n`;
@@ -739,7 +789,7 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
     console.log("dup query = ")
     console.log(query)
 
-    const result = await session.run(query);
+    const result = await session.run(query, params);
     return {
         value: result.records.length > 0,
         msg: error
@@ -747,6 +797,9 @@ const isDuplicate = async (session, actionType, nodeType, data) => {
 }
 
 const mutateNode = async (context, nodeType, data, type) => {
+    //Before any session work: reject malformed IDs (Cypher injection stopgap).
+    assertMutationIDs(nodeType, data);
+
     const driver = context.driver;
     const session = driver.session()
     

@@ -204,13 +204,15 @@ export const renameFile = async ( context, pbotID, revert ) => {
         MATCH 
             (n)
         WHERE
-            n.pbotID = "${pbotID}"
+            n.pbotID = $pbotID
         RETURN
             n
     `;
-    
+
+    //Parameterized: UpdateImage calls this before mutateNode validates inputs.
     const pgResult = await session.run(
-        queryStr
+        queryStr,
+        {pbotID}
     );
     const link = pgResult.records.length > 0 ? pgResult.records[0].get(0).properties.link : null;    
     console.log(link);
