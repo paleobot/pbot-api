@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Running the Server
 
+Requires **Node.js ≥ 26.12.1** (patched for CVE-2026-111497). `nvm use` selects it from `.nvmrc`. `runtime-guard.js`, the first import in `index.js`, makes the process refuse to start on older versions. See `NODE-RUNTIME.md` for the PM2 interpreter, npm install-script approval, and the server cutover runbook.
+
 ```bash
 node index.js
 ```
@@ -37,8 +39,8 @@ On the servers, PM2 runs the app (`ecosystem.config.cjs`) in watch mode. Deploys
 1. **Express** handles HTTP, static file serving (`/files`), and REST endpoints
 2. **Apollo Server** handles all GraphQL at `/graphql`
 3. **`neo4j-graphql-js`** translates GraphQL operations to Cypher queries against Neo4j
-4. **`graphql-shield`** enforces permissions (all queries are public; all mutations require authenticated admin)
-5. **`graphql-middleware`** injects the authenticated user's `pbotID` into mutation `args.data.enteredByPersonID`
+4. **`graphql-middleware`** applies `permissions.js` (a `Mutation` type-level gate: every mutation requires an authenticated admin; queries are public)
+5. **`addUserID`** (`index.js`, also `graphql-middleware`, runs after the gate) injects the authenticated user's `pbotID` into mutation `args.data.enteredByPersonID`
 
 ### Key Files
 
@@ -48,7 +50,7 @@ On the servers, PM2 runs the app (`ecosystem.config.cjs`) in watch mode. Deploys
 | `schema.graphql` | Source of truth for all GraphQL types, queries, and mutations |
 | `Resolvers.js` | Custom resolver logic — create/update/delete operations with Cypher, image upload |
 | `SchemaMaps.js` | Defines `schemaMap` (field mappings for create/update) and `schemaDeleteMap` (blocking/cascade/nonblocking relationships per node type) |
-| `permissions.js` | `graphql-shield` rules: queries are open, mutations require `isAuthenticated && isAdmin` |
+| `permissions.js` | `Mutation` type-level `graphql-middleware` gate: anonymous/guest → `UNAUTHENTICATED`, non-admin → `FORBIDDEN`; queries are open |
 | `UserManagement.js` | Login, registration, and password-reset flows via REST endpoints |
 | `ImageManagement.js` | Image upload/serve via `/images` REST endpoints, auth-gated by group membership |
 

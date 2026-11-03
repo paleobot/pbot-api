@@ -47,6 +47,8 @@ Shape: `{ Mutation: async (resolve, parent, args, ctx, info) => { gate(ctx); ret
 
 The gate checks `!ctx.user` and then `!Array.isArray(ctx.user.roles) || !ctx.user.roles.includes('admin')`. This closes the case where `undefined` passed the old `!== null` test and then crashed `isAdmin` with a TypeError.
 
+*Found during implementation:* `ctx.user` is almost never falsy in practice. When a request has no token or an invalid one, `getUser` falls back to the shared `guest` Person (roles `["user"]`). So the gate also treats a user with no `pbotID`, or with email `guest`, as unauthenticated. Without that, anonymous callers would get `FORBIDDEN` instead of the `UNAUTHENTICATED` the spec requires. Shield also rejected guest, but only through `isAdmin`, with "Not Authorised!".
+
 ### D3. Use Apollo's error classes
 
 Throw `AuthenticationError` (no user) and `ForbiddenError` (user without `admin`) from `apollo-server-errors`, which `apollo-server-core` 3 re-exports. That gives `UNAUTHENTICATED`/`FORBIDDEN` codes instead of `INTERNAL_SERVER_ERROR`. `pbot-client/src` has no matches for "Not Authorised", so the change in message text is safe. Drop shield's `debug: true` exposure and the `console.log(ctx.user)` debug output.
@@ -61,7 +63,14 @@ Throw `AuthenticationError` (no user) and `ForbiddenError` (user without `admin`
 
 ### D5. PM2 interpreter
 
-Point the `pbot-api` entry at a stable nvm alias path instead of a versioned one: for example, create `nvm alias pbot-api 26` and use `~/.nvm/alias/...`, or set `interpreter: "node"` and start PM2 from a shell where `nvm use` has run. Pick whichever the server's PM2 setup supports during cutover, and record the choice in the runbook. Leave the `pbot-client` entry unchanged.
+**Chosen:** `ecosystem.config.cjs` computes the interpreter at `pm2 start`. It uses the newest `~/.nvm/versions/node/v<major>.*/bin/node`, where `<major>` comes from `.nvmrc`, and fails with a clear message if that major isn't installed. Leave the `pbot-client` entry unchanged.
+
+*Alternatives rejected:*
+- **nvm alias:** an alias is a text file under `~/.nvm/alias/`, not a binary path.
+- **`interpreter: "node"`:** PM2 then runs the app on the Node its own daemon was started with, likely v16 on the server.
+- **A hand-maintained symlink:** one more manual step to forget.
+
+The guard still catches a stale interpreter. The runbook is in `NODE-RUNTIME.md`.
 
 ### D6. npm 11 install-script approval
 
@@ -88,5 +97,5 @@ Run the same steps on dev first, then on prod, as the PM2 user:
 
 ## Open Questions
 
-- Which interpreter form does the server's PM2 setup support (D5)? Resolve during cutover.
+- ~~Which interpreter form does the server's PM2 setup support (D5)?~~ Resolved: computed from `.nvmrc` (see D5).
 - Is anything else (cron jobs, scripts) on the server using the Node 16 install that should also move?

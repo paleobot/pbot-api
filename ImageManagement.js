@@ -93,7 +93,6 @@ export const handleImages = async (req, res, driver) => {
 
     //Make sure user is authorized for this image
     const token = req.headers.authorization;
-    console.log(token);
 
     let authorized = false;
     let email;

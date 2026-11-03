@@ -14,6 +14,10 @@ The system SHALL reject any GraphQL mutation whose request context has no authen
 - **THEN** the mutation is rejected with code `UNAUTHENTICATED`
 - **AND** no `TypeError` is raised from reading `ctx.user.roles`
 
+#### Scenario: Guest fallback user treated as unauthenticated
+- **WHEN** a request has no token or an invalid one, so the context resolves `ctx.user` to the shared `guest` Person
+- **THEN** the mutation is rejected with code `UNAUTHENTICATED`, not `FORBIDDEN`
+
 ### Requirement: Every mutation SHALL require the `admin` role
 
 The system SHALL reject any GraphQL mutation from an authenticated caller whose `ctx.user.roles` does not include `"admin"`, using an Apollo `ForbiddenError` (extension code `FORBIDDEN`), before the mutation's resolver runs.

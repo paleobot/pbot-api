@@ -3,6 +3,9 @@
     "version": "0.0.1",
     "description": "",
     "main": "index.js",
+    "engines": {
+        "node": ">=26.12.1"
+    },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
     },
@@ -17,17 +20,21 @@
         "express-jwt": "^6.1.0",
         "graphql": "^16.6.0",
         "graphql-middleware": "^6.0.10",
-        "graphql-shield": "^7.5.0",
         "graphql-upload": "^16.0.2",
         "jsonwebtoken": "^8.5.1",
         "neo4j-driver": "^4.4.1",
         "neo4j-graphql-js": "git+https://github.com/paleobot/neo4j-graphql-js.git#ddm-dev",
         "nodemailer": "^6.6.5"
     },
-    "//": "neo4j-graphql-js original: git+https://github.com/paleobot/neo4j-graphql-js.git#ddm-dev",
-    "//": "neo4j-graphql-js tarball: file:../neo4j-graphql-js/neo4j-graphql-js-2.19.4.tgz",
+    "//": [
+        "neo4j-graphql-js original: git+https://github.com/paleobot/neo4j-graphql-js.git#ddm-dev",
+        "neo4j-graphql-js tarball: file:../neo4j-graphql-js/neo4j-graphql-js-2.19.4.tgz"
+    ],
     "overrides": {
         "graphql": "^16.6.0"
     },
-    "type": "module"
+    "type": "module",
+    "allowScripts": {
+        "bcrypt@5.1.1": true
+    }
 }

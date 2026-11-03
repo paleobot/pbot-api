@@ -1,3 +1,5 @@
+//Must stay the first import: refuses to start on an unpatched Node runtime.
+import "./runtime-guard.js"
 import dotenv from "dotenv"
 import { ApolloServer, ForbiddenError } from 'apollo-server-express'
 import express from 'express'
@@ -144,7 +146,6 @@ const server = new ApolloServer({
             console.log("setting up context");
             // Get the user token from the headers.
             const token = req.headers.authorization;
-            console.log(token);
 
             let email;
             try {
