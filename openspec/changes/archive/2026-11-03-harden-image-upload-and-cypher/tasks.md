@@ -24,7 +24,7 @@
 
 ## 3. Mutation input stopgap (UUID IDs, escaped free text)
 
-- [ ] 3.1 Run the all-labels non-UUID `pbotID` check on prod before deploying (local: 0 of 2,600+ across 28 labels):
+- [x] 3.1 Run the all-labels non-UUID `pbotID` check on prod before deploying (local: 0 of 2,600+ across 28 labels; prod: 0 rows, 2026-11-03):
   `MATCH (n) WHERE n.pbotID IS NOT NULL AND NOT n.pbotID =~ '(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' RETURN labels(n)[0], count(*)`
 - [x] 3.2 Grep `pbot-client` for mutation ID values that are not UUIDs (placeholders, `"new"`, etc.)
   - none found: the client sends selected records' `pbotID`s, or `''`/`null` when nothing is selected
@@ -34,7 +34,7 @@
 - [x] 3.5 Parameterize `renameFile`'s lookup in `ImageManagement.js`
 - [x] 3.6 Verify on Node 16 and 18: injection payloads in `pbotID`, `groups`, `authors[].pbotID`, `title` and `authors[].order` are rejected or stored verbatim, and nothing else is modified; normal create/update/delete of Reference (authors with properties), Synonym (`otus`) and Comment still work
   - 2026-11-03: 15/15 checks passed on Node 16.17.0 and 18.20.8; live node count back to baseline. Negative control: a title payload deleting a canary node executed on the old code and was stored inertly on the new code
-- [ ] 3.7 Deploy to dev, then prod
+- [x] 3.7 Deploy to dev, then prod (2026-11-03; record save and image upload verified)
 
 ## 4. Image write group authorization
 
@@ -45,7 +45,7 @@
   - only when the upload created a new file: `uploadFile` now returns `replacedExisting`, because same-name uploads overwrite an existing image's file until `generated-image-filenames` lands
 - [x] 4.4 Verify: a non-member gets `ForbiddenError` on all three with no file changes; a member succeeds; cleanup on a failed `CreateImage`
   - 2026-11-03: 11/11 checks passed on Node 16.17.0 and 18.20.8 (incl. UpdateImage moving an image into another group's specimen, and a nonexistent image); the GET suite re-passed after the refactor; GET of another group's specimen image → 401. Negative control on the old code: a non-member overwrote another group's file, created an Image on its specimen, and edited its Image
-- [ ] 4.5 Deploy to dev, then prod
+- [x] 4.5 Deploy to dev, then prod (2026-11-03; record save and image upload verified)
 
 ## Spun off
 - Server-generated upload filenames → `generated-image-filenames`
