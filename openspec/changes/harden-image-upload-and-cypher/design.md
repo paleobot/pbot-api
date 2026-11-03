@@ -67,7 +67,7 @@ This also fixes the collision TODO. `UpdateImage`'s rename/revert flow still wor
 
 ### D4. Ordering and shipping
 
-Phase 1 (D1 applied to GET and upload, plus incident response) ships as its own small PR straight to `master`, ahead of `upgrade-api-node-26` if needed. It doesn't depend on the runtime. Phases 2–3 (D2, D3) follow; D3 is the largest piece of work and needs careful regression checks of the create/update/delete paths, with cascades and audit edges, against the existing specs.
+Phase 1 (D1 applied to GET and upload, plus incident response) is deployed by hand on its own (dev first, then prod), ahead of `upgrade-api-node-26`. It doesn't depend on the runtime and has been verified on Node 16 and 18. Phases 2–3 (D2, D3) follow; D3 is the largest piece of work and needs careful regression checks of the create/update/delete paths, with cascades and audit edges, against the existing specs.
 
 ## Risks / Trade-offs
 

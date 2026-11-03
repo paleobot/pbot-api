@@ -20,17 +20,17 @@
 - [ ] 3.4 Admin `CreateReference` then `DeleteReference` succeed; `ENTERED_BY` CREATE/DELETE edges are correct
 - [ ] 3.5 Anonymous `Reference(first: 1)` query returns data
 - [ ] 3.6 Login, `UploadImage`, and GET `/images/:pbotID/:image` for a legitimate file all work
-- [ ] 3.7 Re-run tasks 3.1–3.6 on Node 18 to confirm the change is safe to deploy before the server cutover
+- [ ] 3.7 Confirm on Node 18 that the app fails only at the startup guard (task 4.2), not earlier at an import, so operators see the intended message
 
 ## 4. Deployment plumbing
 
 - [ ] 4.1 Change the `pbot-api` entry in `ecosystem.config.cjs` to a non-versioned interpreter (design D5); leave `pbot-client` unchanged
-- [ ] 4.2 Add a workflow step that runs `node -v` on the server as the PM2 user and fails if it is below 26.12.1
+- [ ] 4.2 Add the startup version guard (design D4): a small module imported first by `index.js` that exits non-zero with a clear message on Node < 26.12.1; verify it fires on Node 18 and passes on 26
 - [ ] 4.3 Write the cutover runbook (design Migration Plan) in `NODE-RUNTIME.md` or in CLAUDE.md's "Running the Server" section, and update CLAUDE.md to mention Node 26
 
-## 5. Server cutover (manual, after merge)
+## 5. Server cutover (manual, dev first, then prod)
 
-- [ ] 5.1 On the server as the PM2 user: `nvm install 26`, `npm ci`, `node -e "require('bcrypt')"`
+- [ ] 5.1 On the server as the PM2 user: `nvm install 26`, update the checkout, `npm ci`, `node -e "require('bcrypt')"`
 - [ ] 5.2 `pm2 delete pbot-api && pm2 start ecosystem.config.cjs --only pbot-api && pm2 save`
 - [ ] 5.3 Verify `pm2 show pbot-api` reports Node ≥ 26.12.1
 - [ ] 5.4 Post-cutover checks: login, one admin mutation, anonymous mutation rejected, image upload and view, password-reset email delivered

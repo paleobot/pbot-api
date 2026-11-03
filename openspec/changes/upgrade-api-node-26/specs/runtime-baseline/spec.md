@@ -21,14 +21,16 @@ The API SHALL start without errors on Node ≥ 26.12.1 and SHALL emit no Node.js
 - **THEN** the server logs that it is ready on the configured GraphQL path
 - **AND** no `DeprecationWarning` or `ERR_*` errors appear in its output
 
-### Requirement: Deployment SHALL refuse to proceed on an unpatched runtime
+### Requirement: The API SHALL refuse to start on an unpatched runtime
 
-The deploy workflow SHALL check the Node.js version the API will run under on the target server and SHALL fail the deployment if it is below 26.12.1. The check SHALL compare the output of `node -v` and SHALL NOT rely on `process.versions.brotli`.
+On startup, before loading the rest of the application, the API SHALL compare `process.versions.node` against 26.12.1. If the running version is older, it SHALL log an error naming both the required minimum and the running version, and SHALL exit with a non-zero status without listening on any port. The check SHALL NOT rely on `process.versions.brotli`.
 
-#### Scenario: Old runtime blocks deploy
-- **WHEN** the deploy workflow runs and the target server's API runtime reports `v16.17.0`
-- **THEN** the workflow step fails with a message naming the required minimum version
+#### Scenario: Old runtime refuses to start
+- **WHEN** `node index.js` is run with Node `v16.17.0`
+- **THEN** the process logs an error containing `26.12.1` and `16.17.0`
+- **AND** exits with a non-zero status
+- **AND** the GraphQL port is not opened
 
-#### Scenario: Patched runtime passes
-- **WHEN** the target server's API runtime reports `v26.13.0`
-- **THEN** the version check step succeeds
+#### Scenario: Patched runtime starts
+- **WHEN** `node index.js` is run with Node `v26.13.0`
+- **THEN** the version guard passes and the server starts normally

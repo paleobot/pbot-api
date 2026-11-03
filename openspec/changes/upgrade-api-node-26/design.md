@@ -1,7 +1,7 @@
 ## Context
 
 - **Runtime today:** prod PM2 `interpreter: /home/doug/.nvm/versions/node/v16.17.0/bin/node`; local default 18.20.8. Neither has an `engines` field or `.nvmrc`.
-- **Deploy today:** GitHub Actions SSHes in and runs `git fetch && git reset --hard origin/master`. PM2 watch mode restarts the app. There is no `npm ci` and no PM2 reload, so a dependency or interpreter change needs a manual step.
+- **Deploy today:** manual on both dev and prod. Someone updates the checkout on the server and PM2 watch mode restarts the app. Dependency and interpreter changes need extra manual steps (`npm ci`, PM2 delete/start). `.github/workflows/deploy-dev.yaml` is a leftover and is not used.
 - **Smoke test (2026-11-03, Node 26.13.0, scratch copy against local Neo4j):**
 
   | Check | Result |
@@ -53,9 +53,11 @@ Throw `AuthenticationError` (no user) and `ForbiddenError` (user without `admin`
 
 ### D4. Runtime baseline and its enforcement
 
-- `package.json`: `"engines": {"node": ">=26.12.1"}`. With `engine-strict` unset, npm only warns; the deploy check (below) is the real gate.
+- `package.json`: `"engines": {"node": ">=26.12.1"}`. With `engine-strict` unset, npm only warns; the startup guard (below) is the real gate.
 - `.nvmrc`: `26`.
-- **Deploy check:** a workflow step runs `node -v` over SSH as the deploy user (using `nvm use` if needed) and fails if it is older than 26.12.1. Do **not** use `process.versions.brotli`: the patched 26.13.0 still reports `1.2.0`, which is nominally in the affected range, and it is unclear whether Node backported the fix without changing that string.
+- **Startup guard:** at the very top of `index.js`, before any other imports run, compare `process.versions.node` with 26.12.1. If it is older, log a clear message naming the required version and the running one, then `process.exit(1)`. Deploys are manual and there's no CI step, so the process is the one place every deploy path goes through. It also catches PM2 still pointing at the old interpreter after a code update. Do **not** use `process.versions.brotli`: the patched 26.13.0 still reports `1.2.0`, which is nominally in the affected range, and it is unclear whether Node backported the fix without changing that string.
+- *Alternative considered:* a CI/deploy-workflow check. Rejected because deploys don't go through a workflow.
+- *Ordering note:* ESM hoists `import` statements, so the guard must live in a tiny module imported first, or use a dynamic `import()` for the rest of the app. Otherwise an incompatible dependency could crash at import time before the guard runs. On Node 16/18, `graphql-shield` would no longer be present, so the remaining imports should load and the guard's message will be what the operator sees.
 
 ### D5. PM2 interpreter
 
@@ -68,17 +70,21 @@ npm 11 warns that `bcrypt`, `@apollo/protobufjs` and `core-js` install scripts a
 ## Risks / Trade-offs
 
 - [The gate behaves differently from shield in an edge case, such as subscriptions or nested mutation payloads] → The schema has no subscriptions; the spec scenarios cover anonymous, non-admin and admin callers, plus a newly added mutation.
-- [PM2 keeps running Node 16 after the code deploys] → The cutover runbook uses `pm2 delete` + `pm2 start`, then verifies with `pm2 show pbot-api`. The deploy check catches drift.
-- [The `master` push deploys automatically before the server has Node 26, and PM2 restarts on 16 with code that still works there] → Nothing in this change requires Node 26 *syntax*, so the order is safe either way. Do the cutover right after merging anyway.
+- [PM2 keeps running Node 16 after the code is updated] → The startup guard refuses to boot, so the API is down with a clear log message rather than silently running unpatched. The cutover runbook installs Node 26 and switches the interpreter in the same session as the code update, so the downtime window is minutes.
+- [The guard turns a forgotten runtime step into an outage] → Accepted, deliberately: an unpatched runtime is the thing this change exists to prevent. The runbook orders the steps so the guard should never fire during a normal cutover.
 - [Apollo Server 3 is EOL] → Accepted for now; it ran cleanly on 26. Revisit separately.
 - [`nodemailer` send was not exercised] → It's pure JS and loads fine. Add a password-reset email check to the post-cutover verification.
 
 ## Migration Plan
 
-1. Merge to `master`. The auto-deploy updates the code; PM2 restarts on the old interpreter, which still works because nothing requires Node 26.
-2. On the server, as the PM2 user: `nvm install 26` → `cd repos/pbot-api && npm ci` → `node -e "require('bcrypt')"` → update/confirm the interpreter path → `pm2 delete pbot-api && pm2 start ecosystem.config.cjs --only pbot-api && pm2 save`.
-3. Verify: `pm2 show pbot-api` shows Node ≥ 26.12.1; login; one admin mutation; an anonymous mutation returns `UNAUTHENTICATED`; image upload and view; password-reset email.
-4. **Rollback:** point the interpreter back to v16.17.0 and `git revert` the change. The old `graphql-shield` code works on 16. Reinstall `node_modules` with the old lockfile.
+Run the same steps on dev first, then on prod, as the PM2 user:
+
+1. `nvm install 26` (before touching the code, so the new runtime is ready).
+2. Update the checkout to the release containing this change. PM2 watch mode restarts on the old interpreter, and the startup guard exits. That is expected; continue straight on.
+3. `cd repos/pbot-api && npm ci` → `node -e "require('bcrypt')"`.
+4. Update/confirm the interpreter path → `pm2 delete pbot-api && pm2 start ecosystem.config.cjs --only pbot-api && pm2 save`.
+5. Verify: `pm2 show pbot-api` shows Node ≥ 26.12.1; login; one admin mutation; an anonymous mutation returns `UNAUTHENTICATED`; image upload and view; password-reset email.
+6. **Rollback:** check out the previous release, point the interpreter back to v16.17.0, and reinstall `node_modules` from the old lockfile. The old `graphql-shield` code works on 16, and the old code has no guard.
 
 ## Open Questions
 

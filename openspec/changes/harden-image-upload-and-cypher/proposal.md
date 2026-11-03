@@ -28,4 +28,11 @@ While smoke-testing the Node 26 upgrade (2026-11-03) we found three injection-cl
 - **Code:** `ImageManagement.js` (GET handler, `uploadFile`, `renameFile`, `deleteFile`), `Resolvers.js` (`mutateNode` and the create/update/delete query builders, `getPerson`, synonym checks), possibly `SchemaMaps.js` (expose the allow-lists).
 - **Data:** existing image files keep their current names and links. The new storage naming applies to new uploads only, and links stay valid because the stored `link` remains authoritative.
 - **Ops:** secret rotation invalidates all existing JWTs, so users must log in again.
-- **Out of scope (recommended as a separate change):** account-lifecycle weaknesses found during the same review. Every registration gets `admin`; `useExistingUser` lets anyone claim a password-less Person node with no email verification; `surname === "dummy"` skips the existing-user check; and password reset works by clearing the password and waiting for re-registration, which leaves a takeover window.
+- **Out of scope (recommended as a separate change):** account and session weaknesses found during the same review:
+  - every registration gets `admin`;
+  - `useExistingUser` lets anyone claim a password-less Person node, with no email verification;
+  - `surname === "dummy"` skips the existing-user check;
+  - password reset clears the password and waits for re-registration, which leaves a takeover window;
+  - login JWTs have no expiry (`expiresIn` is commented out) and cannot be revoked per user, so only rotating `JWT_SECRET` kills a token (fix: restore expiry and add a per-Person `tokensValidAfter` compared to `iat`);
+  - bearer tokens are written to PM2 logs (`console.log(token)` in `handleImages` and in the GraphQL context in `index.js`);
+  - an invalid token silently falls back to the `guest` user instead of producing an authentication error.

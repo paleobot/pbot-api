@@ -28,7 +28,7 @@ SITE_URL, GRAPHQL_SERVER_PORT, GRAPHQL_SERVER_HOST, GRAPHQL_SERVER_PATH
 IMAGE_DIR, IMAGE_LINK_PRE
 ```
 
-In production, PM2 is used (`ecosystem.config.cjs`) in watch mode — pushes to `master` deploy automatically via GitHub Actions SSH.
+On the servers, PM2 runs the app (`ecosystem.config.cjs`) in watch mode. Deploys to dev and prod are manual: update the checkout on the server and PM2 restarts the app. `.github/workflows/deploy-dev.yaml` is left over from an earlier auto-deploy attempt and is not used.
 
 ## Architecture
 
