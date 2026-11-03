@@ -42,6 +42,25 @@ export const assertInsideImageDir = (absPath) => {
     return resolved;
 }
 
+// True if the person is MEMBER_OF at least one Group the Specimen is ELEMENT_OF.
+// The single access rule for reading and writing a specimen's image files.
+export const isMemberOfSpecimenGroup = async (driver, personPbotID, specimenID) => {
+    if (!personPbotID || !specimenID) return false;
+    const session = driver.session();
+    try {
+        const result = await session.run(`
+            MATCH
+                (:Person {pbotID: $personPbotID})-[:MEMBER_OF]->(:Group)<-[:ELEMENT_OF]-(s:Specimen {pbotID: $specimenID})
+            RETURN
+                count(s) > 0 AS member
+            `, { personPbotID, specimenID }
+        );
+        return result.records.length > 0 && result.records[0].get('member') === true;
+    } finally {
+        await session.close();
+    }
+}
+
 // Absolute path for an owner's image directory, or a file within it.
 // Throws ValidationError for malformed input; never touches the filesystem.
 export const safeImagePath = (imagedID, filename) => {
@@ -96,32 +115,8 @@ export const handleImages = async (req, res, driver) => {
             msg: "Not authorized to access this resource",
         });
     }
-    const session = driver.session();
-    await session.run(`
-        MATCH 
-            (person:Person {pbotID: $userID})-[:MEMBER_OF]->(:Group)<-[:ELEMENT_OF]-(s:Specimen {pbotID: $specimenID})
-        RETURN 
-            person      
-        `, {
-            userID: user.pbotID,
-            specimenID: req.params.pbotID
-        }
-    )
-    .then(result => {
-        console.log("cypher success");
-        let person;
-        result.records.forEach(record => {
-            person = record.get('person');
-        })
-        if (person) {
-            authorized = true;
-        }
-    })
-    .finally(() => {
-        console.log("closing session");
-        session.close();
-    });
-    
+    authorized = await isMemberOfSpecimenGroup(driver, user.pbotID, req.params.pbotID);
+
     if (!authorized) {
         return res.status(401).send({
             code: 401, 
@@ -178,6 +173,10 @@ export const uploadFile = async ( file, imagedID ) => {
             fs.mkdirSync(dirPath, { recursive: true });
         }
 
+        //Files are stored under the client's name, so an upload can replace an
+        //existing image. Callers must not delete such a file during cleanup.
+        const replacedExisting = fs.existsSync(filePath);
+
         const out = fs.createWriteStream(filePath);
         stream.pipe(out);
         await streamPromises.finished(out);
@@ -185,7 +184,8 @@ export const uploadFile = async ( file, imagedID ) => {
         //TODO: build this from stuff
         return {
             path: filePath,
-            link: imageLinkPre + "/" + imagedID + "/" + encodeURIComponent(newFilename)
+            link: imageLinkPre + "/" + imagedID + "/" + encodeURIComponent(newFilename),
+            replacedExisting
         };
     } catch (error) {
         throw new Error(`Unable to upload file: ${error.message}`);

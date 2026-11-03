@@ -70,7 +70,9 @@ Add `assertCanWriteSpecimenImages(context, specimenID)`. It runs the same parame
 - in `CreateImage` before `uploadFile`;
 - in `UpdateImage` before `renameFile`, using the Image's current `imageOf` specimen. If the update moves the image to another specimen, also check the target `imageOf`.
 
-`CreateImage` deletes the just-uploaded file if `mutateNode` throws, mirroring `UpdateImage`'s existing cleanup.
+`CreateImage` deletes the just-uploaded file if `mutateNode` throws, mirroring `UpdateImage`'s existing cleanup. It does this only when the upload created a new file. Until `generated-image-filenames` lands, an upload with the same name as an existing image overwrites that file, and deleting it on failure would destroy the existing image. `uploadFile` therefore reports `replacedExisting`.
+
+The membership query is shared via `isMemberOfSpecimenGroup` in `ImageManagement.js`, so reading and writing image files use one rule. An unknown specimen, or an Image with no `IMAGE_OF` Specimen, fails closed with `ForbiddenError`.
 
 *Alternative considered:* move the file write after `mutateNode`. That's a bigger reorder, and `link` has to be known before the node is written.
 

@@ -1,5 +1,5 @@
 import neo4j from 'neo4j-driver';
-import {ValidationError} from 'apollo-server';
+import {ValidationError, ForbiddenError} from 'apollo-server';
 import {neo4jgraphql} from 'neo4j-graphql-js';
 import  GraphQLUpload  from 'graphql-upload/GraphQLUpload.mjs';
 import fs from 'fs'
@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import { GraphQLScalarType, Kind, GraphQLError } from 'graphql';
 
 import {schemaDeleteMap, schemaMap} from './SchemaMaps.js';
-import {uploadFile, renameFile, deleteFile} from './ImageManagement.js';
+import {uploadFile, renameFile, deleteFile, isMemberOfSpecimenGroup} from './ImageManagement.js';
 
 
 //Node types whose `data.groups` is taken from caller input rather than overwritten server-side.
@@ -70,6 +70,31 @@ const assertCallerCanWriteGroups = async (session, callerPbotID, requestedGroupI
         throw new ValidationError(
             `Caller is not a member of group(s): ${unauthorized.join(", ")}`
         );
+    }
+};
+
+//Image files are written before mutateNode runs, and Image is not a
+//caller-controlled group type, so file writes need their own check: the caller
+//must belong to a group the target Specimen is in. Unknown specimen → forbidden.
+const assertCanWriteSpecimenImages = async (context, specimenID) => {
+    const allowed = await isMemberOfSpecimenGroup(context.driver, context.user && context.user.pbotID, specimenID);
+    if (!allowed) {
+        throw new ForbiddenError("Not authorized to write images for this specimen");
+    }
+};
+
+//The Specimen an existing Image is attached to, or null.
+const fetchImageSpecimenID = async (context, imagePbotID) => {
+    const session = context.driver.session();
+    try {
+        const result = await session.run(
+            `MATCH (:Image {pbotID: $imagePbotID})-[:IMAGE_OF]->(s:Specimen)
+             RETURN s.pbotID AS specimenID`,
+            {imagePbotID}
+        );
+        return result.records.length > 0 ? result.records[0].get("specimenID") : null;
+    } finally {
+        await session.close();
     }
 };
 
@@ -1388,6 +1413,14 @@ export const Resolvers = {
                 if (!args.data.image) {
                     throw new ValidationError(`Must supply either url link to image or image to upload`);
                 } else {
+                    //Authorize before touching any file: the rename affects the current
+                    //specimen's directory, the upload writes to imageOf's directory.
+                    const currentSpecimenID = await fetchImageSpecimenID(context, args.data.pbotID);
+                    await assertCanWriteSpecimenImages(context, currentSpecimenID);
+                    if (args.data.imageOf !== currentSpecimenID) {
+                        await assertCanWriteSpecimenImages(context, args.data.imageOf);
+                    }
+
                     //We don't want to delete the old image until after the mutation. Rename it first, then upload the new one, then mutate, then delete the renamed image. Fix stuff if anything bad happens along the way.
                     const tmpFilePath = await renameFile(context, args.data.pbotID);
                     let image;
@@ -1511,17 +1544,34 @@ export const Resolvers = {
                 if (!args.data.image) {
                     throw new ValidationError(`Must supply either url link to image or image to upload`);
                 } else {
+                    await assertCanWriteSpecimenImages(context, args.data.imageOf);
                     const image = await uploadFile(args.data.image, args.data.imageOf); //upload image and replace with its url
                     args.data.link = image.link;
+                    try {
+                        return await mutateNode(context, "Image", args.data, "create");
+                    } catch (error) {
+                        //Don't leave an orphaned file behind when the node isn't created,
+                        //but never delete a file that already existed (same-name upload).
+                        if (!image.replacedExisting) {
+                            console.log("mutate failed, removing uploaded file");
+                            try {
+                                await deleteFile(image.path);
+                            } catch (cleanupError) {
+                                console.log(cleanupError);
+                            }
+                        }
+                        throw error;
+                    }
                 }
             }
             return await mutateNode(context, "Image", args.data, "create");
-            
+
         },
         
         UploadImage: async (obj, args, context, info) => {
             console.log("UploadImage");
-            return await uploadFile(args.image, args.specimenID); 
+            await assertCanWriteSpecimenImages(context, args.specimenID);
+            return await uploadFile(args.image, args.specimenID);
         },
         
     }

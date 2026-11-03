@@ -38,10 +38,13 @@
 
 ## 4. Image write group authorization
 
-- [ ] 4.1 Add `assertCanWriteSpecimenImages(context, specimenID)` (design D3), reusing the GET path's membership query
-- [ ] 4.2 Call it in `UploadImage` and `CreateImage` before `uploadFile`, and in `UpdateImage` before `renameFile` (current specimen and new `imageOf`)
-- [ ] 4.3 `CreateImage`: delete the uploaded file if `mutateNode` throws
-- [ ] 4.4 Verify: a non-member gets `ForbiddenError` on all three with no file changes; a member succeeds; cleanup on a failed `CreateImage`
+- [x] 4.1 Add `assertCanWriteSpecimenImages(context, specimenID)` (design D3), reusing the GET path's membership query
+  - the membership query now lives in `isMemberOfSpecimenGroup` (`ImageManagement.js`), shared by the image GET handler and the write check
+- [x] 4.2 Call it in `UploadImage` and `CreateImage` before `uploadFile`, and in `UpdateImage` before `renameFile` (current specimen and new `imageOf`)
+- [x] 4.3 `CreateImage`: delete the uploaded file if `mutateNode` throws
+  - only when the upload created a new file: `uploadFile` now returns `replacedExisting`, because same-name uploads overwrite an existing image's file until `generated-image-filenames` lands
+- [x] 4.4 Verify: a non-member gets `ForbiddenError` on all three with no file changes; a member succeeds; cleanup on a failed `CreateImage`
+  - 2026-11-03: 11/11 checks passed on Node 16.17.0 and 18.20.8 (incl. UpdateImage moving an image into another group's specimen, and a nonexistent image); the GET suite re-passed after the refactor; GET of another group's specimen image → 401. Negative control on the old code: a non-member overwrote another group's file, created an Image on its specimen, and edited its Image
 - [ ] 4.5 Deploy to dev, then prod
 
 ## Spun off
