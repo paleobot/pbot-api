@@ -32,12 +32,39 @@ Image uploads (`UploadImage`, `CreateImage`, `UpdateImage`) SHALL validate the t
 
 #### Scenario: Traversal in filename neutralized
 - **WHEN** an admin uploads a file whose multipart filename is `../../index.js`
-- **THEN** the file is stored under `IMAGE_DIR/<specimenID>/` with a server-generated name
+- **THEN** the file is stored only under `IMAGE_DIR/<specimenID>/`, either as its base name (the multipart parser strips directory components) or rejected with a `ValidationError`
 - **AND** no file outside that directory is created or overwritten
 
 #### Scenario: Normal upload works
 - **WHEN** an admin uploads `leaf.png` (`image/png`) for a valid specimen ID
 - **THEN** the mutation returns a `link` that, fetched through the image GET route by an authorized user, returns the uploaded bytes
+
+### Requirement: Image file writes SHALL require group access to the target specimen
+
+Before writing, renaming or deleting any image file, `UploadImage`, `CreateImage` and `UpdateImage` SHALL verify that the caller is `MEMBER_OF` at least one `Group` that the target `Specimen` is `ELEMENT_OF`. For `UpdateImage`, this applies to the image's current specimen and to any new `imageOf` specimen. If the check fails, the mutation SHALL raise a `ForbiddenError`, and no file SHALL be created, overwritten, renamed or deleted.
+
+#### Scenario: Upload to another group's specimen rejected
+- **WHEN** an admin who is not a member of any group containing specimen `S` invokes `UploadImage` with `specimenID: S`
+- **THEN** the mutation fails with a `ForbiddenError`
+- **AND** no file under `IMAGE_DIR/S/` is created or overwritten
+
+#### Scenario: CreateImage rejected before the file is written
+- **WHEN** a non-member of `S`'s groups invokes `CreateImage` with an uploaded file and `imageOf: S`
+- **THEN** the mutation fails with a `ForbiddenError`
+- **AND** no file is written
+
+#### Scenario: UpdateImage rejected before the old file is renamed
+- **WHEN** a non-member of `S`'s groups invokes `UpdateImage` with an uploaded file for an Image of `S`
+- **THEN** the mutation fails with a `ForbiddenError`
+- **AND** the existing image file keeps its name and contents
+
+#### Scenario: Member upload allowed
+- **WHEN** a member of a group containing `S` invokes `UploadImage` with `specimenID: S`
+- **THEN** the file is written under `IMAGE_DIR/S/`
+
+#### Scenario: Uploaded file removed when CreateImage's mutation fails
+- **WHEN** a member invokes `CreateImage` with an uploaded file and the subsequent node creation fails
+- **THEN** the uploaded file is deleted
 
 ### Requirement: Image rename and delete SHALL only touch files inside IMAGE_DIR
 

@@ -1,91 +1,94 @@
 ## Context
 
-**Image paths today** (`ImageManagement.js`):
+**Image paths (before the hotfix)** (`ImageManagement.js`):
 
 ```
 GET /images/:pbotID/:image
   ├─ auth: caller MEMBER_OF a group the Specimen {pbotID} is ELEMENT_OF   (parameterized ✅)
   └─ res.sendFile(path.resolve(imageDir, pbotID, image))                    (image unchecked ❌)
 
-UploadImage / CreateImage / UpdateImage → uploadFile(file, imagedID)
-  ├─ mkdirSync(path.resolve(imageDir, imagedID), {recursive:true})          (imagedID unchecked ❌)
-  └─ createWriteStream(path.resolve(imageDir, imagedID, filename))          (filename unchecked ❌)
-
-renameFile(pbotID)  → link from DB → new URL(link).pathname last 2 segments → path.join(imageDir, …)
-deleteFile(path)    → fs.unlinkSync(path)   (path from uploadFile result or renameFile)
+UploadImage            → uploadFile(file, specimenID)                       (no group check ❌)
+CreateImage            → uploadFile(...)  → mutateNode (group check)        (file written first ❌)
+UpdateImage            → renameFile(...) → uploadFile(...) → mutateNode     (rename + write first ❌)
+renameFile(pbotID)     → "${pbotID}" lookup → link → path.join(imageDir, …)
+deleteFile(path)       → fs.unlinkSync(path)
 ```
 
-Confirmed on a scratch server (Node 26, `IMAGE_DIR` in the scratchpad): `GET /images/<public specimen>/..%2F..%2Fcanary.txt` returned the canary file. Not yet tested against prod through nginx; whether nginx passes `%2F` through unchanged depends on how its `proxy_pass` is written.
+**Cypher in mutations** (`Resolvers.js`): 5 of the 13 `run` calls pass no parameters, and some that pass a params object (`getPerson`, `isSynonym`) still interpolate the value into the text. Raw `"${…}"` sites fall into two kinds:
+- **IDs:** `pbotID`, `enteredByPersonID` (server-injected), relationship target IDs (`remoteID`), `rootID` (`schemaID`/`descriptionID`/`collection`/`imageOf`), `parentID`, `stateID`, `characterID`, `subjectID`, `otus[]`.
+- **Free text:** `isDuplicate`'s `title`, `surname`, `given`, `middle`, `link`, `name`, `content`; relationship property values (`"${val}"` in the create and update builders); `getPerson`'s `email`.
 
-**Cypher today** (`Resolvers.js`): 13 `run` calls, none with a params object. Values are inserted three ways:
-- raw inside quotes: `"${pbotID}"`, `"${enteredByPersonID}"`, `"${email}"`, `"${rootID}"`, … (24 sites), which a `"` breaks out of;
-- `${JSON.stringify(value)}` (10 sites), which mostly escapes correctly but turns `undefined` into the bare token `undefined`;
-- unquoted: `Point({latitude: ${lat}, longitude: ${lon}})`.
+`location` latitude/longitude are interpolated unquoted, but the `Latitude`/`Longitude` custom scalars only accept numbers in range. Queries are parameterized (`fuzzyDelegate` uses `$q`/`$limit`; `@cypher` fields bind arguments as parameters).
 
-Labels (`${nodeType}`) and property names (`baseNode.${property}`) come from `schemaMap`/`schemaDeleteMap` keys, which the server controls.
+**Data:** every `pbotID` in the local DB is a UUID: 2,600+ nodes across 28 labels, including soft-deleted `_Label` nodes. Prod `Specimen` IDs have been confirmed; the other labels still need checking on prod.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- No request input can make the API read, write, rename or delete a file outside `IMAGE_DIR`.
-- No request input can change the structure of a Cypher query.
-- Ship the file-read fix independently and fast.
+- No request input can read, write, rename or delete a file outside `IMAGE_DIR`.
+- No request input can change the structure of a mutation's Cypher.
+- No caller can write image files for a specimen outside their groups.
+- Each item can be deployed on Node 16/18 now, independently of `upgrade-api-node-26`.
 
 **Non-Goals:**
-- Account-lifecycle fixes (role on registration, email verification, reset flow). These need a separate change.
-- Renaming or moving existing image files on disk.
-- Behaviour changes to group scoping or the mutation rules in existing specs.
+- Full Cypher parameterization (`parameterize-cypher-values`).
+- Server-generated upload filenames (`generated-image-filenames`).
+- Account-lifecycle fixes (a separate change).
 
 ## Decisions
 
-### D1. One path helper, three layers of defence
+### D1. One path helper, three layers of defence (implemented)
 
-Add a single `safeImagePath(...segments)` helper used by every image file operation:
-1. **Validate the shape:** the specimen/imaged ID must match the UUID format `pbotID` uses (`apoc.create.uuid()`). A filename must equal `path.basename(name)`, must not be `.`/`..`, and must have no NUL or `/` `\` characters.
-2. **Resolve and check containment:** `const p = path.resolve(root, ...segs)`; require `p.startsWith(root + path.sep)`, where `root` is `path.resolve(IMAGE_DIR)` computed once at startup. Optionally also `fs.realpathSync` the parent to defeat symlinks planted under `IMAGE_DIR`.
-3. **Use the framework's guard:** GET uses `res.sendFile(relPath, { root: IMAGE_DIR, dotfiles: 'deny' })`, which independently returns 403 when the path escapes `root`.
+`safeImagePath(imagedID, filename?)`:
+1. Validate the shape: the ID is a UUID; a filename equals its own `path.basename`, isn't `.`/`..`, and contains no `/`, `\` or NUL.
+2. Resolve the path and check it is under the resolved `IMAGE_DIR`.
+3. GET serves via `res.sendFile(rel, { root: IMAGE_DIR, dotfiles: 'deny' })`.
 
-On failure: GET → 404 (don't reveal whether a file exists); upload → `ValidationError`. No filesystem call happens before validation passes.
+`assertInsideImageDir` guards `renameFile` and `deleteFile`. GET failures return 404; upload failures raise `ValidationError`. The GET handler returns 401 for a missing or invalid token instead of dereferencing a null user.
 
-*Alternatives:* using only `express.static`-style serving would lose the per-specimen group authorization; the containment check alone is correct but brittle if someone later adds an unguarded call.
+### D2. Mutation input stopgap: UUID-check IDs, escape free text
 
-### D2. Store uploads under a server-generated name
+At the very top of `mutateNode`, before any session work, `assertMutationIDs(nodeType, data)` walks:
+- `pbotID` and `enteredByPersonID`;
+- every `graphqlName` in `schemaMap[nodeType].relationships`;
+- a fixed list of ID fields used outside `schemaMap`: `schemaID`, `descriptionID`, `characterID`, `stateID`, `parentID`, `imageOf`, `subjectID`, `collection`, `elements`, `members`, `groups`, `otus`.
 
-Store new uploads as `<uuid><ext>`, where `ext` is taken from a small allow-list based on `mimetype` (jpeg/png/gif/webp/tiff). Keep the sanitized original filename as a display property. `link` is built from the stored name. Existing files and links stay as they are; `renameFile` and `deleteFile` keep working with both naming styles because they resolve through `safeImagePath`.
+Values may be a string, an array of strings, or an array of objects carrying `pbotID` (`authors`, `references`). Each non-empty string must be a UUID. `null`, `undefined` and `""` are allowed, since the client sends `""` for unset optional IDs and an empty string can't inject anything. Failure raises `ValidationError` naming the field.
 
-This also fixes the collision TODO. `UpdateImage`'s rename/revert flow still works because it uses the DB `link`, not the client filename.
+The self-contained helpers `isDuplicate`, `getPerson` and `isSynonym` are switched to real driver parameters, which is as small a change as escaping and strictly better. The remaining free-text interpolations, relationship property values inside the create/update string builders, switch from `"${x}"` to `${JSON.stringify(String(x))}`. JSON string escaping (`\"`, `\\`, control characters, `\uXXXX`) is valid Cypher string-literal syntax, and the main property `SET` path already relies on it. The relationship-property site already skips `undefined`/`null` values before building the literal.
 
-### D3. Parameterize every value, allow-list every identifier
+`renameFile`'s lookup becomes `MATCH (n {pbotID: $pbotID})`, because `UpdateImage` calls it before `mutateNode`.
 
-- Every value goes into a params object: `session.run(query, params)` / `tx.run(query, params)`. Builders that loop over properties name their params by index (`$p0`, `$p1`, …) or by property (`$props.title`), avoiding `JSON.stringify`.
-- Where possible, set whole property maps (`SET baseNode += $props`), with `$props` built from `schemaMap[nodeType].properties` filtered to keys the caller actually sent. Omitted optional fields are left out (no change) on update, and set to `null` explicitly on create only if the current semantics require it. Decide per path, keeping today's behaviour where the client always sends every field.
-- `location`: validate both numbers are finite and in range, then `point({latitude: $lat, longitude: $lon})`.
-- Labels, relationship types and property names still have to be interpolated (Cypher can't parameterize them). Assert each against `Object.keys(schemaMap)` / `schemaMap[nodeType].properties` / `schemaDeleteMap` before interpolating, and throw on a mismatch.
-- The audit-history logic (`SET eb.${property} = baseNode.${property}`) keeps identifier interpolation under the same allow-list.
+*Why a stopgap and not full parameterization:* this is about an hour of work and leaves query semantics alone. Full parameterization touches every builder and needs a regression harness first (`parameterize-cypher-values`). The UUID rule stays useful afterwards as input validation.
 
-*Alternative:* escaping values with a helper. It's fragile, and the driver's parameters are the supported mechanism.
+*Alternative considered:* escaping IDs instead of validating them. Validation is stricter and catches malformed client input earlier.
 
-### D4. Ordering and shipping
+### D3. Group authorization before any image file write
 
-Phase 1 (D1 applied to GET and upload, plus incident response) is deployed by hand on its own (dev first, then prod), ahead of `upgrade-api-node-26`. It doesn't depend on the runtime and has been verified on Node 16 and 18. Phases 2–3 (D2, D3) follow; D3 is the largest piece of work and needs careful regression checks of the create/update/delete paths, with cascades and audit edges, against the existing specs.
+Add `assertCanWriteSpecimenImages(context, specimenID)`. It runs the same parameterized query the GET path uses (caller `MEMBER_OF` a group the Specimen is `ELEMENT_OF`) and throws `ForbiddenError` when the caller isn't in one. Call it:
+- in `UploadImage` before `uploadFile`;
+- in `CreateImage` before `uploadFile`;
+- in `UpdateImage` before `renameFile`, using the Image's current `imageOf` specimen. If the update moves the image to another specimen, also check the target `imageOf`.
+
+`CreateImage` deletes the just-uploaded file if `mutateNode` throws, mirroring `UpdateImage`'s existing cleanup.
+
+*Alternative considered:* move the file write after `mutateNode`. That's a bigger reorder, and `link` has to be known before the node is written.
 
 ## Risks / Trade-offs
 
-- [Existing filenames containing characters the new validation rejects, which would make old images unreachable through GET] → Validate GET filenames with containment plus `basename` equality only, not a strict character set. Before shipping, list `IMAGE_DIR` and confirm every existing file passes.
-- [A parameterization regression silently changes mutation semantics, e.g. omitted fields] → There is no automated test suite. Build a scripted before/after check: run the same create/update/delete set on Node 26 against a DB snapshot, and diff the resulting node/edge properties.
-- [Rotating `JWT_SECRET` logs everyone out] → Accept it; announce it to users.
-- [Specimen IDs that aren't UUIDs (legacy data)] → Check existing `Specimen.pbotID` values before enforcing the UUID format, and fall back to the containment check alone if any are found.
+- [Non-UUID IDs on prod break mutations that reference them] → Run the all-labels query on prod before deploying D2 (task 3.1).
+- [`JSON.stringify` changes how stored strings compare in `isDuplicate`] → The escaped literal is the same value as the raw one for any string without `"` or `\`. For strings that do contain them, the old query was a syntax error, so nothing that worked before changes.
+- [The ID field list misses a field] → The list comes from diffing every `*Input` type against `schemaMap.properties`. The full parameterization in `parameterize-cypher-values` removes the dependence on the list.
+- [`UpdateImage` checking the old specimen's group blocks legitimate moves between groups] → Require membership of both the old and new specimens' groups; moving an image out of a group you can't write to should fail anyway.
 
 ## Migration Plan
 
-1. **Phase 1 hotfix:** `safeImagePath` + GET `{root}` + upload validation → deploy → verify the traversal request returns 404 and normal images still load.
-2. **Incident response:** grep nginx access logs (all retained rotations) for `/images/` with `..`, `%2e`, `%2f`, `%5c`. Rotate secrets unless the logs clearly rule out exploitation. Restart PM2 afterwards.
-3. **Phase 2:** server-generated upload names.
-4. **Phase 3:** Cypher parameterization, one builder at a time, with the before/after diff harness.
-5. **Rollback:** each phase is an independent revert. Phase 1 should not be rolled back without a replacement fix.
+1. **Done:** D1 hotfix deployed to dev and prod; incident response complete.
+2. D2: implement, verify on Node 16/18, run the prod ID check, deploy to dev, then prod.
+3. D3: implement, verify, deploy to dev, then prod.
+4. Archive this change once 2 and 3 are on prod.
+5. **Rollback:** each item is a single independent commit to revert.
 
 ## Open Questions
 
-- What nginx log retention exists on dev/prod, and is the API reachable on `:4001` directly (bypassing nginx)?
-- Are any `Specimen.pbotID` values non-UUID?
-- Does any client path rely on `UploadImage` keeping the original filename in the URL?
+- Does `pbot-client` ever send IDs that aren't UUIDs, such as placeholders or `"new"`? Grep the client before deploying D2.

@@ -1,34 +1,38 @@
 ## Why
 
-While smoke-testing the Node 26 upgrade (2026-11-03) we found three injection-class flaws. One is confirmed exploitable by any registered user:
+While smoke-testing the Node 26 upgrade (2026-11-03) we found injection-class and authorization flaws in the image and mutation code. Registration is open, has no email verification, and gives every new user the `admin` role and `public` group membership. So "admin-only" does not limit who can exploit any of these:
 
-1. **Arbitrary file read (confirmed):** `GET /images/:pbotID/:image` checks that the caller can see the specimen `:pbotID`, then calls `res.sendFile(path.resolve(imageDir, req.params.pbotID, req.params.image))`. Express URL-decodes route params, so `/images/<public specimen>/..%2F..%2F<file>` returns any file the API process can read. In a scratch copy, a canary file outside `IMAGE_DIR` came back with HTTP 200. Registration is open with no email verification and every new user is `MEMBER_OF` the `public` group, so the attacker only needs to register. `.env` is readable this way, and it holds `JWT_SECRET` (enough to forge a token for any account), `NEO4J_PASSWORD` and `EMAIL_PASSWORD`.
-2. **Arbitrary file write:** `uploadFile` (`ImageManagement.js`) passes the client's `specimenID`/`imageOf` and the uploaded `filename` straight to `path.resolve(imageDir, …)` and `fs.mkdirSync(…, {recursive: true})`. Because every registered user is granted `admin`, "admin-only" does not narrow who can do this.
-3. **Cypher built by string interpolation:** none of the 13 `session.run`/`tx.run` calls in `Resolvers.js` pass a parameters object. Values are placed in query text either raw inside quotes (24 `"${…}"` sites, e.g. `n.pbotID = "${pbotID}"`) or through `JSON.stringify`, and `location` latitude/longitude are inserted with no quoting at all. A `"` in a caller-supplied ID breaks out of the string literal. `renameFile` in `ImageManagement.js` has the same pattern.
+1. **Arbitrary file read (confirmed on a scratch server; fixed and deployed):** `GET /images/:pbotID/:image` passed the URL-decoded `:image` param to `path.resolve` → `res.sendFile`. Prod's nginx turned out to block the `.env` path, because it selects a `location` using the normalised URI. Even so, the code was exploitable wherever the API could be reached directly.
+2. **Arbitrary file write:** `uploadFile` built paths from the client's `specimenID`/`imageOf` and filename.
+3. **Cypher injection in mutations:** `Resolvers.js` places request values in query text. IDs go in raw (`n.pbotID = "${pbotID}"`), and so does free text in `isDuplicate` (`{title: "${data.title}"}`) and in relationship property values. A `"` in any of them breaks out of the string. Queries are not affected: the fuzzy-search resolvers use driver parameters.
+4. **Image writes skip group authorization:** `UploadImage` writes files for any `specimenID` with no group check (`pbot-client`'s `ImageMutateForm` uses it). `CreateImage` and `UpdateImage` write or rename files *before* `mutateNode`'s group-membership check, and don't clean up if that check fails. Any registered user who knows a specimen's UUID and filename can overwrite its images.
+
+This change closes all four quickly with targeted fixes. The full refactors are split out into their own changes so this one can be finished and archived.
 
 ## What Changes
 
-- **Hotfix (ship first, on its own):** make every image filesystem path stay inside `IMAGE_DIR`. Validate the `:pbotID` and `:image` route params and the upload `specimenID`/`filename` (UUID / safe-basename rules), resolve, then check containment. Use `res.sendFile(name, {root})` so Express rejects traversal. Any input that fails is a 400/404 and touches no files.
-- **Incident response:** review nginx access logs for `/images/` requests containing `..`, `%2e` or `%2f`. Rotate `JWT_SECRET` (this logs out all users), `NEO4J_PASSWORD` and `EMAIL_PASSWORD` unless the logs prove there was no exploitation.
-- Store uploads under a server-generated filename (keeping a sanitized display name), replacing the "not worrying about collisions" TODO.
-- Convert all Cypher in `Resolvers.js` and `ImageManagement.js` to driver parameters (`$name`) for every value. Labels and property names stay interpolated, but only from the server-side allow-lists in `SchemaMaps.js`. `location` becomes `point({latitude: $lat, longitude: $lon})` with numeric validation.
-- Optional fields omitted by the caller must be handled explicitly (unset or `null`). Today `JSON.stringify(undefined)` produces invalid Cypher (`baseNode.firstPage = undefined`).
+- **Done:** contain every image filesystem path inside `IMAGE_DIR` (GET, upload, rename, delete). Fix the process crash on image GETs with no token or an invalid one.
+- **Done:** incident response (log review, nginx routing analysis, `JWT_SECRET` rotation on prod).
+- **Mutation input stopgap:** before any query runs, reject any ID-bearing mutation input that isn't a UUID. Escape the remaining free-text interpolations with `JSON.stringify` (the main property `SET` path already does this). Parameterize `renameFile`'s lookup, which runs before `mutateNode`.
+- **Image write authorization:** require the caller to be a member of a group the target Specimen belongs to before any image file is written or renamed. Remove an uploaded file if the subsequent mutation fails.
 
 ## Capabilities
 
 ### New Capabilities
-- `image-file-path-safety`: every filesystem path built from request data (image GET, upload, rename, delete) resolves inside `IMAGE_DIR`, and anything else is rejected before any filesystem access.
-- `cypher-parameterized-values`: no caller-supplied value is ever placed into Cypher query text; values travel as driver parameters, and labels/property names come only from server allow-lists.
+- `image-file-path-safety`: every filesystem path built from request or stored data stays inside `IMAGE_DIR`, and image file writes require group access to the target specimen.
+- `mutation-input-safety`: request values cannot change the structure of mutation Cypher. ID inputs must be UUIDs, and free-text values are escaped as string literals.
 
 ### Modified Capabilities
-<!-- None. Existing specs (mutation-group-authorization, cypher-field-group-scoping, etc.) keep their behavior; this change alters how the queries are built, not what they do. -->
+<!-- None. -->
 
 ## Impact
 
-- **Code:** `ImageManagement.js` (GET handler, `uploadFile`, `renameFile`, `deleteFile`), `Resolvers.js` (`mutateNode` and the create/update/delete query builders, `getPerson`, synonym checks), possibly `SchemaMaps.js` (expose the allow-lists).
-- **Data:** existing image files keep their current names and links. The new storage naming applies to new uploads only, and links stay valid because the stored `link` remains authoritative.
-- **Ops:** secret rotation invalidates all existing JWTs, so users must log in again.
-- **Out of scope (recommended as a separate change):** account and session weaknesses found during the same review:
+- **Code:** `ImageManagement.js` (done, plus the group check), `Resolvers.js` (`mutateNode` entry validation, `isDuplicate`, relationship-property literals, `getPerson`, the image resolvers).
+- **Data:** none. All existing `pbotID`s are UUIDs: verified locally, and to be confirmed on prod before deploying.
+- **Spun off:**
+  - `parameterize-cypher-values`: replace every interpolation with driver parameters. This is the real fix that this change's stopgap holds the line for.
+  - `generated-image-filenames`: server-generated upload filenames and an extension allow-list.
+- **Out of scope (recommended as a separate change):** account and session weaknesses:
   - every registration gets `admin`;
   - `useExistingUser` lets anyone claim a password-less Person node, with no email verification;
   - `surname === "dummy"` skips the existing-user check;
