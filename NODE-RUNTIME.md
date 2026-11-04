@@ -189,11 +189,13 @@ Run as the PM2 user on dev. The order matters: `client/.nvmrc` must exist before
    git pull origin ddm-dev
    ```
    PM2 watch restarts `pbot-api` with its stored config. This is harmless.
-3. **Dependencies (optional).** The Node 18-installed `client/node_modules` were verified on Node 26, so this is hygiene only:
+3. **Dependencies (optional).** The Node 18-installed `client/node_modules` were verified on Node 26, so this is hygiene only. Stop the client first. `npm ci` deletes `node_modules`, and a running dev server then logs a burst of `Module build failed … ENOENT` errors into `pbot-client-out.log`. They are harmless, but they look like a failure later.
    ```bash
+   nvm use 18.20.8 && pm2 stop pbot-client
    nvm use 26
    cd ~/repos/pbot-api/client && npm ci
    ```
+   Step 5 deletes and recreates the process, so there's no need to start it again here.
 4. **Check what the ecosystem file resolves to:**
    ```bash
    cd ~/repos/pbot-api
@@ -209,7 +211,8 @@ Run as the PM2 user on dev. The order matters: `client/.nvmrc` must exist before
    ```
 6. **Verify:**
    - `pm2 show pbot-client` shows Node.js version ≥ 26.12.1, script path `…/craco/dist/bin/craco.js`, args `start`, and watch ✘.
-   - `pm2 logs pbot-client` shows `Compiled successfully` (or `Compiled with warnings`, which means ESLint warnings only).
+   - The out log shows `Compiled successfully` or `Compiled with warnings` (ESLint warnings only) after the newest `Starting the development server...`: `grep -n "Starting the development\|ompiled" ~/.pm2/logs/pbot-client-out.log | tail -5`. `pm2 logs --lines 0` only follows new output, so it looks hung once the compile has finished.
+   - `curl -s -o /dev/null -w "%{http_code}\n" localhost:3000/` prints `200`.
    - In the browser: load the site, run a query, log in and save a record, and export a PDF. The PDF export exercises the CRACO polyfills dev didn't have before.
 7. Add a row to the cutover log below.
 
@@ -247,4 +250,5 @@ The nginx config lives on the servers, not in either repo.
 | Server | Date | Node | Other old-Node users found |
 |---|---|---|---|
 | dev | 2026-11-03 | 26.13.0 | PM2 daemon and `pbot-client` on 18.20.8; nothing in cron |
+| dev (`pbot-client`) | 2026-11-04 | 26.13.0 | PM2 daemon still on 18.20.8 (expected). `pbot-client` moved to Node 26 via `craco start`, watch off |
 | prod | 2026-11-03 | 26.13.0 | PM2 daemon on 18.20.8; nothing in cron. (An earlier version of this row also listed `pbot-client`; that was wrong, because prod has no client Node process.) |
