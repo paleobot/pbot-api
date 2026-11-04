@@ -29,7 +29,8 @@ Moving PM2 itself to 26 is optional, and can wait until nothing else needs the o
 nvm use 26
 npm install -g pm2
 pm2 update                    # restarts the daemon on the new pm2/Node, keeps the process list
-pm2 unstartup && pm2 startup  # re-run the sudo command it prints; the boot script embeds the old Node path
+pm2 unstartup                 # removes the boot script, which embeds the old Node path
+pm2 startup                   # then run the sudo command it prints
 pm2 save
 ```
 `pm2 update` restarts every managed app, including `pbot-client`. Each app keeps its own stored interpreter.
@@ -37,7 +38,9 @@ pm2 save
 PM2 resolves the interpreter only at `pm2 start` and stores it. A `pm2 restart` or a watch-mode reload keeps the old interpreter. After installing a newer Node, or after updating `.nvmrc`, run:
 
 ```bash
-pm2 delete pbot-api && pm2 start ecosystem.config.cjs --only pbot-api && pm2 save
+pm2 delete pbot-api
+pm2 start ecosystem.config.cjs --only pbot-api
+pm2 save
 ```
 
 ## npm install scripts
@@ -50,50 +53,108 @@ npm also warns about `@apollo/protobufjs` and `core-js`. Neither script is neede
 
 Run the steps as the PM2 user on the server.
 
-1. Install the runtime before touching the code:
-   ```bash
-   nvm install 26
-   node -v   # expect >= v26.12.1
-   ```
-2. Update the checkout to the release that contains this change.
-   - PM2 watch mode will restart the app on the old interpreter, and the guard will exit with `pbot-api requires Node.js >= 26.12.1 ...`.
-   - This is expected. Carry straight on; the API is down until step 4.
-3. Reinstall dependencies **on Node 26**:
-   ```bash
-   cd ~/repos/pbot-api
-   nvm use            # reads .nvmrc -> 26
-   npm ci
-   node -e "require('bcrypt')"   # must print nothing
-   ```
-   Expect a lot of `npm warn deprecated ...` lines and an `install-scripts` warning about `@apollo/protobufjs`/`core-js`. They come from old transitive dependencies (Apollo Server 3 and friends) and are harmless. What matters is that `npm ci` ends without `npm error` and the bcrypt check prints nothing. They are a different thing from the runtime `DeprecationWarning`s that `--trace-deprecation` checks for (none at boot).
-4. Switch the PM2 interpreter, **running PM2 on Node 18** (see "PM2 itself runs on the old Node"):
-   ```bash
-   node -e 'console.log(require("./ecosystem.config.cjs").apps[0].interpreter)'   # expect .../v26.x/bin/node
-   nvm use 18.20.8    # the Node that has pm2 installed
-   pm2 delete pbot-api && pm2 start ecosystem.config.cjs --only pbot-api && pm2 save
-   ```
-5. Verify:
-   - `pm2 show pbot-api`: the interpreter is under `v26.*`. `pm2 logs pbot-api` shows `GraphQL server ready`.
-   - Log in from the client and save one record (an admin mutation).
-   - An anonymous mutation returns `UNAUTHENTICATED`:
-     ```bash
-     curl -s -H 'content-type: application/json' -H 'apollo-require-preflight: 1' \
-       -d '{"query":"mutation{DeleteReference(data:{pbotID:\"00000000-0000-4000-8000-000000000000\", authors:[], groups:[]}){pbotID}}"}' \
-       https://<host>/graphql
-     ```
-     Expect `"code":"UNAUTHENTICATED"` and the message `You must be logged in to do this`. A `GRAPHQL_VALIDATION_FAILED` error means the query never reached the gate, so it proves nothing.
-   - Upload an image and view it.
-6. Look for anything else on the server still using an old Node (16 or 18), and record it below:
-   ```bash
-   crontab -l; pm2 ls; ls ~/.nvm/versions/node
-   ```
+### Step 1: Install Node 26
 
-**Rollback:**
-1. Check out the previous release.
-2. Run `rm -rf node_modules && npm ci` under Node 16.17.0 (`nvm use 16.17.0`).
-3. Restart from the Node that has pm2 (`nvm use 18.20.8`): `pm2 delete pbot-api && pm2 start ecosystem.config.cjs --only pbot-api`. The old ecosystem file pins v16.17.0.
+Do this before touching the code.
 
-The old code has no guard and still uses `graphql-shield`, which works on 16. Rolling back puts the API back on an unpatched runtime, so use it only as a stopgap; the nginx `Content-Encoding: br` block stays in place.
+```bash
+nvm install 26
+node -v
+```
+
+`node -v` should print v26.12.1 or later.
+
+### Step 2: Update the checkout
+
+Pull the release that contains this change.
+
+PM2 watch mode restarts the app on the old interpreter, and the guard exits with `pbot-api requires Node.js >= 26.12.1 ...`. This is expected. Carry straight on: the API is down until step 4.
+
+### Step 3: Reinstall dependencies on Node 26
+
+```bash
+cd ~/repos/pbot-api
+nvm use
+npm ci
+node -e "require('bcrypt')"
+```
+
+`nvm use` reads `.nvmrc` and selects 26. The bcrypt check must print nothing.
+
+Expect many `npm warn deprecated ...` lines, plus an `install-scripts` warning about `@apollo/protobufjs` and `core-js`. They come from old dependencies such as Apollo Server 3 and are harmless. What matters is that `npm ci` ends without an `npm error` line.
+
+### Step 4: Switch the PM2 interpreter (PM2 runs on Node 18)
+
+First confirm the config resolves to Node 26:
+
+```bash
+node -e 'console.log(require("./ecosystem.config.cjs").apps[0].interpreter)'
+```
+
+It should print a path under `.../v26.x/bin/node`. Then switch to the Node that has pm2 installed and restart the API:
+
+```bash
+nvm use 18.20.8
+pm2 delete pbot-api
+pm2 start ecosystem.config.cjs --only pbot-api
+pm2 save
+```
+
+See "PM2 itself runs on the old Node" above for why pm2 runs on 18.
+
+### Step 5: Verify
+
+Check the interpreter and the startup log:
+
+```bash
+pm2 show pbot-api
+pm2 logs pbot-api
+```
+
+The interpreter should be under `v26.*`, and the log should show `GraphQL server ready`.
+
+Log in from the client and save one record (an admin mutation).
+
+Check that an anonymous mutation is rejected (replace `<host>`):
+
+```bash
+curl -s -H 'content-type: application/json' -H 'apollo-require-preflight: 1' -d '{"query":"mutation{DeleteReference(data:{pbotID:\"00000000-0000-4000-8000-000000000000\", authors:[], groups:[]}){pbotID}}"}' https://<host>/graphql
+```
+
+Expect `"code":"UNAUTHENTICATED"` and the message `You must be logged in to do this`. A `GRAPHQL_VALIDATION_FAILED` error means the query never reached the gate, so it proves nothing.
+
+Upload an image and view it.
+
+### Step 6: Look for other old-Node processes
+
+```bash
+crontab -l
+pm2 ls
+ls ~/.nvm/versions/node
+```
+
+Record anything still using Node 16 or 18 in the tables below.
+
+### Rollback
+
+Rolling back puts the API back on an unpatched runtime, so use it only as a stopgap; the nginx `Content-Encoding: br` block stays in place. The old code has no guard and still uses `graphql-shield`, which works on 16.
+
+Check out the previous release, then reinstall dependencies on Node 16:
+
+```bash
+nvm use 16.17.0
+rm -rf node_modules
+npm ci
+```
+
+Restart the API from the Node that has pm2. The old ecosystem file pins the interpreter to v16.17.0.
+
+```bash
+nvm use 18.20.8
+pm2 delete pbot-api
+pm2 start ecosystem.config.cjs --only pbot-api
+pm2 save
+```
 
 ## Other Node runtimes on the server
 
