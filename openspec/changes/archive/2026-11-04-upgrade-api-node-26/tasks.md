@@ -30,8 +30,8 @@
 
 ## 5. Server cutover (manual, dev first, then prod)
 
-- [ ] 5.1 On the server as the PM2 user: `nvm install 26`, update the checkout, `npm ci`, `node -e "require('bcrypt')"`
-- [ ] 5.2 `pm2 delete pbot-api && pm2 start ecosystem.config.cjs --only pbot-api && pm2 save`
-- [ ] 5.3 Verify `pm2 show pbot-api` reports Node ≥ 26.12.1
-- [ ] 5.4 Post-cutover checks: login, one admin mutation, anonymous mutation rejected, image upload and view
-- [ ] 5.5 Check whether other processes or cron jobs on the server use Node 16; record findings in the runbook
+- [x] 5.1 On the server as the PM2 user: `nvm install 26`, update the checkout, `npm ci`, `node -e "require('bcrypt')"`
+- [x] 5.2 `pm2 delete pbot-api && pm2 start ecosystem.config.cjs --only pbot-api && pm2 save`
+- [x] 5.3 Verify `pm2 show pbot-api` reports Node ≥ 26.12.1
+- [x] 5.4 Post-cutover checks: login, one admin mutation, anonymous mutation rejected, image upload and view
+- [x] 5.5 Check whether other processes or cron jobs on the server use Node 16; record findings in the runbook

@@ -167,5 +167,5 @@ pm2 save
 
 | Server | Date | Node | Other old-Node users found |
 |---|---|---|---|
-| dev | | | |
-| prod | | | |
+| dev | 2026-11-03 | 26.13.0 | PM2 daemon and `pbot-client` on 18.20.8; nothing in cron |
+| prod | 2026-11-03 | 26.13.0 | PM2 daemon and `pbot-client` on 18.20.8; nothing in cron |
