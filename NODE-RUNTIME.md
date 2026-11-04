@@ -144,7 +144,7 @@ Record anything still using Node 16 or 18 in the tables below.
 
 ### Rollback
 
-Rolling back puts the API back on an unpatched runtime, so use it only as a stopgap; the nginx `Content-Encoding: br` block stays in place. The old code has no guard and still uses `graphql-shield`, which works on 16.
+Rolling back puts the API back on an unpatched runtime, so use it only as a stopgap, and re-add the nginx `Content-Encoding: br` block first (it was removed 2026-11-04). The old code has no guard and still uses `graphql-shield`, which works on 16.
 
 Check out the previous release, then reinstall dependencies on Node 16:
 
@@ -227,16 +227,16 @@ pm2 start ecosystem.config.cjs --only pbot-client
 pm2 save
 ```
 
-While rolled back, the client is on an unpatched runtime, so the dev nginx `br` block must stay.
+While rolled back, the client is on an unpatched runtime, so re-add the dev nginx `br` block first (it was removed 2026-11-04).
 
 ## nginx `Content-Encoding: br` stopgap
 
 | Server | Node processes serving HTTP | `br` block |
 |---|---|---|
-| prod | `pbot-api` on 26 (the client is static files via nginx) | Can be removed now |
-| dev | `pbot-api` on 26, `pbot-client` dev server | Remove after the client cutover above is verified |
+| prod | `pbot-api` on 26 (the client is static files via nginx) | Removed 2026-11-04 |
+| dev | `pbot-api` on 26, `pbot-client` dev server on 26 | Removed 2026-11-04 |
 
-The nginx config lives on the servers, not in either repo.
+The nginx config lives on the servers, not in either repo. If either rollback below puts a process back on Node < 26.12.1, re-add the block on that server first.
 
 ## Other Node runtimes on the server
 
