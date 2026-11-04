@@ -25,22 +25,40 @@ PM2 evaluates the whole file even with `--only`, so a missing `.nvmrc` or a miss
 
 The `pbot-client` entry is used on the **dev host only**. Prod runs no client Node process; it serves the static build through nginx. See "pbot-client on the dev host" below.
 
-### PM2 itself runs on the old Node
+### The PM2 daemon and systemd
 
-PM2 is a global npm package, and nvm keeps global packages separately for each Node version. On the servers PM2 is installed under v18.20.8. After `nvm use 26` (or `nvm install 26`, which switches the shell), `pm2` is not on PATH.
+Since 2026-11-04, pm2 **7.1.2** is installed globally under Node 26, and the daemon runs on Node 26. nvm keeps global packages separately for each Node version, so `pm2` is on PATH only when the shell is on Node 26. `nvm alias default 26` is set on both servers, so new shells start there. **Run both npm and pm2 commands on Node 26.**
 
-That's fine. The PM2 daemon doesn't serve HTTP, and what matters for the CVE is the interpreter PM2 launches each app with (`pbot-api`, and `pbot-client` on dev), which `ecosystem.config.cjs` sets to v26. The config file uses only `fs`/`os`/`path`, so a PM2 running on Node 18 can load it. **Run npm steps on Node 26 and PM2 commands on Node 18.** To switch back, use `nvm use 18.20.8`, or call `~/.nvm/versions/node/v18.20.8/bin/pm2` directly.
+A systemd unit starts the daemon at boot:
 
-Moving PM2 itself to 26 is optional, and can wait until nothing else needs the old daemon:
+| Server | Unit | Before 2026-11-04 |
+|---|---|---|
+| dev | `/etc/systemd/system/pbot-pm2.service` (hand-named) | pm2 5.1.2 on Node 17.4.0 |
+| prod | `/etc/systemd/system/pm2-doug.service` | pm2 5.3.0 on Node 16.7.0 |
+
+Both units are `Type=forking` with `PIDFile=~/.pm2/pm2.pid` and `Restart=on-failure`, and their `PATH`, `ExecStart` (`pm2 resurrect`), `ExecReload` and `ExecStop` (`pm2 kill`) name `~/.nvm/versions/node/v26.13.0/...` directly. systemd owns the daemon, so:
+
+- **Don't use `pm2 update`.** It kills the daemon behind systemd's back. systemd then treats the service as stopped and kills its cgroup, and the replacement daemon ends up in your login session instead.
+- **Don't use `pm2 startup` / `pm2 unstartup`.** On dev, `unstartup` won't find `pbot-pm2.service`, and `startup` would add a second unit that resurrects the same apps.
+- To restart the daemon, run `sudo systemctl restart <unit>`. It resurrects from `~/.pm2/dump.pm2`, so run `pm2 save` first whenever the process list has changed.
+
+#### Moving to a newer Node 26.x (or a new pm2)
+
+systemd can't glob, so the unit pins the patch version. Saved apps also keep their stored interpreter. As the PM2 user:
+
 ```bash
-nvm use 26
-npm install -g pm2
-pm2 update                    # restarts the daemon on the new pm2/Node, keeps the process list
-pm2 unstartup                 # removes the boot script, which embeds the old Node path
-pm2 startup                   # then run the sudo command it prints
+nvm install 26                                   # e.g. v26.14.0
+npm install -g pm2@<version>                     # global packages don't carry over between Node versions
 pm2 save
+sudo cp /etc/systemd/system/<unit> ~/<unit>.pre-upgrade
+sudo systemctl stop <unit>
+sudo sed -i 's|/home/doug/.nvm/versions/node/v26.13.0/|/home/doug/.nvm/versions/node/<new>/|g' /etc/systemd/system/<unit>
+grep -E "PATH|Exec" /etc/systemd/system/<unit>   # all under <new>
+sudo systemctl daemon-reload
+sudo systemctl start <unit>
 ```
-`pm2 update` restarts every managed app, including `pbot-client` on dev. Each app keeps its own stored interpreter.
+
+Then recreate each app so it picks up the newer interpreter (see below), and run `pm2 save`. Check with `readlink /proc/$(cat ~/.pm2/pm2.pid)/exe` and `pm2 show <app>`. To roll back, stop the unit, restore the `.pre-upgrade` copy, run `daemon-reload`, and start it again.
 
 PM2 resolves the interpreter only at `pm2 start` and stores it. A `pm2 restart` or a watch-mode reload keeps the old interpreter. After installing a newer Node, or after updating `.nvmrc`, run:
 
@@ -90,7 +108,7 @@ node -e "require('bcrypt')"
 
 Expect many `npm warn deprecated ...` lines, plus an `install-scripts` warning about `@apollo/protobufjs` and `core-js`. They come from old dependencies such as Apollo Server 3 and are harmless. What matters is that `npm ci` ends without an `npm error` line.
 
-### Step 4: Switch the PM2 interpreter (PM2 runs on Node 18)
+### Step 4: Switch the PM2 interpreter
 
 First confirm the config resolves to Node 26:
 
@@ -98,16 +116,14 @@ First confirm the config resolves to Node 26:
 node -e 'console.log(require("./ecosystem.config.cjs").apps[0].interpreter)'
 ```
 
-It should print a path under `.../v26.x/bin/node`. Then switch to the Node that has pm2 installed and restart the API:
+It should print a path under `.../v26.x/bin/node`. Then restart the API from the Node that has pm2 (Node 26 since 2026-11-04; during the original cutover, pm2 was still on the old Node):
 
 ```bash
-nvm use 18.20.8
+nvm use 26
 pm2 delete pbot-api
 pm2 start ecosystem.config.cjs --only pbot-api
 pm2 save
 ```
-
-See "PM2 itself runs on the old Node" above for why pm2 runs on 18.
 
 ### Step 5: Verify
 
@@ -154,10 +170,10 @@ rm -rf node_modules
 npm ci
 ```
 
-Restart the API from the Node that has pm2. The old ecosystem file pins the interpreter to v16.17.0.
+Restart the API. pm2 lives under Node 26, and the old ecosystem file pins the interpreter to v16.17.0. Prod has v16.7.0 instead, so edit the interpreter path to match whichever 16.x the server has.
 
 ```bash
-nvm use 18.20.8
+nvm use 26
 pm2 delete pbot-api
 pm2 start ecosystem.config.cjs --only pbot-api
 pm2 save
@@ -169,7 +185,7 @@ On dev, PM2 runs the client's webpack dev server from `~/repos/pbot-api/client`,
 
 - runs `craco start` (`./node_modules/@craco/craco/dist/bin/craco.js` with `args: "start"`), so dev gets the same webpack polyfills as local `npm start` and the prod build. Before this change it ran `react-scripts/scripts/start.js` directly, without them.
 - resolves its interpreter from `client/.nvmrc` (Node 26). The client declares `engines.node >=26.12.1` but has no startup guard; `pm2 show pbot-client` is the check.
-- has `watch: false`. The pbot-client deploy (`git reset --hard origin/master` in `client/`) only changes `src/`, which webpack recompiles by itself. After a dependency change, run `npm ci` in `client/` on Node 26, then `pm2 restart pbot-client` on Node 18.
+- has `watch: false`. The pbot-client deploy (`git reset --hard origin/master` in `client/`) only changes `src/`, which webpack recompiles by itself. After a dependency change, run `npm ci` in `client/` and then `pm2 restart pbot-client`, both on Node 26.
 
 ### Client cutover runbook (dev only, one time)
 
@@ -191,8 +207,8 @@ Run as the PM2 user on dev. The order matters: `client/.nvmrc` must exist before
    PM2 watch restarts `pbot-api` with its stored config. This is harmless.
 3. **Dependencies (optional).** The Node 18-installed `client/node_modules` were verified on Node 26, so this is hygiene only. Stop the client first. `npm ci` deletes `node_modules`, and a running dev server then logs a burst of `Module build failed … ENOENT` errors into `pbot-client-out.log`. They are harmless, but they look like a failure later.
    ```bash
-   nvm use 18.20.8 && pm2 stop pbot-client
    nvm use 26
+   pm2 stop pbot-client
    cd ~/repos/pbot-api/client && npm ci
    ```
    Step 5 deletes and recreates the process, so there's no need to start it again here.
@@ -202,9 +218,9 @@ Run as the PM2 user on dev. The order matters: `client/.nvmrc` must exist before
    node -e 'require("./ecosystem.config.cjs").apps.forEach(a => console.log(a.name, a.interpreter, a.script, a.args || ""))'
    ```
    Both interpreters should be under `v26.*`, and the client script should be `…/craco/dist/bin/craco.js start`.
-5. **Recreate the client process** from the Node that has pm2. Use `delete` + `start`, because `restart` keeps the old interpreter and script. Don't use `pm2 update` or `restart all`; `pbot-api` doesn't need touching.
+5. **Recreate the client process** from the Node that has pm2 (Node 26 now; it was 18.20.8 when this cutover ran). Use `delete` + `start`, because `restart` keeps the old interpreter and script. Don't use `pm2 update` or `restart all`; `pbot-api` doesn't need touching.
    ```bash
-   nvm use 18.20.8
+   nvm use 26
    pm2 delete pbot-client
    pm2 start ecosystem.config.cjs --only pbot-client
    pm2 save
@@ -218,10 +234,10 @@ Run as the PM2 user on dev. The order matters: `client/.nvmrc` must exist before
 
 ### Client rollback
 
-Check out the previous `ecosystem.config.cjs`, and locally set the `pbot-client` interpreter to `/home/doug/.nvm/versions/node/v18.20.8/bin/node` (the old file says v16.17.0). Then:
+This needs v18.20.8 still installed on dev. Check out the previous `ecosystem.config.cjs`, and locally set the `pbot-client` interpreter to `/home/doug/.nvm/versions/node/v18.20.8/bin/node` (the old file says v16.17.0). Then:
 
 ```bash
-nvm use 18.20.8
+nvm use 26
 pm2 delete pbot-client
 pm2 start ecosystem.config.cjs --only pbot-client
 pm2 save
@@ -242,13 +258,19 @@ The nginx config lives on the servers, not in either repo. If either rollback be
 
 | Process | Server | Node | Status |
 |---|---|---|---|
-| PM2 daemon | dev, prod | 18.20.8 | Fine for now: it doesn't serve HTTP. Optionally move it to 26 (above). |
-| `pbot-client` (PM2) | dev only | 18.20.8 → 26 | Moved by pbot-client change `upgrade-client-node-26`; see "pbot-client on the dev host". |
+| PM2 daemon | dev, prod | 26.13.0 | pm2 7.1.2 under systemd since 2026-11-04 (see "The PM2 daemon and systemd"). |
+| `pbot-client` (PM2) | dev only | 26.13.0 | Moved by pbot-client change `upgrade-client-node-26`; see "pbot-client on the dev host". |
+
+Old nvm installs that nothing uses any more can be removed with `nvm uninstall` once each server has rebooted cleanly on the new unit. On dev that includes v17.4.0 and v18.20.8; on prod, v16.7.0, v18.20.8 and v20.20.2. Before removing one, check that `grep -l "v1[6-8]\.\|v20\." ~/.pm2/dump.pm2 /etc/systemd/system/*.service` and `crontab -l` don't reference it.
 
 ## Cutover log
 
 | Server | Date | Node | Other old-Node users found |
 |---|---|---|---|
 | dev | 2026-11-03 | 26.13.0 | PM2 daemon and `pbot-client` on 18.20.8; nothing in cron |
-| dev (`pbot-client`) | 2026-11-04 | 26.13.0 | PM2 daemon still on 18.20.8 (expected). `pbot-client` moved to Node 26 via `craco start`, watch off |
+| dev (`pbot-client`) | 2026-11-04 | 26.13.0 | `pbot-client` moved to Node 26 via `craco start`, watch off |
+| dev (PM2 daemon) | 2026-11-04 | 26.13.0 | `pbot-pm2.service` moved from pm2 5.1.2 on Node 17.4.0 to pm2 7.1.2 on Node 26 |
+| prod (PM2 daemon) | 2026-11-04 | 26.13.0 | `pm2-doug.service` moved from pm2 5.3.0 on Node 16.7.0 to pm2 7.1.2 on Node 26. Removed the stray pm2 7.0.1 from v20.20.2 |
 | prod | 2026-11-03 | 26.13.0 | PM2 daemon on 18.20.8; nothing in cron. (An earlier version of this row also listed `pbot-client`; that was wrong, because prod has no client Node process.) |
+
+The 2026-11-03 rows say the PM2 daemon was on 18.20.8. That was wrong. As found on 2026-11-04, on dev only the pm2 CLI was under 18.20.8 and the daemon ran on 17.4.0. On prod, both the CLI and the daemon were on 16.7.0, with no pm2 under 18.20.8.
