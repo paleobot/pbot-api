@@ -175,15 +175,18 @@ On dev, PM2 runs the client's webpack dev server from `~/repos/pbot-api/client`,
 
 Run as the PM2 user on dev. The order matters: `client/.nvmrc` must exist before pbot-api's new ecosystem file is used.
 
-1. **Deploy the client first.** Push the pbot-client release containing `.nvmrc` to `master` (the deploy workflow updates `client/`), then confirm:
+1. **Update the client first.** Pull the pbot-client branch under test (`ddm-dev`) into `client/`, then confirm `.nvmrc` is there:
    ```bash
-   cat ~/repos/pbot-api/client/.nvmrc      # 26
+   cd ~/repos/pbot-api/client
+   git pull origin ddm-dev
+   cat .nvmrc      # 26
    ```
-2. **Update pbot-api.** The server's checkout had an uncommitted edit pinning the client interpreter to v18.20.8. Discard it, then pull:
+   Once `master` is fast-forwarded, the deploy workflow keeps `client/` on `master` (`git reset --hard origin/master`).
+2. **Update pbot-api.** The server's checkout had an uncommitted edit pinning the client interpreter to v18.20.8. Discard it, then pull the same branch:
    ```bash
    cd ~/repos/pbot-api
    git checkout -- ecosystem.config.cjs
-   git pull
+   git pull origin ddm-dev
    ```
    PM2 watch restarts `pbot-api` with its stored config. This is harmless.
 3. **Dependencies (optional).** The Node 18-installed `client/node_modules` were verified on Node 26, so this is hygiene only:
