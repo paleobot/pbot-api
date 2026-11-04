@@ -10,7 +10,7 @@ A smoke test on Node 26.13.0 (2026-11-03) found exactly one blocker. `graphql-sh
 - Fix the latent gap where an `undefined` (rather than `null`) `ctx.user` passed `isAuthenticated`.
 - **BREAKING (error shape only):** unauthorized mutations return Apollo `UNAUTHENTICATED` / `FORBIDDEN` errors instead of shield's `"Not Authorised!"` with code `INTERNAL_SERVER_ERROR`. `pbot-client` does not match on the old message.
 - Declare the runtime baseline: `"engines": {"node": ">=26.12.1"}` and `.nvmrc` (`26`).
-- Fix `ecosystem.config.cjs` so the `pbot-api` entry no longer hard-codes `/home/doug/.nvm/versions/node/v16.17.0/bin/node`. The `pbot-client` entry is out of scope (the client is served as built HTML).
+- Fix `ecosystem.config.cjs` so the `pbot-api` entry no longer hard-codes `/home/doug/.nvm/versions/node/v16.17.0/bin/node`. The `pbot-client` runtime is out of scope. It runs under PM2 on Node 18.20.8 (not from this file's v16 entry), which is still in the affected range; it is deferred to a separate change, and the nginx `br` block stays in place until then.
 - Add a startup guard in `index.js` that refuses to start the API on Node older than 26.12.1. Deploys are manual, so the process itself is the only reliable place to enforce this. The guard checks `process.versions.node`, **not** `process.versions.brotli`, because 26.13.0 still reports Brotli `1.2.0`.
 - Handle npm 11's install-script approval for `bcrypt` (plus `@apollo/protobufjs` and `core-js`) so `npm ci` reliably produces a working native binding.
 - Document a one-time server cutover runbook for dev and prod. PM2 keeps its interpreter across restarts, so updating the code alone does not change the runtime.

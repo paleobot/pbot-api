@@ -82,7 +82,7 @@ npm 11 warns that `bcrypt`, `@apollo/protobufjs` and `core-js` install scripts a
 - [PM2 keeps running Node 16 after the code is updated] → The startup guard refuses to boot, so the API is down with a clear log message rather than silently running unpatched. The cutover runbook installs Node 26 and switches the interpreter in the same session as the code update, so the downtime window is minutes.
 - [The guard turns a forgotten runtime step into an outage] → Accepted, deliberately: an unpatched runtime is the thing this change exists to prevent. The runbook orders the steps so the guard should never fire during a normal cutover.
 - [Apollo Server 3 is EOL] → Accepted for now; it ran cleanly on 26. Revisit separately.
-- [`nodemailer` send was not exercised] → It's pure JS and loads fine. Add a password-reset email check to the post-cutover verification.
+- [`nodemailer` send was not exercised] → It's pure JS and loads fine on 26. Its only caller is the password-reset flow, which is not in use, so there's nothing to verify after cutover.
 
 ## Migration Plan
 
@@ -92,7 +92,7 @@ Run the same steps on dev first, then on prod, as the PM2 user:
 2. Update the checkout to the release containing this change. PM2 watch mode restarts on the old interpreter, and the startup guard exits. That is expected; continue straight on.
 3. `cd repos/pbot-api && npm ci` → `node -e "require('bcrypt')"`.
 4. Update/confirm the interpreter path → `pm2 delete pbot-api && pm2 start ecosystem.config.cjs --only pbot-api && pm2 save`.
-5. Verify: `pm2 show pbot-api` shows Node ≥ 26.12.1; login; one admin mutation; an anonymous mutation returns `UNAUTHENTICATED`; image upload and view; password-reset email.
+5. Verify: `pm2 show pbot-api` shows Node ≥ 26.12.1; login; one admin mutation; an anonymous mutation returns `UNAUTHENTICATED`; image upload and view.
 6. **Rollback:** check out the previous release, point the interpreter back to v16.17.0, and reinstall `node_modules` from the old lockfile. The old `graphql-shield` code works on 16, and the old code has no guard.
 
 ## Open Questions
