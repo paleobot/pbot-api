@@ -261,7 +261,92 @@ The nginx config lives on the servers, not in either repo. If either rollback be
 | PM2 daemon | dev, prod | 26.13.0 | pm2 7.1.2 under systemd since 2026-11-04 (see "The PM2 daemon and systemd"). |
 | `pbot-client` (PM2) | dev only | 26.13.0 | Moved by pbot-client change `upgrade-client-node-26`; see "pbot-client on the dev host". |
 
-Old nvm installs that nothing uses any more can be removed with `nvm uninstall` once each server has rebooted cleanly on the new unit. On dev that includes v17.4.0 and v18.20.8; on prod, v16.7.0, v18.20.8 and v20.20.2. Before removing one, check that `grep -l "v1[6-8]\.\|v20\." ~/.pm2/dump.pm2 /etc/systemd/system/*.service` and `crontab -l` don't reference it.
+Old Node versions are still installed on both servers as a rollback path. See "Post-bake cleanup" below.
+
+## Post-bake cleanup (pending)
+
+Both servers have run on Node 26, with pm2 7.1.2 under systemd, since 2026-11-04, and both rebooted cleanly. The old Node versions and the `.pre-v26` backups were kept as a rollback path. When you're confident, remove them as below. **After this, none of the rollback sections in this file can work.**
+
+Run each command on its own, as `doug`.
+
+### 1. Make sure nothing still uses them (both servers)
+
+```bash
+nvm use 26
+```
+```bash
+ls ~/.nvm/versions/node
+```
+```bash
+grep -l "v1[6-8]\.\|v20\." ~/.pm2/dump.pm2 /etc/systemd/system/*.service
+```
+This should print nothing.
+```bash
+crontab -l
+```
+This should show no `nvm` or `node` lines, or "no crontab".
+```bash
+cat ~/.nvm/alias/default
+```
+This should print `26`.
+
+If any check fails, stop and find out what still uses the old version.
+
+### 2. Remove the old Node versions
+
+`nvm uninstall` won't remove the version your shell is using, which is why step 1 runs `nvm use 26`. Remove every version that step 1's `ls` showed, except v26.x.
+
+**dev** (as of 2026-11-04: v17.4.0, v18.20.8, and anything else `ls` shows):
+```bash
+nvm uninstall 17.4.0
+```
+```bash
+nvm uninstall 18.20.8
+```
+
+**prod** (as of 2026-11-04: v16.7.0, v18.20.8, v20.20.2):
+```bash
+nvm uninstall 16.7.0
+```
+```bash
+nvm uninstall 18.20.8
+```
+```bash
+nvm uninstall 20.20.2
+```
+
+### 3. Remove the backups
+
+**Both servers:**
+```bash
+rm ~/.pm2/dump.pm2.pre-v26
+```
+**dev:**
+```bash
+rm ~/pbot-pm2.service.pre-v26
+```
+**prod:**
+```bash
+rm ~/pm2-doug.service.pre-v26
+```
+
+### 4. Check (both servers)
+
+```bash
+ls ~/.nvm/versions/node
+```
+This should show only v26.x.
+```bash
+pm2 ls
+```
+Everything should still be `online`.
+
+### 5. Update this file
+
+- Remove the rollback sections that need old Node: "Rollback" under the API cutover runbook, and "Client rollback".
+- Drop the "re-add the block if a rollback…" sentence from the nginx section.
+- Add a cutover-log row for each server's cleanup.
+- Remove this section, or mark it done.
 
 ## Cutover log
 
