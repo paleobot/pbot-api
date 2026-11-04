@@ -2,12 +2,18 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-// pbot-api runs on the newest nvm-installed Node matching the major version in
-// .nvmrc, so this file never pins a patch version. PM2 resolves this only at
-// `pm2 start`; after installing a newer Node, `pm2 delete pbot-api && pm2 start
-// ecosystem.config.cjs --only pbot-api`. index.js refuses to boot on Node < 26.12.1.
-const apiNode = () => {
-  const major = fs.readFileSync(path.join(__dirname, ".nvmrc"), "utf8").trim().replace(/^v/, "");
+// Each app runs on the newest nvm-installed Node matching the major version in
+// its own .nvmrc (pbot-api: ./.nvmrc, pbot-client: ./client/.nvmrc), so this
+// file never pins a patch version. PM2 resolves the interpreter only at
+// `pm2 start`; after installing a newer Node or changing an .nvmrc,
+// `pm2 delete <app> && pm2 start ecosystem.config.cjs --only <app>`.
+// PM2 evaluates this whole file even with --only, so a missing .nvmrc or Node
+// major for either app stops both from starting. index.js refuses to boot on
+// Node < 26.12.1. See NODE-RUNTIME.md.
+const nvmNode = (dir) => {
+  const nvmrc = path.join(dir, ".nvmrc");
+  if (!fs.existsSync(nvmrc)) throw new Error(`No .nvmrc at ${nvmrc}; cannot choose a Node version`);
+  const major = fs.readFileSync(nvmrc, "utf8").trim().replace(/^v/, "");
   const nodeDir = path.join(os.homedir(), ".nvm", "versions", "node");
   const parse = (v) => v.slice(1).split(".").map(Number);
   const newest = fs.readdirSync(nodeDir)
@@ -26,13 +32,18 @@ module.exports = {
     name   : "pbot-api",
     script : "./index.js",
     cwd: ".",
-    interpreter: apiNode(),
+    interpreter: nvmNode(__dirname),
     watch: true
   }, {
+    // Dev host only (prod serves the static build via nginx). Runs through
+    // CRACO so dev gets the same webpack polyfills as `npm start` and the prod
+    // build. watch is off: webpack recompiles src/ changes itself; dependency
+    // changes need `npm ci` + `pm2 restart pbot-client`.
     name   : "pbot-client",
-    script : "./node_modules/react-scripts/scripts/start.js",
+    script : "./node_modules/@craco/craco/dist/bin/craco.js",
+    args: "start",
     cwd: "./client",
-    interpreter: "/home/doug/.nvm/versions/node/v16.17.0/bin/node",
-    watch: true
+    interpreter: nvmNode(path.join(__dirname, "client")),
+    watch: false
   }]
 }
