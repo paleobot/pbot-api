@@ -269,8 +269,8 @@ Old nvm installs that nothing uses any more can be removed with `nvm uninstall` 
 |---|---|---|---|
 | dev | 2026-11-03 | 26.13.0 | PM2 daemon and `pbot-client` on 18.20.8; nothing in cron |
 | dev (`pbot-client`) | 2026-11-04 | 26.13.0 | `pbot-client` moved to Node 26 via `craco start`, watch off |
-| dev (PM2 daemon) | 2026-11-04 | 26.13.0 | `pbot-pm2.service` moved from pm2 5.1.2 on Node 17.4.0 to pm2 7.1.2 on Node 26 |
-| prod (PM2 daemon) | 2026-11-04 | 26.13.0 | `pm2-doug.service` moved from pm2 5.3.0 on Node 16.7.0 to pm2 7.1.2 on Node 26. Removed the stray pm2 7.0.1 from v20.20.2 |
+| dev (PM2 daemon) | 2026-11-04 | 26.13.0 | `pbot-pm2.service` moved from pm2 5.1.2 on Node 17.4.0 to pm2 7.1.2 on Node 26. Reboot verified 2026-11-04 |
+| prod (PM2 daemon) | 2026-11-04 | 26.13.0 | `pm2-doug.service` moved from pm2 5.3.0 on Node 16.7.0 to pm2 7.1.2 on Node 26. Removed the stray pm2 7.0.1 from v20.20.2. Reboot verified 2026-11-04 |
 | prod | 2026-11-03 | 26.13.0 | PM2 daemon on 18.20.8; nothing in cron. (An earlier version of this row also listed `pbot-client`; that was wrong, because prod has no client Node process.) |
 
 The 2026-11-03 rows say the PM2 daemon was on 18.20.8. That was wrong. As found on 2026-11-04, on dev only the pm2 CLI was under 18.20.8 and the daemon ran on 17.4.0. On prod, both the CLI and the daemon were on 16.7.0, with no pm2 under 18.20.8.
