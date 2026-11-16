@@ -5,9 +5,7 @@ Caller-side group-membership verification on write paths whose `groups` input is
 ## Purpose
 
 `permissions.js` enforces only `isAuthenticated && isAdmin` on every mutation. "Admin" is a global role, not per-group. Without an additional in-resolver check, an authenticated admin could create or move content into groups they don't belong to. This capability captures the requirement that `mutateNode` (`Resolvers.js`) verify caller `MEMBER_OF` membership against the requested group set, in the same Neo4j write transaction as the mutation itself, on the two write paths where `data.groups` is caller-controlled (top-level entity creation and `groupCascade` updates).
-
 ## Requirements
-
 ### Requirement: Caller MUST be a member of every group named in caller-supplied `groups` on top-level entity creation
 
 For mutations that create new top-level entities of a node type whose `groups` input is caller-controlled — namely `OTU`, `Description`, `Reference`, `Schema`, `Collection`, `Synonym`, `Comment` — the system SHALL verify that the calling user has a `MEMBER_OF` edge to every `Group` named in the caller-supplied `groups: [String]` argument before any `ELEMENT_OF` edge is written.
@@ -101,3 +99,77 @@ The `ValidationError` message raised on a failed membership check SHALL list onl
 - **WHEN** the mutation fails the membership check
 - **THEN** the error message names `B` and `C` (the unauthorized supplied IDs)
 - **AND** the error message MUST NOT name any other group ID the caller is or is not a member of
+
+### Requirement: Caller MUST share at least one group with the target of a delete
+
+For every delete mutation resolved through `mutateNode` with type `"delete"`, the system SHALL verify that the calling user has a `MEMBER_OF` edge to at least one `Group` that the target node is `ELEMENT_OF`. This covers `DeleteReference`, `DeleteSchema`, `DeleteCharacter`, `DeleteState`, `DeleteDescription`, `DeleteCharacterInstance`, `DeleteOTU`, `DeleteSynonym`, `DeleteComment`, `DeleteSpecimen`, `DeleteCollection`, `DeleteGroup` and `DeleteImage`.
+
+The target's group set SHALL be read from the database by the target's `pbotID` inside the same write transaction as the delete. Caller-supplied `groups` input SHALL NOT be used.
+
+For a `Comment` target, the group set SHALL be that of the root of its `REFERS_TO` chain, meaning the first node reached that is not a `Comment`.
+
+If the target has no group set (including a Comment whose chain has no root, or whose root has no `ELEMENT_OF`), the delete SHALL be rejected.
+
+The check SHALL run before blocking relationships are evaluated and before any write. On failure, the mutation SHALL fail with a `ValidationError`, and no label change, archived relationship, `ENTERED_BY {type:"DELETE"}` edge or cascaded child delete SHALL be persisted.
+
+Records in the `public` group receive no special treatment: any member of `public` satisfies the check for them.
+
+#### Scenario: Caller shares no group with a private record — delete rejected
+
+- **GIVEN** a calling user `U` who is `MEMBER_OF` group `A` only, and a `Schema` `S` that is `ELEMENT_OF` group `B` only
+- **WHEN** `U` invokes `DeleteSchema` on `S`
+- **THEN** the mutation MUST fail with a `ValidationError`
+- **AND** `S` MUST still carry the `Schema` label with its `ELEMENT_OF` edge to `B`, and no `ENTERED_BY {type:"DELETE"}` edge MUST exist
+
+#### Scenario: Caller shares one of several groups — delete succeeds
+
+- **GIVEN** a calling user `U` who is `MEMBER_OF` group `A` only, and an `OTU` `O` that is `ELEMENT_OF` groups `A` and `B`
+- **WHEN** `U` invokes `DeleteOTU` on `O` and `O` has no blocking relationships
+- **THEN** the mutation MUST succeed and `O` MUST be soft-deleted
+
+#### Scenario: Public record — any public member may delete
+
+- **GIVEN** a calling user `U` who is `MEMBER_OF` `public`, and a `Reference` `R` that is `ELEMENT_OF` `public` only
+- **WHEN** `U` invokes `DeleteReference` on `R` and `R` has no blocking relationships
+- **THEN** the mutation MUST succeed
+
+#### Scenario: Caller-supplied groups are ignored
+
+- **GIVEN** a calling user `U` who is `MEMBER_OF` group `A` only, and a `Collection` `C` that is `ELEMENT_OF` group `B` only
+- **WHEN** `U` invokes `DeleteCollection` on `C` with `groups: [A.pbotID]` in the input
+- **THEN** the mutation MUST fail with a `ValidationError`
+
+#### Scenario: Comment checked against its root Synonym
+
+- **GIVEN** a calling user `U` who is `MEMBER_OF` group `A` only, a `Synonym` `Y` that is `ELEMENT_OF` group `B` only, and a `Comment` `K2` that `REFERS_TO` a `Comment` `K1` that `REFERS_TO` `Y`
+- **WHEN** `U` invokes `DeleteComment` on `K2`
+- **THEN** the mutation MUST fail with a `ValidationError`
+
+#### Scenario: Record with no groups — fail closed
+
+- **GIVEN** a `Specimen` `P` with no `ELEMENT_OF` edges
+- **WHEN** any caller invokes `DeleteSpecimen` on `P`
+- **THEN** the mutation MUST fail with a `ValidationError`
+
+#### Scenario: Group delete requires membership in that group
+
+- **GIVEN** a calling user `U` who is not `MEMBER_OF` group `G`
+- **WHEN** `U` invokes `DeleteGroup` on `G`
+- **THEN** the mutation MUST fail with a `ValidationError`
+
+### Requirement: Internal cascade deletes MUST NOT re-run the delete group check
+
+When `mutateNode` recurses into cascade children during a delete with `cascade: true`, it SHALL mark the child call with a server-only `deleteCascade` flag, and the delete group check SHALL be skipped for calls carrying that flag. The flag SHALL NOT be declared in any GraphQL input type, so callers cannot set it.
+
+#### Scenario: Cascade delete of a Collection removes its Specimens
+
+- **GIVEN** a calling user `U` who is `MEMBER_OF` group `A`, and a `Collection` `C` in `A` with `Specimen`s `P1` and `P2` collected in it
+- **WHEN** `U` invokes `DeleteCollection` on `C` with `cascade: true`
+- **THEN** the group check MUST run once, for `C`
+- **AND** `C`, `P1` and `P2` MUST all be soft-deleted
+
+#### Scenario: Caller cannot set the cascade flag
+
+- **WHEN** a caller invokes `DeleteSchema` with `deleteCascade: true` in the input
+- **THEN** the request MUST be rejected by GraphQL input validation as an unknown field
+
