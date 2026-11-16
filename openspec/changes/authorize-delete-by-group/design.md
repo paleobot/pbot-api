@@ -45,7 +45,7 @@ The exact Cypher is an implementation detail. The required outcomes are:
 
 Use driver parameters only; no interpolation (consistent with the `mutation-input-safety` direction).
 
-The node is matched by `pbotID` without a label, so labels can't be injected and the query works for every type. `pbotID` is already UUID-checked by `assertMutationIDs`.
+The node is matched by its live label plus `pbotID` (`MATCH (scope:${nodeType} {pbotID: $pbotID})`). `nodeType` is fixed per resolver, never taken from input, so interpolating it is safe, the same exception `isDuplicate` makes. The label means a soft-deleted node (`_Schema`) or an ID of the wrong type finds nothing and fails closed, and the lookup doesn't scan every node. `pbotID` is a parameter and is already UUID-checked by `assertMutationIDs`.
 
 ### Comment: check the root Synonym
 For `nodeType === "Comment"`, follow `(c)-[:REFERS_TO*1..100]->(root)` where `root` is not a `Comment`, and use the root's `ELEMENT_OF` groups. The 1..100 bound matches `GetAllComments`. If there's no root, or the root has no groups, fail closed.

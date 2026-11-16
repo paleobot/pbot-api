@@ -23,16 +23,16 @@
 
 ## 2. Implementation (`Resolvers.js`)
 
-- [ ] 2.1 Add `assertCallerCanDelete(tx, callerPbotID, pbotID, nodeType)` next to `assertCallerCanWriteGroups`. Use one parameterized query: resolve target groups (root of `REFERS_TO*1..100` for Comment), fail closed when none, otherwise require at least one shared `MEMBER_OF`. Throw a `ValidationError` naming the node type
-- [ ] 2.2 In `mutateNode`'s `"delete"` case, call it first (before `getRelationships`) unless `data.deleteCascade` is set
-- [ ] 2.3 In the cascade loop, add `deleteCascade: true` to the object passed to the recursive `mutateNode` call, with a comment that the flag is server-only and must never be added to `schema.graphql`
+- [x] 2.1 Add `assertCallerCanDelete(tx, callerPbotID, pbotID, nodeType)` next to `assertCallerCanWriteGroups`. Use one parameterized query: resolve target groups (root of `REFERS_TO*1..100` for Comment), fail closed when none, otherwise require at least one shared `MEMBER_OF`. Throw a `ValidationError` naming the node type
+- [x] 2.2 In `mutateNode`'s `"delete"` case, call it first (before `getRelationships`) unless `data.deleteCascade` is set
+- [x] 2.3 In the cascade loop, add `deleteCascade: true` to the object passed to the recursive `mutateNode` call, with a comment that the flag is server-only and must never be added to `schema.graphql`
 
 ## 3. Verify (manual, no automated suite)
 
-- [ ] 3.1 Delete a private record in a group you belong to → succeeds
-- [ ] 3.2 As a user outside a private record's groups, delete it → `ValidationError`, and the record is still visible to its group members with no `DELETE` history entry
-- [ ] 3.3 Delete a public record as an ordinary public member → succeeds
-- [ ] 3.4 Cascade-delete a Collection that has Specimens → all soft-deleted, server log shows one group check
-- [ ] 3.5 Delete a Comment on a Synonym in a group you're not in → `ValidationError`
-- [ ] 3.6 Send `deleteCascade: true` in a delete input → GraphQL rejects the unknown field
-- [ ] 3.7 In `pbot-client`, confirm the delete-denied message appears in the mutate results view
+- [x] 3.1 Delete a private record in a group you belong to → succeeds
+- [x] 3.2 As a user outside a private record's groups, delete it → `ValidationError`, and the record is still visible to its group members with no `DELETE` history entry
+- [x] 3.3 Delete a public record as an ordinary public member → succeeds
+- [x] 3.4 Cascade-delete a Collection that has Specimens → all soft-deleted, server log shows one group check
+- [x] 3.5 Delete a Comment on a Synonym in a group you're not in → `ValidationError`
+- [x] 3.6 Send `deleteCascade: true` in a delete input → GraphQL rejects the unknown field
+- [x] 3.7 In `pbot-client`, confirm the delete-denied message appears in the mutate results view

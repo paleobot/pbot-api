@@ -73,6 +73,37 @@ const assertCallerCanWriteGroups = async (session, callerPbotID, requestedGroupI
     }
 };
 
+//Delete authorization (openspec change authorize-delete-by-group): the caller must be
+//MEMBER_OF at least one Group the target is ELEMENT_OF. Groups are read from the
+//database, never from input. Comments have no groups, so they are checked against
+//the root (first non-Comment node) of their REFERS_TO chain. No groups → reject.
+//nodeType is server-chosen (fixed per resolver), so interpolating it as a label is safe;
+//matching on the live label means soft-deleted (_Type) nodes never authorize.
+const assertCallerCanDelete = async (session, callerPbotID, pbotID, nodeType) => {
+    const scopeMatch = "Comment" === nodeType ?
+        `MATCH (:Comment {pbotID: $pbotID})-[:REFERS_TO*1..100]->(scope)
+         WHERE NOT scope:Comment
+         WITH DISTINCT scope` :
+        `MATCH (scope:${nodeType} {pbotID: $pbotID})`;
+    const result = await session.run(
+        `${scopeMatch}
+         OPTIONAL MATCH (scope)-[:ELEMENT_OF]->(g:Group)
+         OPTIONAL MATCH (g)<-[m:MEMBER_OF]-(:Person {pbotID: $callerPbotID})
+         RETURN count(DISTINCT g) AS groupCount, count(m) AS sharedCount`,
+        {pbotID, callerPbotID}
+    );
+    const record = result.records[0];
+    const groupCount = record ? record.get("groupCount").toNumber() : 0;
+    const sharedCount = record ? record.get("sharedCount").toNumber() : 0;
+    console.log(`delete group check: ${nodeType} ${pbotID} groups=${groupCount} shared=${sharedCount}`);
+    if (groupCount === 0) {
+        throw new ValidationError(`${nodeType} has no group to authorize this delete against`);
+    }
+    if (sharedCount === 0) {
+        throw new ValidationError(`Caller is not a member of any group this ${nodeType} belongs to`);
+    }
+};
+
 //Image files are written before mutateNode runs, and Image is not a
 //caller-controlled group type, so file writes need their own check: the caller
 //must belong to a group the target Specimen is in. Unknown specimen → forbidden.
@@ -1075,8 +1106,14 @@ const mutateNode = async (context, nodeType, data, type) => {
                     const pbotID = data.pbotID;
                     const enteredByPersonID = data.enteredByPersonID;
                     const cascade = data.cascade || false;
-                   
-                    console.log(cascade ? 
+
+                    //Group authorization first, before any relationship lookup or write.
+                    //Skipped for server-internal cascade children (checked once on the parent).
+                    if (!data.deleteCascade) {
+                        await assertCallerCanDelete(tx, context.user.pbotID, pbotID, nodeType);
+                    }
+
+                    console.log(cascade ?
                             schemaDeleteMap[nodeType].blockingRelationships : 
                             [...schemaDeleteMap[nodeType].blockingRelationships, ...schemaDeleteMap[nodeType].cascadeRelationships]);
                     const blockingRelationships = await getRelationships(
@@ -1102,7 +1139,9 @@ const mutateNode = async (context, nodeType, data, type) => {
                             console.log(remoteNodes);
                             await Promise.all(remoteNodes.map(node => {
                                 console.log(node);
-                                return mutateNode(context, node.nodeType, {pbotID: node.pbotID, enteredByPersonID: enteredByPersonID, cascade: cascade}, "delete")
+                                //deleteCascade is server-only, like groupCascade: it must NEVER be added to
+                                //an input type in schema.graphql, or callers could skip the delete group check.
+                                return mutateNode(context, node.nodeType, {pbotID: node.pbotID, enteredByPersonID: enteredByPersonID, cascade: cascade, deleteCascade: true}, "delete")
                             })).catch(error => {
                                 console.log(error);
                                 throw new ValidationError(`Unable to cascade delete ${nodeType}`);
