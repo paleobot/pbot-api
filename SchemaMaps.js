@@ -182,13 +182,13 @@ export const schemaDeleteMap = {
             direction: "out"
         }, {
             type: "IDENTIFIED_AS",
-            direction: "out"
+            direction: "in"
         }, {
             type: "TYPE_OF",
-            direction: "out",
+            direction: "in",
         }, {
             type: "HOLOTYPE_OF",
-            direction: "out",
+            direction: "in",
         }, {
             type: "ELEMENT_OF",
             direction: "out"
