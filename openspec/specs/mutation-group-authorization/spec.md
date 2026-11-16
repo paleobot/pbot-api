@@ -1,10 +1,14 @@
 # mutation-group-authorization
 
-Caller-side group-membership verification on write paths whose `groups` input is caller-controlled, so a user cannot cause writes to land in or move content into groups they are not a member of.
+Caller-side group-membership verification on write paths whose `groups` input is caller-controlled, so a user cannot cause writes to land in or move content into groups they are not a member of, and on deletes, so a user cannot delete content from groups they share none of.
 
 ## Purpose
 
-`permissions.js` enforces only `isAuthenticated && isAdmin` on every mutation. "Admin" is a global role, not per-group. Without an additional in-resolver check, an authenticated admin could create or move content into groups they don't belong to. This capability captures the requirement that `mutateNode` (`Resolvers.js`) verify caller `MEMBER_OF` membership against the requested group set, in the same Neo4j write transaction as the mutation itself, on the two write paths where `data.groups` is caller-controlled (top-level entity creation and `groupCascade` updates).
+`permissions.js` enforces only `isAuthenticated && isAdmin` on every mutation. "Admin" is a global role, not per-group. Without an additional in-resolver check, an authenticated admin could create or move content into groups they don't belong to, or delete content from any group. This capability captures the requirement that `mutateNode` (`Resolvers.js`) verify caller `MEMBER_OF` membership, in the same Neo4j write transaction as the mutation itself:
+
+- on the two write paths where `data.groups` is caller-controlled (top-level entity creation and `groupCascade` updates), against the requested group set;
+- on deletes, against the target's current `ELEMENT_OF` groups read from the database (for a Comment, those of the root of its `REFERS_TO` chain). The caller must share at least one; records with no group fail closed. Added by `authorize-delete-by-group` (2026-11-16).
+
 ## Requirements
 ### Requirement: Caller MUST be a member of every group named in caller-supplied `groups` on top-level entity creation
 
