@@ -29,6 +29,6 @@
 ## 5. Coordinated deploy
 
 - [x] 5.1 Commit the API and client changes on their `ddm-dev` branches and push both
-- [ ] 5.2 Dev: pull the API (PM2 restarts it) and deploy the client in the same session
-- [ ] 5.3 Dev smoke test: delete the null-`purpose` Schema that failed before, try a cascade delete, delete a CharacterInstance, and check that a delete outside your groups is refused
+- [x] 5.2 Dev: pull the API (PM2 restarts it) and deploy the client in the same session
+- [x] 5.3 Dev smoke test: delete the null-`purpose` Schema that failed before, try a cascade delete, delete a CharacterInstance, and check that a delete outside your groups is refused
 - [ ] 5.4 Prod: deploy the API and client together and repeat the smoke test
