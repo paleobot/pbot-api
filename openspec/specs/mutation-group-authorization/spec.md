@@ -8,7 +8,6 @@ Caller-side group-membership verification on write paths whose `groups` input is
 
 - on the two write paths where `data.groups` is caller-controlled (top-level entity creation and `groupCascade` updates), against the requested group set;
 - on deletes, against the target's current `ELEMENT_OF` groups read from the database (for a Comment, those of the root of its `REFERS_TO` chain). The caller must share at least one; records with no group fail closed. Added by `authorize-delete-by-group` (2026-11-16).
-
 ## Requirements
 ### Requirement: Caller MUST be a member of every group named in caller-supplied `groups` on top-level entity creation
 
@@ -114,7 +113,7 @@ For a `Comment` target, the group set SHALL be that of the root of its `REFERS_T
 
 If the target has no group set (including a Comment whose chain has no root, or whose root has no `ELEMENT_OF`), the delete SHALL be rejected.
 
-The check SHALL run before blocking relationships are evaluated and before any write. On failure, the mutation SHALL fail with a `ValidationError`, and no label change, archived relationship, `ENTERED_BY {type:"DELETE"}` edge or cascaded child delete SHALL be persisted.
+The check SHALL run before blocking relationships are evaluated and before any write. On failure, the mutation SHALL fail with a `ValidationError`, and no label change, archived relationship, `type:"DELETE"` audit edge (archived as `_ENTERED_BY`) or cascaded child delete SHALL be persisted.
 
 Records in the `public` group receive no special treatment: any member of `public` satisfies the check for them.
 
@@ -123,7 +122,7 @@ Records in the `public` group receive no special treatment: any member of `publi
 - **GIVEN** a calling user `U` who is `MEMBER_OF` group `A` only, and a `Schema` `S` that is `ELEMENT_OF` group `B` only
 - **WHEN** `U` invokes `DeleteSchema` on `S`
 - **THEN** the mutation MUST fail with a `ValidationError`
-- **AND** `S` MUST still carry the `Schema` label with its `ELEMENT_OF` edge to `B`, and no `ENTERED_BY {type:"DELETE"}` edge MUST exist
+- **AND** `S` MUST still carry the `Schema` label with its `ELEMENT_OF` edge to `B`, and no `ENTERED_BY` or `_ENTERED_BY` edge with `type:"DELETE"` MUST exist on `S`
 
 #### Scenario: Caller shares one of several groups — delete succeeds
 
@@ -137,11 +136,12 @@ Records in the `public` group receive no special treatment: any member of `publi
 - **WHEN** `U` invokes `DeleteReference` on `R` and `R` has no blocking relationships
 - **THEN** the mutation MUST succeed
 
-#### Scenario: Caller-supplied groups are ignored
+#### Scenario: Caller cannot supply groups on delete
 
 - **GIVEN** a calling user `U` who is `MEMBER_OF` group `A` only, and a `Collection` `C` that is `ELEMENT_OF` group `B` only
 - **WHEN** `U` invokes `DeleteCollection` on `C` with `groups: [A.pbotID]` in the input
-- **THEN** the mutation MUST fail with a `ValidationError`
+- **THEN** the request MUST fail GraphQL validation, because `DeleteInput` declares no `groups` field
+- **AND** when `U` invokes `DeleteCollection(data: {pbotID: C.pbotID})`, the mutation MUST fail with a `ValidationError`
 
 #### Scenario: Comment checked against its root Synonym
 
