@@ -24,11 +24,11 @@
 
 - [x] 4.1 In delete mode, declare `mutation ($data: DeleteInput!)` instead of `${entity}Input!`
 - [x] 4.2 In delete mode, send `variables: {data: {pbotID: props.params.pbotID, cascade: props.params.cascade ?? false}}`. Check that every `*MutateResults` component passes `pbotID` in `params` for delete. `CharacterInstanceMutateResults` maps `characterInstance` to `pbotID`, so check it in particular.
-- [ ] 4.3 Optional: remove the stub fields from `CharacterInstanceDeleteDialog` in `CharacterAccordion.js:65-74`. Caveat: `CharacterInstanceMutateResults.js:13` calls `queryParams.state.split("~,")` without a guard, which is why the stub `state: "x~,y"` is there. Removing `state` without changing line 13 crashes the component with a `TypeError` before `Mutator` renders. Either guard line 13 (`queryParams.state?.split("~,")[1]`) or have the delete dialog render `Mutator` directly with `{pbotID}`.
+- [x] 4.3 Skipped (decided not to do it): remove the stub fields from `CharacterInstanceDeleteDialog` in `CharacterAccordion.js:65-74`. Caveat: `CharacterInstanceMutateResults.js:13` calls `queryParams.state.split("~,")` without a guard, which is why the stub `state: "x~,y"` is there. Removing `state` without changing line 13 crashes the component with a `TypeError` before `Mutator` renders. Either guard line 13 (`queryParams.state?.split("~,")[1]`) or have the delete dialog render `Mutator` directly with `{pbotID}`.
 
 ## 5. Coordinated deploy
 
-- [ ] 5.1 Commit the API and client changes on their `ddm-dev` branches and push both
+- [x] 5.1 Commit the API and client changes on their `ddm-dev` branches and push both
 - [ ] 5.2 Dev: pull the API (PM2 restarts it) and deploy the client in the same session
 - [ ] 5.3 Dev smoke test: delete the null-`purpose` Schema that failed before, try a cascade delete, delete a CharacterInstance, and check that a delete outside your groups is refused
 - [ ] 5.4 Prod: deploy the API and client together and repeat the smoke test
