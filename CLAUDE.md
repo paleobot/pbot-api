@@ -60,7 +60,7 @@ Core node types: `Person`, `Group`, `Reference`, `Schema`, `Character`, `State`,
 
 All data is scoped by **Groups** — a user's `cypherParams` inject a group membership prefix so queries only return data from groups the user belongs to.
 
-Soft-delete pattern: deleted nodes have their label changed from `NodeType` to `_NodeType`, and relationships archived as `_RELATIONSHIP_TYPE` with an `ENTERED_BY {type:"DELETE"}` audit edge.
+Soft-delete pattern: deleted nodes have their label changed from `NodeType` to `_NodeType`, and relationships archived as `_RELATIONSHIP_TYPE`. `handleDelete` writes an `ENTERED_BY {type:"DELETE", timestamp}` audit edge to the deleting Person, then archives all `ENTERED_BY` edges in the same step, so the delete record is stored as `_ENTERED_BY {type:"DELETE"}`.
 
 Every node tracks authorship via `ENTERED_BY` relationships to `Person`.
 

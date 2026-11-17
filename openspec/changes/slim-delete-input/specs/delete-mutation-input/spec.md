@@ -57,13 +57,13 @@ The OTU validations that check type specimens, the holotype and `publishedInRefe
 
 ### Requirement: The server SHALL set the delete author regardless of input
 
-The `enteredByPersonID` recorded on the `ENTERED_BY {type:"DELETE"}` edge SHALL be the authenticated caller's `pbotID`. A value the caller supplies in `DeleteInput.enteredByPersonID` SHALL be overwritten.
+The Person on the delete audit edge, `_ENTERED_BY {type:"DELETE"}` (written as `ENTERED_BY` and archived in the same delete), SHALL be the authenticated caller's `pbotID`. A value the caller supplies in `DeleteInput.enteredByPersonID` SHALL be overwritten.
 
 #### Scenario: Supplied enteredByPersonID is ignored
 
 - **GIVEN** an admin `U` and another Person `V`
 - **WHEN** `U` invokes `DeleteReference(data: {pbotID: R.pbotID, enteredByPersonID: V.pbotID})` and the delete succeeds
-- **THEN** the `ENTERED_BY {type:"DELETE"}` edge on `R` MUST point to `U`, not `V`
+- **THEN** the `_ENTERED_BY {type:"DELETE"}` edge on `R` MUST point to `U`, not `V`
 
 ### Requirement: Undeletable node types SHALL keep refusing deletes
 

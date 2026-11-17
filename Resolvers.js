@@ -896,7 +896,8 @@ const mutateNode = async (context, nodeType, data, type) => {
             throw new ValidationError(`A public ${nodeType} cannot be in other groups.`);
         }
     
-        if ("OTU" === nodeType) {
+        //Create/update validations only. A delete carries just {pbotID, cascade} (DeleteInput).
+        if ("OTU" === nodeType && "delete" !== type) {
             data.typeSpecimens.forEach(specimen => {
                 if (!data.identifiedSpecimens.includes(specimen)) {
                     throw new ValidationError(`Type specimens must also be identified specimens`);

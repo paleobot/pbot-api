@@ -806,6 +806,16 @@ type Query {
 Mutations overrides. We might want to think about only using these, rather than any generated mutations. 
     TODO: To make these true overrides, delete the 'Custom' prefix. """
 
+#Shared input for the mutateNode-backed deletes. A delete reads only the target ID and
+#the cascade flag, so a record missing required entity fields can still be deleted.
+#enteredByPersonID is overwritten by the server (addUserID). deleteCascade is server-only
+#and must NEVER be added here, or callers could skip the delete group check.
+input DeleteInput {
+    pbotID: String!
+    cascade: Boolean
+    enteredByPersonID: String
+}
+
 input GroupInput {
     pbotID: String
     name: String
@@ -1089,7 +1099,7 @@ type Mutation {
 
     CreateGroup(data: GroupInput!): Group! @neo4j_ignore
     UpdateGroup(data: GroupInput!): Group!  @neo4j_ignore
-    DeleteGroup(data: GroupInput!): Group! @neo4j_ignore
+    DeleteGroup(data: DeleteInput!): Group! @neo4j_ignore
 
         
     CreatePerson(data: PersonInput!): Person! @neo4j_ignore
@@ -1098,35 +1108,35 @@ type Mutation {
 
     CreateReference(data: ReferenceInput!): Reference! @neo4j_ignore
     UpdateReference(data: ReferenceInput!): Reference! @neo4j_ignore
-    DeleteReference(data: ReferenceInput!): Reference! @neo4j_ignore
+    DeleteReference(data: DeleteInput!): Reference! @neo4j_ignore
 
     CreateSchema(data: SchemaInput!): Schema! @neo4j_ignore
     UpdateSchema(data: SchemaInput!): Schema! @neo4j_ignore
-    DeleteSchema(data: SchemaInput!): Schema! @neo4j_ignore
+    DeleteSchema(data: DeleteInput!): Schema! @neo4j_ignore
     
     CreateCharacter(data: CharacterInput!): Character! @neo4j_ignore
     UpdateCharacter(data: CharacterInput!): Character! @neo4j_ignore
-    DeleteCharacter(data: CharacterInput!): Character! @neo4j_ignore
+    DeleteCharacter(data: DeleteInput!): Character! @neo4j_ignore
 
     CreateState(data: StateInput!): State! @neo4j_ignore
     UpdateState(data: StateInput!): State! @neo4j_ignore
-    DeleteState(data: StateInput!): State! @neo4j_ignore
+    DeleteState(data: DeleteInput!): State! @neo4j_ignore
 
     CreateOTU(data: OTUInput!): OTU! @neo4j_ignore
     UpdateOTU(data: OTUInput!): OTU! @neo4j_ignore
-    DeleteOTU(data: OTUInput!): OTU!  @neo4j_ignore
+    DeleteOTU(data: DeleteInput!): OTU!  @neo4j_ignore
 
     CreateSynonym(data: SynonymInput!): Synonym! @neo4j_ignore
     UpdateSynonym(data: SynonymInput!): Synonym! @neo4j_ignore
-    DeleteSynonym(data: SynonymInput!): Synonym!  @neo4j_ignore
+    DeleteSynonym(data: DeleteInput!): Synonym!  @neo4j_ignore
 
     CreateComment(data: CommentInput!): Comment! @neo4j_ignore
     UpdateComment(data: CommentInput!): Comment! @neo4j_ignore
-    DeleteComment(data: CommentInput!): Comment!  @neo4j_ignore
+    DeleteComment(data: DeleteInput!): Comment!  @neo4j_ignore
 
     CreateDescription(data: DescriptionInput!): Description! @neo4j_ignore
     UpdateDescription(data: DescriptionInput!): Description! @neo4j_ignore
-    DeleteDescription(data: DescriptionInput!): Description!  @neo4j_ignore
+    DeleteDescription(data: DeleteInput!): Description!  @neo4j_ignore
 
     """NOTE: Keeping CharacterInstance create and update here rather than in Resolvers.js because of the need 
     to check that the State is associated with the Character. It's too specific to fit with the generic approach 
@@ -1201,15 +1211,15 @@ type Mutation {
                 RETURN characterInstance
             """
         )
-    DeleteCharacterInstance(data: CharacterInstanceInput!): CharacterInstance! @neo4j_ignore
+    DeleteCharacterInstance(data: DeleteInput!): CharacterInstance! @neo4j_ignore
 
     CreateSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
     UpdateSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
-    DeleteSpecimen(data: SpecimenInput!): Specimen! @neo4j_ignore
+    DeleteSpecimen(data: DeleteInput!): Specimen! @neo4j_ignore
 
     CreateCollection(data: CollectionInput!): Collection! @neo4j_ignore
     UpdateCollection(data: CollectionInput!): Collection!  @neo4j_ignore
-    DeleteCollection(data: CollectionInput!): Collection! @neo4j_ignore
+    DeleteCollection(data: DeleteInput!): Collection! @neo4j_ignore
 
     CreateOrgan(data: OrganInput!): Organ! @neo4j_ignore
     UpdateOrgan(data: OrganInput!): Organ! @neo4j_ignore
@@ -1225,7 +1235,7 @@ type Mutation {
 
     CreateImage(data: ImageInput!): Image! @neo4j_ignore
     UpdateImage(data: ImageInput!): Image! @neo4j_ignore
-    DeleteImage(data: ImageInput!): Image! @neo4j_ignore
+    DeleteImage(data: DeleteInput!): Image! @neo4j_ignore
 
     UploadImage(image: Upload!, specimenID: String!): ImageReturn! @neo4j_ignore
 }
